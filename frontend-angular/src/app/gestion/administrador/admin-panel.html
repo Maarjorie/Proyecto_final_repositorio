@@ -1,0 +1,98 @@
+<main class="workspace-screen dashboard-screen">
+  <header class="workspace-header glass-panel">
+    <a class="brand" href="#inicio" (click)="$event.preventDefault(); navegar.emit('catalog')">
+      <img class="ues-crest" src="ues-escudo.png" alt="Escudo UES" />
+      <span class="brand-copy"><strong>SIS | Repositorio Digital</strong><small>Panel de administración · demostración</small></span>
+    </a>
+    <nav class="dashboard-nav">
+      <button type="button" (click)="navegar.emit('catalog')">Catálogo</button>
+      <button type="button" class="active" (click)="navegar.emit('admin')">Administración</button>
+      <button type="button" (click)="navegar.emit('supervisor')">Supervisión</button>
+      <button type="button" class="quiet-button" (click)="navegar.emit('login')">Salir</button>
+    </nav>
+  </header>
+
+  <section class="dashboard-heading">
+    <p class="eyebrow">CUENTA: ADMINISTRADOR</p>
+    <h1>Cuentas y acceso</h1>
+    <p class="view-intro">Crea cuentas y asigna roles. La aprobación y el retiro de trabajos corresponden al supervisor.</p>
+    <nav class="panel-anchor-nav" aria-label="Secciones del panel de administrador">
+      <a href="#create-account">Crear cuenta</a>
+      <a href="#user-roles">Usuarios y roles</a>
+      <a href="#role-definitions">Qué puede hacer cada rol</a>
+    </nav>
+  </section>
+
+  @if (repo.actionNotice()) {
+    <p class="inline-notice action-banner" role="status">{{ repo.actionNotice() }}</p>
+  }
+
+  <div class="stat-grid">
+    <article class="stat-card glass-panel"><span>Cuentas de muestra</span><strong>{{ repo.users().length }}</strong></article>
+    <article class="stat-card glass-panel"><span>Roles disponibles</span><strong>{{ roles.length }}</strong></article>
+    <article class="stat-card glass-panel"><span>Acceso</span><strong class="stat-text">Asignado por administrador</strong></article>
+  </div>
+
+  <section class="management-card glass-panel" id="create-account">
+    <div class="panel-title">
+      <div>
+        <h2>1. Crear cuenta interna</h2>
+        <p>El administrador puede crear cuentas de muestra y asignar roles internos. Las cuentas ordinarias pueden solicitar publicaciones sin un rol especial.</p>
+      </div>
+      <span class="demo-tag">DEMO</span>
+    </div>
+    <form class="add-user-form" (submit)="$event.preventDefault(); addUser()">
+      <label>Nombre de usuario<input name="newUsername" [ngModel]="newUsername()" (ngModelChange)="newUsername.set($event)" required /></label>
+      <label>Nombre de la persona<input name="newUserName" [ngModel]="newUserName()" (ngModelChange)="newUserName.set($event)" required /></label>
+      <button class="primary-button" type="submit">Agregar cuenta</button>
+    </form>
+  </section>
+
+  <section class="management-card glass-panel" id="user-roles">
+    <div class="panel-title">
+      <div><h2>2. Usuarios y roles</h2><p>Una cuenta puede tener más de un rol; nadie puede asignarse a sí mismo privilegios.</p></div>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Usuario</th><th>Nombre</th><th>Roles</th><th>Estado</th><th>Acceso</th></tr></thead>
+        <tbody>
+          @for (user of repo.users(); track user.id) {
+            <tr>
+              <td>{{ user.username }}</td>
+              <td>{{ user.name }}</td>
+              <td>
+                <div class="role-checks">
+                  @for (role of roles; track role) {
+                    <label>
+                      <input type="checkbox" [checked]="user.roles.includes(role)" [disabled]="user.id === 1"
+                        (change)="repo.changeUserRole(user.id, role, $any($event.target).checked)" />
+                      <span>{{ role }}</span>
+                    </label>
+                  }
+                </div>
+              </td>
+              <td>
+                <span class="status-pill" [class.status-active]="user.active" [class.status-rejected]="!user.active">{{ user.active ? 'Activo' : 'Inactivo' }}</span>
+              </td>
+              <td>
+                <button type="button" class="decision" [disabled]="user.id === 1" (click)="repo.changeUserActive(user.id)">{{ user.active ? 'Deshabilitar' : 'Habilitar' }}</button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <p class="inline-notice">Este panel es de demostración. El rol de administrador de la cuenta principal no se puede retirar desde aquí.</p>
+  </section>
+
+  <section class="management-card glass-panel" id="role-definitions">
+    <div class="panel-title">
+      <div><h2>3. Roles internos</h2><p>Solicitar la publicación de un proyecto es opcional para cualquier cuenta; no es un rol.</p></div>
+    </div>
+    <div class="role-grid">
+      <article class="role-card"><h3>Administrador</h3><p>Gestiona cuentas y asigna roles internos.</p></article>
+      <article class="role-card"><h3>Supervisor</h3><p>Revisa entregas, decide y controla publicaciones.</p></article>
+      <article class="role-card"><h3>Lector</h3><p>Consulta el catálogo y puede solicitar la publicación de un proyecto si lo desea.</p></article>
+    </div>
+  </section>
+</main>

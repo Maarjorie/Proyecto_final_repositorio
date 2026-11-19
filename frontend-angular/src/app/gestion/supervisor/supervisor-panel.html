@@ -1,0 +1,204 @@
+<main class="workspace-screen dashboard-screen">
+  <header class="workspace-header glass-panel">
+    <a class="brand" href="#inicio" (click)="$event.preventDefault(); navegar.emit('catalog')">
+      <img class="ues-crest" src="ues-escudo.png" alt="Escudo UES" />
+      <span class="brand-copy"><strong>SIS | Repositorio Digital</strong><small>Panel de supervisión · demostración</small></span>
+    </a>
+    <nav class="dashboard-nav">
+      <button type="button" (click)="navegar.emit('catalog')">Catálogo</button>
+      <button type="button" class="active" (click)="navegar.emit('supervisor')">Supervisión</button>
+      <button type="button" (click)="navegar.emit('admin')">Administración</button>
+      <button type="button" class="quiet-button" (click)="navegar.emit('login')">Salir</button>
+    </nav>
+  </header>
+
+  <section class="dashboard-heading">
+    <p class="eyebrow">CUENTA: SUPERVISOR</p>
+    <h1>Revisión y publicación</h1>
+    <p class="view-intro">Revisa las entregas, registra una decisión y confirma el permiso de difusión antes de publicar.</p>
+    <nav class="panel-anchor-nav" aria-label="Secciones del panel de supervisor">
+      <a href="#pending-review">Pendientes <span>{{ repo.pendingCount() }}</span></a>
+      <a href="#published-works">Publicaciones</a>
+      <a href="#review-report">Informe</a>
+      <a href="#review-history">Historial</a>
+      <a href="#supervisor-notices">Avisos</a>
+    </nav>
+  </section>
+
+  @if (repo.actionNotice()) {
+    <p class="inline-notice action-banner" role="status">{{ repo.actionNotice() }}</p>
+  }
+
+  <div class="stat-grid">
+    <article class="stat-card glass-panel"><span>Entregas pendientes</span><strong>{{ repo.pendingCount() }}</strong></article>
+    <article class="stat-card glass-panel"><span>Publicaciones vigentes</span><strong>{{ repo.publishedCount() }}</strong></article>
+    <article class="stat-card glass-panel"><span>Notificaciones internas</span><strong>{{ repo.unreadSupervisorNoticeCount() }}</strong></article>
+  </div>
+
+  <!-- 1. Entregas pendientes -->
+  <section class="management-card glass-panel" id="pending-review">
+    <div class="panel-title">
+      <div><h2>1. Entregas pendientes</h2><p>Se ordenan de la más antigua a la más reciente. Cada decisión aplica a una versión.</p></div>
+      <span class="demo-tag">{{ repo.pendingCount() }} PENDIENTES</span>
+    </div>
+    <div class="submission-list">
+      @for (item of repo.pendingDeliveries(); track item.id) {
+        <article class="submission-card review-card">
+          <div class="submission-info">
+            <span class="status-pill status-pending">{{ item.status }} · v{{ item.version }}</span>
+            <h3>{{ item.data.title }}</h3>
+            <p>Solicitante: {{ item.requester }} · Recibida: {{ dateLabel(item.receivedAt) }}</p>
+            <p>Autores: {{ item.data.authors.join(', ') }} · {{ item.data.year }} · {{ item.data.area }}</p>
+            <p>{{ item.data.summary }}</p>
+
+            <div class="resource-review">
+              <strong>Materiales recibidos</strong>
+              @for (resource of item.resources; track resource.id) {
+                <label class="check-option">
+                  <input type="checkbox" [checked]="item.approvedResourceIds.includes(resource.id)" (change)="repo.toggleResourcePermission(item.id, resource.id)" />
+                  <span>{{ resource.name }} ({{ resource.kind }}) · autorizar difusión</span>
+                </label>
+              } @empty {
+                <small>No se adjuntaron materiales.</small>
+              }
+            </div>
+
+            <label class="permission-field">Permiso de difusión
+              <select [ngModel]="item.permission" (ngModelChange)="repo.changePermission(item.id, $event)" [name]="'permission-' + item.id">
+                <option>Pendiente</option>
+                <option>Solo ficha</option>
+                <option>Ficha y materiales autorizados</option>
+              </select>
+            </label>
+
+            @if (item.data.advisor) {
+              <label class="check-option advisor-consent">
+                <input type="checkbox" [checked]="item.data.advisorAllowed" (change)="repo.toggleAdvisorPermission(item.id)" />
+                <span>Permiso para mostrar al docente asesor en la ficha</span>
+              </label>
+            }
+
+            <label class="permission-field">Observaciones o motivo
+              <textarea rows="2" [ngModel]="reviewNotes()[item.id] || ''" (ngModelChange)="setReviewNote(item.id, $event)" [name]="'note-' + item.id" placeholder="Obligatorio para pedir correcciones o rechazar"></textarea>
+            </label>
+            <small>La decisión queda ligada a la versión, la fecha y el revisor. Si se solicita corrección, se registra como nueva entrega.</small>
+          </div>
+          <div class="decision-actions">
+            <button type="button" class="decision approve" (click)="decidir(item.id, 'Aprobada')">Aprobar</button>
+            <button type="button" class="decision corrections" (click)="decidir(item.id, 'Con correcciones')">Pedir correcciones</button>
+            <button type="button" class="decision reject" (click)="decidir(item.id, 'Rechazada')">Rechazar</button>
+          </div>
+        </article>
+      } @empty {
+        <div class="empty-state"><p>No hay entregas pendientes de revisión.</p></div>
+      }
+    </div>
+  </section>
+
+  <!-- 2. Publicaciones vigentes -->
+  <section class="management-card glass-panel" id="published-works">
+    <div class="panel-title">
+      <div><h2>2. Publicaciones vigentes</h2><p>Retirar requiere un motivo y deja de mostrar el trabajo en el catálogo.</p></div>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Trabajo</th><th>Permiso</th><th>Estado público</th><th>Acciones de supervisión</th></tr></thead>
+        <tbody>
+          @for (work of repo.works(); track work.id) {
+            @if (work.published) {
+              <tr>
+                <td>{{ work.title }}<small class="table-subline">{{ work.year }} · {{ work.area }}</small></td>
+                <td>{{ work.permission }}</td>
+                <td>Publicado</td>
+                <td class="row-actions">
+                  <button class="decision" type="button" (click)="repo.toggleFeatured(work.id)">{{ work.featured ? 'Quitar destacado' : 'Destacar' }}</button>
+                  <button class="decision reject" type="button" (click)="beginWithdrawal(work.id)">Retirar</button>
+                </td>
+              </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 3. Informe -->
+  <section class="management-card glass-panel" id="review-report">
+    <div class="panel-title">
+      <div><h2>3. Informe</h2><p>Proyectos publicados por año y área; cada proyecto se cuenta una sola vez.</p></div>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Año</th><th>Área temática</th><th>Proyectos publicados</th></tr></thead>
+        <tbody>
+          @for (row of repo.reportRows(); track row.year + row.area) {
+            <tr><td>{{ row.year }}</td><td>{{ row.area }}</td><td>{{ row.count }}</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 4. Historial -->
+  <section class="management-card glass-panel" id="review-history">
+    <div class="panel-title">
+      <div><h2>4. Historial de revisiones</h2><p>La decisión, persona revisora y fecha quedan asociadas a cada versión.</p></div>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Trabajo</th><th>Versión</th><th>Solicitante</th><th>Estado</th><th>Revisor</th><th>Fecha de recepción</th><th>Decisión / observación</th></tr></thead>
+        <tbody>
+          @for (item of repo.submissions(); track item.id) {
+            <tr>
+              <td>{{ item.data.title }}</td>
+              <td>v{{ item.version }}</td>
+              <td>{{ item.requester }}</td>
+              <td>
+                <span class="status-pill"
+                  [class.status-pending]="item.status === 'Pendiente'"
+                  [class.status-approved]="item.status === 'Aprobada'"
+                  [class.status-corrections]="item.status === 'Con correcciones'"
+                  [class.status-rejected]="item.status === 'Rechazada'">{{ item.status }}</span>
+              </td>
+              <td>{{ item.reviewer || 'Pendiente' }}</td>
+              <td>{{ dateLabel(item.receivedAt) }}</td>
+              <td>{{ item.note || '—' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 5. Avisos -->
+  <section class="management-card glass-panel" id="supervisor-notices">
+    <div class="panel-title">
+      <div><h2>5. Avisos internos</h2><p>El canal externo para avisar queda pendiente de acuerdo.</p></div>
+    </div>
+    @for (notice of repo.notices(); track notice.id) {
+      @if (notice.audience === 'Supervisor') {
+        <button type="button" class="notice-row" [class.notice-read]="notice.read" (click)="repo.toggleNoticeRead(notice.id)">
+          <strong>{{ notice.text }}</strong>
+          <span>{{ dateLabel(notice.at) }} · {{ notice.read ? 'Leído' : 'Marcar leído' }}</span>
+        </button>
+      }
+    }
+  </section>
+
+  @if (withdrawTarget(); as target) {
+    <div class="dialog-backdrop">
+      <section class="work-dialog glass-panel" role="dialog" aria-modal="true" aria-labelledby="withdraw-title">
+        <h2 id="withdraw-title">Retirar publicación</h2>
+        <p>El trabajo dejará de aparecer en búsquedas y su enlace público dejará de estar disponible.</p>
+        <label class="permission-field">Motivo del retiro
+          <textarea rows="3" [ngModel]="withdrawReason()" (ngModelChange)="withdrawReason.set($event)" name="withdrawReason"></textarea>
+        </label>
+        <div class="form-actions">
+          <button type="button" class="decision reject" (click)="confirmWithdrawal()">Confirmar retiro</button>
+          <button type="button" class="secondary-button" (click)="cancelWithdrawal()">Cancelar</button>
+        </div>
+        <small>Trabajo seleccionado: #{{ target }}</small>
+      </section>
+    </div>
+  }
+</main>
