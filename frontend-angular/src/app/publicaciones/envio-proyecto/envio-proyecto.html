@@ -1,0 +1,266 @@
+<header class="site-header">
+  <a class="brand" href="#catalogo" aria-label="UES Repositorio Digital">
+    <img
+      class="ues-crest"
+      src="ues-escudo.png"
+      alt="Escudo de la Universidad de El Salvador"
+    >
+    <span class="brand-copy">
+      <strong>UES | Repositorio Digital</strong>
+      <small>Universidad de El Salvador</small>
+    </span>
+  </a>
+
+  <nav class="main-nav" aria-label="Navegación principal">
+    <a href="#catalogo">Catálogo</a>
+    <a href="#mis-proyectos">Mis proyectos</a>
+    <a class="activo" href="#subir-proyecto" aria-current="page">Subir proyecto</a>
+    <a href="#notificaciones">Notificaciones</a>
+  </nav>
+</header>
+
+<main class="pagina-publicacion" id="subir-proyecto">
+  <section class="encabezado-pagina">
+    <p class="miga">Repositorio / Solicitar publicación</p>
+    <p class="etiqueta">REPOSITORIO ACADÉMICO · UNIVERSIDAD DE EL SALVADOR</p>
+    <h1>Solicitar publicación de proyecto</h1>
+    <p class="descripcion">Envía tu trabajo para revisión.</p>
+  </section>
+
+  <section class="tarjeta-publicacion">
+    <div class="encabezado-formulario">
+      <div>
+        <p class="etiqueta">FORMULARIO DE ENVÍO</p>
+        <h2>Datos del proyecto</h2>
+        
+      </div>
+      <span class="paso">01 <small>/ 01</small></span>
+    </div>
+
+    <form class="formulario" (submit)="enviarSolicitud($event)">
+      <div class="campo">
+        <label for="titulo">Título del proyecto</label>
+        <input
+          id="titulo"
+          name="titulo"
+          type="text"
+          maxlength="300"
+          placeholder="Escribe el título completo"
+          required
+        >
+      </div>
+
+      <fieldset class="grupo-autores">
+        <legend>Autores</legend>
+        <p class="ayuda">Registra cada autor por separado. El carnet es opcional.</p>
+
+        @for (autor of autores; track $index; let i = $index) {
+          <div class="fila autor-fila">
+            <div class="campo">
+              <label [for]="'nombres-autor-' + i">Nombres</label>
+              <input
+                [id]="'nombres-autor-' + i"
+                type="text"
+                maxlength="100"
+                [value]="autor.nombres"
+                (input)="actualizarAutor(i, 'nombres', $event)"
+                placeholder="Nombres"
+                required
+              >
+            </div>
+
+            <div class="campo">
+              <label [for]="'apellidos-autor-' + i">Apellidos</label>
+              <input
+                [id]="'apellidos-autor-' + i"
+                type="text"
+                maxlength="100"
+                [value]="autor.apellidos"
+                (input)="actualizarAutor(i, 'apellidos', $event)"
+                placeholder="Apellidos"
+                required
+              >
+            </div>
+
+            <div class="campo">
+              <label [for]="'carnet-autor-' + i">Carnet (opcional)</label>
+              <input
+                [id]="'carnet-autor-' + i"
+                type="text"
+                maxlength="20"
+                [value]="autor.carnet"
+                (input)="actualizarAutor(i, 'carnet', $event)"
+                placeholder="Carnet"
+              >
+            </div>
+
+            @if (autores.length > 1) {
+              <button
+                class="boton-secundario"
+                type="button"
+                (click)="quitarAutor(i)"
+              >
+                Quitar
+              </button>
+            }
+          </div>
+        }
+
+        <button class="boton-secundario boton-ancho" type="button" (click)="agregarAutor()">
+          Agregar otro autor
+        </button>
+      </fieldset>
+
+      <div class="fila">
+        <div class="campo">
+          <label for="anio">Año del trabajo</label>
+          <input
+            id="anio"
+            name="anio"
+            type="number"
+            min="1"
+            max="9999"
+            placeholder="Ej. 2026"
+            required
+          >
+        </div>
+
+        <div class="campo">
+          <label for="tipoProyecto">Tipo de trabajo</label>
+          <select
+            id="tipoProyecto"
+            name="tipoProyecto"
+            required
+            (change)="actualizarTipoProyecto($event)"
+          >
+            <option value="">Selecciona el tipo</option>
+            <option value="trabajo-grado">Trabajo de grado</option>
+            <option value="proyecto-curso">Proyecto de curso</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="fila">
+        <div class="campo">
+          <label for="carrera">Carrera</label>
+          <select id="carrera" name="carrera" required>
+            <option value="">Selecciona la carrera</option>
+            @for (carrera of carreras; track carrera.id) {
+              <option [value]="carrera.id">{{ carrera.nombre }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="campo">
+          <label for="tematica">Área temática</label>
+          <select id="tematica" name="tematica" required>
+            <option value="">Selecciona el área temática</option>
+            @for (tematica of tematicas; track tematica.id) {
+              <option [value]="tematica.id">{{ tematica.nombre }}</option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <div class="campo" [hidden]="tipoProyecto !== 'proyecto-curso'">
+        <label for="materia">Asignatura (opcional)</label>
+        <select id="materia" name="materia">
+          <option value="">Selecciona una asignatura si aplica</option>
+          @for (materia of materias; track materia.id) {
+            <option [value]="materia.id">{{ materia.nombre }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="campo">
+        <label for="resumen">Resumen del proyecto</label>
+        <textarea
+          id="resumen"
+          name="resumen"
+          rows="5"
+          placeholder="Describe brevemente el proyecto."
+          required
+        ></textarea>
+      </div>
+
+      <div class="campo">
+        <label for="palabrasClave">Palabras clave (opcional)</label>
+        <textarea
+          id="palabrasClave"
+          name="palabrasClave"
+          rows="2"
+          placeholder="Escribe una palabra clave por línea"
+          (input)="actualizarPalabrasClave($event)"
+        ></textarea>
+      </div>
+
+      <fieldset class="recursos">
+        <legend>Materiales del proyecto</legend>
+        <p class="ayuda">
+          Agrega al menos un recurso. Para trabajo de grado se requiere el PDF completo.
+        </p>
+
+        <div class="campo">
+          <label for="pdfs">Documentos PDF </label>
+          <input
+            id="pdfs"
+            name="pdfs"
+            type="file"
+            accept=".pdf,application/pdf"
+            multiple
+            (change)="actualizarPdfs($event)"
+          >
+          <small>Puedes seleccionar el documento principal.</small>
+          <small [hidden]="pdfs.length === 0">
+            {{ pdfs.length }} PDF seleccionados.
+          </small>
+        </div>
+
+        <div class="campo">
+          <label for="archivosZip">Archivos ZIP</label>
+          <input
+            id="archivosZip"
+            name="archivosZip"
+            type="file"
+            accept=".zip,application/zip"
+            multiple
+            (change)="actualizarZips($event)"
+          >
+          <small>Si necesitas enviar una carpeta, comprímela como ZIP.</small>
+          <small [hidden]="archivosZip.length === 0">
+            {{ archivosZip.length }} ZIP seleccionados.
+          </small>
+        </div>
+
+        <div class="campo">
+          <label for="enlaces">Enlaces</label>
+          <textarea
+            id="enlaces"
+            name="enlaces"
+            rows="3"
+            placeholder="Agrega un enlace por línea: https://..."
+            (input)="actualizarEnlaces($event)"
+          ></textarea>
+          <small [hidden]="enlaces.length === 0">
+            {{ enlaces.length }} enlace(s) agregados.
+          </small>
+        </div>
+
+        <p class="contador-recursos">Recursos agregados: {{ totalRecursos }}</p>
+
+        <p class="mensaje-error" [hidden]="mensajeError.length === 0" role="alert">
+          {{ mensajeError }}
+        </p>
+      </fieldset>
+
+      <aside class="aviso-permiso">
+        El permiso de difusión y los materiales autorizados se registrarán durante la revisión.
+      </aside>
+
+      <button class="boton-enviar" type="submit">
+        Enviar solicitud para revisión
+      </button>
+
+    </form>
+  </section>
+</main>

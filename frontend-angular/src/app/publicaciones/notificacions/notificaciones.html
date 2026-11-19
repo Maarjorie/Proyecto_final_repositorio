@@ -1,0 +1,73 @@
+<header class="site-header">
+  <a class="brand" href="/" aria-label="UES Repositorio Digital, inicio">
+    <img src="/ues-escudo.png" alt="Escudo de la Universidad de El Salvador">
+    <span>
+      <strong>UES | Repositorio Digital</strong>
+      <small>Universidad de El Salvador</small>
+    </span>
+  </a>
+
+  <nav class="main-nav" aria-label="Navegación principal">
+    <a href="#catalogo">Catálogo</a>
+    <a href="#mis-proyectos">Mis proyectos</a>
+    <a href="#subir-proyecto">Subir proyecto</a>
+    <a class="activo" href="#notificaciones">Notificaciones</a>
+  </nav>
+</header>
+
+<main class="pagina-notificaciones">
+  <p class="breadcrumb">Repositorio / Área personal / Notificaciones</p>
+
+  <section class="intro">
+    <p class="etiqueta">ÁREA PERSONAL</p>
+    <h1>Notificaciones</h1>
+    <p>
+      Aquí recibirás avisos relacionados con la revisión de tus proyectos,
+      como solicitudes de corrección y decisiones del supervisor.
+    </p>
+  </section>
+
+  <section class="panel-notificaciones">
+    <div class="encabezado-seccion">
+      <div>
+        <p class="etiqueta">AVISOS DE TUS PROYECTOS</p>
+        <h2>Tus notificaciones</h2>
+      </div>
+      <span class="contador">{{ notificaciones.length }} avisos</span>
+    </div>
+
+    @if (notificaciones.length > 0) {
+      <div class="lista-notificaciones">
+        @for (notificacion of notificaciones; track notificacion.id) {
+          <article class="tarjeta-notificacion">
+            <div class="notificacion-superior">
+              <span
+                class="tipo-notificacion"
+                [class.correcciones]="notificacion.tipo === 'Correcciones solicitadas'"
+                [class.aprobado]="notificacion.tipo === 'Proyecto aprobado'"
+                [class.rechazado]="notificacion.tipo === 'Proyecto rechazado'">
+                {{ notificacion.tipo }}
+              </span>
+
+              <span class="estado-lectura">
+                {{ notificacion.leida ? 'Leída' : 'Nueva' }}
+              </span>
+            </div>
+
+            <h3>{{ notificacion.tituloProyecto }}</h3>
+            <p>{{ notificacion.mensaje }}</p>
+            <small>{{ notificacion.fecha }}</small>
+          </article>
+        }
+      </div>
+    } @else {
+      <div class="estado-vacio">
+        <h3>No tienes notificaciones por el momento</h3>
+        <p>
+          Aquí aparecerán los avisos cuando haya observaciones,
+          correcciones o decisiones sobre tus proyectos.
+        </p>
+      </div>
+    }
+  </section>
+</main>

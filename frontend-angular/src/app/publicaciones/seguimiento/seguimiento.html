@@ -1,0 +1,111 @@
+<header class="site-header">
+  <a class="brand" href="/" aria-label="UES Repositorio Digital, inicio">
+    <img src="/ues-escudo.png" alt="Escudo de la Universidad de El Salvador">
+    <span>
+      <strong>UES | Repositorio Digital</strong>
+      <small>Universidad de El Salvador</small>
+    </span>
+  </a>
+
+  <nav class="main-nav" aria-label="Navegación principal">
+    <a href="/">Catálogo</a>
+    <a class="activo" href="#mis-proyectos">Mis proyectos</a>
+    <a href="#subir-proyecto">Subir proyecto</a>
+    <a href="#notificaciones">Notificaciones</a>
+    
+  </nav>
+</header>
+
+<main class="pagina-seguimiento">
+  <p class="breadcrumb">Repositorio / Área personal / Mis proyectos</p>
+
+  <section class="intro">
+    <p class="etiqueta">ÁREA PERSONAL</p>
+    <h1>Mis proyectos</h1>
+    <p>
+      Consulta tus trabajos enviados, revisa su estado y atiende las
+      observaciones del supervisor.
+    </p>
+  </section>
+
+  <section class="panel-seccion" id="notificaciones">
+    <div class="encabezado-seccion">
+      <div>
+        <p class="etiqueta">AVISOS DE TU CUENTA</p>
+        <h2>Notificaciones</h2>
+      </div>
+    </div>
+
+    @if (notificaciones.length > 0) {
+      <div class="lista-notificaciones">
+        @for (notificacion of notificaciones; track notificacion.id) {
+          <article class="notificacion">
+            <span class="punto-notificacion" aria-hidden="true"></span>
+            <div>
+              <p>{{ notificacion.mensaje }}</p>
+              <small>{{ notificacion.fecha }}</small>
+            </div>
+            @if (!notificacion.leida) {
+              <span class="etiqueta-nueva">Nueva</span>
+            }
+          </article>
+        }
+      </div>
+    } @else {
+      <p class="estado-vacio">No tienes notificaciones por el momento.</p>
+    }
+  </section>
+
+  <section class="seccion-proyectos" id="mis-proyectos">
+    <div class="encabezado-seccion">
+      <div>
+        <p class="etiqueta">TUS ENVÍOS</p>
+        <h2>Proyectos enviados</h2>
+      </div>
+      <span class="contador">{{ proyectos.length }} proyectos</span>
+    </div>
+
+    @if (proyectos.length > 0) {
+      <div class="lista-proyectos">
+        @for (proyecto of proyectos; track proyecto.id) {
+          <article class="tarjeta-proyecto">
+            <div class="proyecto-cabecera">
+              <div>
+                <span class="tipo-trabajo">{{ proyecto.tipoTrabajo }}</span>
+                <h3>{{ proyecto.titulo }}</h3>
+              </div>
+              <span
+                class="estado"
+                [class.pendiente]="proyecto.estado === 'Pendiente'"
+                [class.correcciones]="proyecto.estado === 'Con correcciones'"
+                [class.aprobada]="proyecto.estado === 'Aprobada'"
+                [class.rechazada]="proyecto.estado === 'Rechazada'">
+                {{ proyecto.estado }}
+              </span>
+            </div>
+
+            <div class="datos-proyecto">
+              <span>Enviado: <strong>{{ proyecto.fechaEnvio }}</strong></span>
+              <span>Versión: <strong>{{ proyecto.version }}</strong></span>
+            </div>
+
+            @if (proyecto.observacion) {
+              <div class="observacion">
+                <strong>Observación del supervisor</strong>
+                <p>{{ proyecto.observacion }}</p>
+              </div>
+            }
+          </article>
+        }
+      </div>
+    } @else {
+      <div class="estado-vacio">
+        <h3>Aún no has enviado proyectos</h3>
+        <p>
+          Cuando envíes un trabajo desde tu cuenta, aquí podrás consultar
+          su estado, observaciones e historial de versiones.
+        </p>
+      </div>
+    }
+  </section>
+</main>
