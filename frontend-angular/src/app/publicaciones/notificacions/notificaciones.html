@@ -12,6 +12,9 @@
     <a routerLink="/mis-proyectos" routerLinkActive="activo">Mis proyectos</a>
     <a routerLink="/publicar" routerLinkActive="activo">Subir proyecto</a>
     <a routerLink="/notificaciones" routerLinkActive="activo">Notificaciones</a>
+    @if (esSupervisor) {
+      <a routerLink="/revision-supervisor" routerLinkActive="activo">Revisión supervisor</a>
+    }
   </nav>
 </header>
 

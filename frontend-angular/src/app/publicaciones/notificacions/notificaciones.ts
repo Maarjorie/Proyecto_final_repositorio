@@ -1,3 +1,4 @@
+import { usuarioTieneRol } from '../../auth/auth.guard';
 import { Component } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 
@@ -23,5 +24,6 @@ export interface Notificacion {
   styleUrl: './notificaciones.css'
 })
 export class NotificacionesComponent {
+  readonly esSupervisor = usuarioTieneRol('supervisor');
   notificaciones: Notificacion[] = [];
 }

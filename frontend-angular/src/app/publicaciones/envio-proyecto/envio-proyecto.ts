@@ -1,5 +1,9 @@
-import { Component } from '@angular/core';
+import { usuarioTieneRol } from '../../auth/auth.guard';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { Component, inject, OnInit } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
+import { firstValueFrom, retry } from 'rxjs';
+import { AUTH_TOKEN_KEY } from '../../auth/auth.constants';
 
 interface AutorFormulario {
   nombres: string;
@@ -12,6 +16,22 @@ interface OpcionCatalogo {
   nombre: string;
 }
 
+interface RespuestaEnvio {
+  idProyecto: number;
+  idEntrega: number;
+  estado: string;
+  publicado: boolean;
+  mensaje: string;
+}
+
+type DepartamentoCatalogo = OpcionCatalogo;
+
+interface CarreraCatalogo extends OpcionCatalogo {
+  departamentoId: number;
+}
+
+const API_URL = 'https://localhost:7244/api';
+
 @Component({
   selector: 'app-envio-proyecto',
   standalone: true,
@@ -19,7 +39,9 @@ interface OpcionCatalogo {
   templateUrl: './envio-proyecto.html',
   styleUrl: './envio-proyecto.css'
 })
-export class EnvioProyectoComponent {
+export class EnvioProyectoComponent implements OnInit {
+  private readonly http = inject(HttpClient);
+
   autores: AutorFormulario[] = [
     { nombres: '', apellidos: '', carnet: '' }
   ];
@@ -29,13 +51,123 @@ export class EnvioProyectoComponent {
   enlaces: string[] = [];
   palabrasClave: string[] = [];
   mensajeError = '';
+  mensajeExito = '';
   tipoProyecto = '';
+  enviando = false;
+  solicitudEnviada = false;
+  readonly esSupervisor = usuarioTieneRol('supervisor');
 
-  // Se llenarán desde la base cuando se conecte la API.
-  carreras: OpcionCatalogo[] = [];
+  departamentos: DepartamentoCatalogo[] = [];
+  carreras: CarreraCatalogo[] = [];
+  tiposProyecto: OpcionCatalogo[] = [];
   tematicas: OpcionCatalogo[] = [];
   materias: OpcionCatalogo[] = [];
 
+  departamentoSeleccionado = '';
+  carreraSeleccionada = '';
+
+  get carrerasFiltradas(): CarreraCatalogo[] {
+    const idDepartamento = Number(this.departamentoSeleccionado);
+
+    if (!idDepartamento) {
+      return [];
+    }
+
+    return this.carreras.filter(
+      carrera => carrera.departamentoId === idDepartamento
+    );
+  }
+
+  get tipoProyectoSeleccionado(): OpcionCatalogo | undefined {
+    return this.tiposProyecto.find(tipo => tipo.id === Number(this.tipoProyecto));
+  }
+
+  get esProyectoCurso(): boolean {
+    return this.tipoProyectoSeleccionado?.nombre.toLowerCase().includes('curso') ?? false;
+  }
+
+  formatearNombre(nombre: string): string {
+    return nombre.length === 0
+      ? nombre
+      : nombre.charAt(0).toLocaleUpperCase('es-SV') + nombre.slice(1);
+  }
+
+  ngOnInit(): void {
+    this.cargarCatalogo<DepartamentoCatalogo>(
+      '/catalogos/departamentos',
+      'repositorio.catalogos.departamentos',
+      datos => this.departamentos = datos,
+      'No se pudieron cargar los departamentos.'
+    );
+
+    this.cargarCatalogo<CarreraCatalogo>(
+      '/catalogos/carreras',
+      'repositorio.catalogos.carreras',
+      datos => this.carreras = datos,
+      'No se pudieron cargar las carreras.'
+    );
+
+    this.cargarCatalogo<OpcionCatalogo>(
+      '/catalogos/tipos-proyecto',
+      'repositorio.catalogos.tipos-proyecto',
+      datos => this.tiposProyecto = datos,
+      'No se pudieron cargar los tipos de proyecto.'
+    );
+
+    this.cargarCatalogo<OpcionCatalogo>(
+      '/catalogos/tematicas',
+      'repositorio.catalogos.tematicas',
+      datos => this.tematicas = datos,
+      'No se pudieron cargar las áreas temáticas.'
+    );
+  }
+
+  private cargarCatalogo<T>(
+    endpoint: string,
+    claveCache: string,
+    aplicar: (datos: T[]) => void,
+    mensajeError: string
+  ): void {
+    const datosGuardados = this.leerCatalogo<T>(claveCache);
+
+    if (datosGuardados) {
+      aplicar(datosGuardados);
+    }
+
+    this.http
+      .get<T[]>(API_URL + endpoint)
+      .pipe(retry({ count: 2, delay: 500 }))
+      .subscribe({
+        next: datos => {
+          aplicar(datos);
+          try {
+            globalThis.sessionStorage.setItem(claveCache, JSON.stringify(datos));
+          } catch {
+            // El formulario sigue funcionando aunque el navegador bloquee el almacenamiento.
+          }
+        },
+        error: error => {
+          console.error('Error al cargar catálogo ' + endpoint + ':', error);
+          if (!datosGuardados) {
+            this.mensajeError = mensajeError;
+          }
+        }
+      });
+  }
+
+  private leerCatalogo<T>(claveCache: string): T[] | null {
+    try {
+      const contenido = globalThis.sessionStorage.getItem(claveCache);
+      if (!contenido) {
+        return null;
+      }
+
+      const datos: unknown = JSON.parse(contenido);
+      return Array.isArray(datos) ? datos as T[] : null;
+    } catch {
+      return null;
+    }
+  }
   get totalRecursos(): number {
     return this.pdfs.length + this.archivosZip.length + this.enlaces.length;
   }
@@ -65,22 +197,34 @@ export class EnvioProyectoComponent {
     autor[campo] = input.value;
   }
 
+  actualizarDepartamento(event: Event): void {
+    this.departamentoSeleccionado =
+      (event.target as HTMLSelectElement).value;
+    this.carreraSeleccionada = '';
+    this.limpiarMensajes();
+  }
+
+  actualizarCarrera(event: Event): void {
+    this.carreraSeleccionada =
+      (event.target as HTMLSelectElement).value;
+    this.limpiarMensajes();
+  }
+
   actualizarTipoProyecto(event: Event): void {
-    const select = event.target as HTMLSelectElement;
-    this.tipoProyecto = select.value;
-    this.mensajeError = '';
+    this.tipoProyecto = (event.target as HTMLSelectElement).value;
+    this.limpiarMensajes();
   }
 
   actualizarPdfs(event: Event): void {
     const input = event.target as HTMLInputElement;
     this.pdfs = Array.from(input.files ?? []);
-    this.mensajeError = '';
+    this.limpiarMensajes();
   }
 
   actualizarZips(event: Event): void {
     const input = event.target as HTMLInputElement;
     this.archivosZip = Array.from(input.files ?? []);
-    this.mensajeError = '';
+    this.limpiarMensajes();
   }
 
   actualizarEnlaces(event: Event): void {
@@ -91,7 +235,7 @@ export class EnvioProyectoComponent {
       .map(enlace => enlace.trim())
       .filter(enlace => enlace.length > 0);
 
-    this.mensajeError = '';
+    this.limpiarMensajes();
   }
 
   actualizarPalabrasClave(event: Event): void {
@@ -101,6 +245,11 @@ export class EnvioProyectoComponent {
       .split('\n')
       .map(palabra => palabra.trim())
       .filter(palabra => palabra.length > 0);
+  }
+
+  private limpiarMensajes(): void {
+    this.mensajeError = '';
+    this.mensajeExito = '';
   }
 
   private enlacesValidos(): boolean {
@@ -114,8 +263,29 @@ export class EnvioProyectoComponent {
     });
   }
 
-  enviarSolicitud(event: Event): void {
+  private valorFormulario(
+    formulario: HTMLFormElement,
+    nombre: string
+  ): string {
+    const control = formulario.elements.namedItem(nombre);
+
+    if (
+      control instanceof HTMLInputElement ||
+      control instanceof HTMLSelectElement ||
+      control instanceof HTMLTextAreaElement
+    ) {
+      return control.value.trim();
+    }
+
+    return '';
+  }
+
+  async enviarSolicitud(event: Event): Promise<void> {
     event.preventDefault();
+
+    if (this.enviando || this.solicitudEnviada) {
+      return;
+    }
 
     const formulario = event.target as HTMLFormElement;
 
@@ -125,30 +295,115 @@ export class EnvioProyectoComponent {
     }
 
     if (this.totalRecursos === 0) {
-      this.mensajeError = 'Agrega al menos un PDF, un enlace o un archivo ZIP.';
+      this.mensajeError =
+        'Agrega al menos un PDF, un enlace o un archivo ZIP.';
       return;
     }
 
     if (!this.enlacesValidos()) {
-      this.mensajeError = 'Revisa los enlaces. Deben comenzar con http:// o https://.';
+      this.mensajeError =
+        'Revisa los enlaces. Deben comenzar con http:// o https://.';
       return;
     }
 
-    const esTrabajoDeGrado = this.tipoProyecto === 'trabajo-grado';
+    const nombreTipo = this.tipoProyectoSeleccionado?.nombre.toLowerCase() ?? '';
+    const requierePdf =
+      nombreTipo.includes('tesis') || nombreTipo.includes('graduación');
     const tienePdf = this.pdfs.some(
       archivo => archivo.name.toLowerCase().endsWith('.pdf')
     );
 
-    if (esTrabajoDeGrado && !tienePdf) {
-      this.mensajeError = 'Para un trabajo de grado debes adjuntar el PDF completo.';
+    if (requierePdf && !tienePdf) {
+      this.mensajeError =
+        'Para tesis y trabajos de graduación debes adjuntar el PDF completo.';
       return;
     }
 
-    this.mensajeError = '';
+    let token: string | null = null;
+    try {
+      token = globalThis.sessionStorage.getItem(AUTH_TOKEN_KEY);
+    } catch {
+      this.mensajeError = 'No se pudo leer la sesión. Inicia sesión de nuevo.';
+      return;
+    }
 
-    window.alert(
-      `Formulario validado con ${this.totalRecursos} recurso(s). ` +
-      'Todavía no se guarda porque falta conectar la API.'
+    if (!token) {
+      this.mensajeError = 'Tu sesión venció. Inicia sesión para enviar el proyecto.';
+      return;
+    }
+
+    const datos = new FormData();
+    datos.append('Titulo', this.valorFormulario(formulario, 'titulo'));
+    datos.append('Resumen', this.valorFormulario(formulario, 'resumen'));
+    datos.append('Anio', this.valorFormulario(formulario, 'anio'));
+    datos.append('IdTipoProyecto', this.tipoProyecto);
+    datos.append('IdCarrera', this.carreraSeleccionada);
+    datos.append('IdTematica', this.valorFormulario(formulario, 'tematica'));
+    datos.append('AutoresJson', JSON.stringify(this.autores));
+
+    const materia = this.valorFormulario(formulario, 'materia');
+    if (materia) {
+      datos.append('IdMateria', materia);
+    }
+
+    this.palabrasClave.forEach(palabra =>
+      datos.append('PalabrasClave', palabra)
     );
+    this.enlaces.forEach(enlace =>
+      datos.append('Enlaces', enlace)
+    );
+    this.pdfs.forEach(archivo =>
+      datos.append('Pdfs', archivo, archivo.name)
+    );
+    this.archivosZip.forEach(archivo =>
+      datos.append('ArchivosZip', archivo, archivo.name)
+    );
+
+    this.enviando = true;
+    this.limpiarMensajes();
+
+    try {
+      const respuesta = await firstValueFrom(
+        this.http.post<RespuestaEnvio>(
+          API_URL + '/proyectos',
+          datos,
+          { headers: { Authorization: 'Bearer ' + token } }
+        )
+      );
+
+      this.mensajeExito = respuesta.mensaje;
+      this.solicitudEnviada = true;
+    } catch (error: unknown) {
+      this.mensajeError = this.mensajeErrorApi(error);
+    } finally {
+      this.enviando = false;
+    }
+  }
+
+  private mensajeErrorApi(error: unknown): string {
+    if (error instanceof HttpErrorResponse) {
+      const mensajeApi =
+        error.error && typeof error.error.mensaje === 'string'
+          ? error.error.mensaje
+          : null;
+
+      if (mensajeApi) {
+        return mensajeApi;
+      }
+
+      if (error.status === 0) {
+        return 'No se pudo conectar con la API. Verifica que RepositorioApi esté iniciado.';
+      }
+
+      if (error.status === 401) {
+        return 'Tu sesión venció. Inicia sesión de nuevo.';
+      }
+
+      if (error.status === 403) {
+        return 'Tu cuenta no tiene permiso para enviar proyectos.';
+      }
+    }
+
+    return 'No se pudo guardar el envío. Revisa los datos e inténtalo de nuevo.';
   }
 }

@@ -16,6 +16,9 @@
     <a routerLink="/mis-proyectos" routerLinkActive="activo">Mis proyectos</a>
     <a routerLink="/publicar" routerLinkActive="activo">Subir proyecto</a>
     <a routerLink="/notificaciones" routerLinkActive="activo">Notificaciones</a>
+    @if (esSupervisor) {
+      <a routerLink="/revision-supervisor" routerLinkActive="activo">Revisión supervisor</a>
+    }
   </nav>
 </header>
 
@@ -134,35 +137,61 @@
             (change)="actualizarTipoProyecto($event)"
           >
             <option value="">Selecciona el tipo</option>
-            <option value="trabajo-grado">Trabajo de grado</option>
-            <option value="proyecto-curso">Proyecto de curso</option>
+            @for (tipo of tiposProyecto; track tipo.id) {
+              <option [value]="tipo.id">{{ formatearNombre(tipo.nombre) }}</option>
+            }
           </select>
         </div>
       </div>
 
       <div class="fila">
         <div class="campo">
-          <label for="carrera">Carrera</label>
-          <select id="carrera" name="carrera" required>
-            <option value="">Selecciona la carrera</option>
-            @for (carrera of carreras; track carrera.id) {
-              <option [value]="carrera.id">{{ carrera.nombre }}</option>
+          <label for="departamento">Departamento</label>
+          <select
+            id="departamento"
+            name="departamento"
+            [value]="departamentoSeleccionado"
+            (change)="actualizarDepartamento($event)"
+            required
+          >
+            <option value="">Selecciona el departamento</option>
+            @for (departamento of departamentos; track departamento.id) {
+              <option [value]="departamento.id">{{ departamento.nombre }}</option>
             }
           </select>
         </div>
 
         <div class="campo">
-          <label for="tematica">Área temática</label>
-          <select id="tematica" name="tematica" required>
-            <option value="">Selecciona el área temática</option>
-            @for (tematica of tematicas; track tematica.id) {
-              <option [value]="tematica.id">{{ tematica.nombre }}</option>
+          <label for="carrera">Carrera</label>
+          <select
+            id="carrera"
+            name="carrera"
+            [value]="carreraSeleccionada"
+            [disabled]="!departamentoSeleccionado"
+            (change)="actualizarCarrera($event)"
+            required
+          >
+            <option value="">
+              {{ departamentoSeleccionado ? 'Selecciona la carrera' : 'Primero selecciona un departamento' }}
+            </option>
+            @for (carrera of carrerasFiltradas; track carrera.id) {
+              <option [value]="carrera.id">{{ carrera.nombre }}</option>
             }
           </select>
         </div>
       </div>
 
-      <div class="campo" [hidden]="tipoProyecto !== 'proyecto-curso'">
+      <div class="campo">
+        <label for="tematica">Área temática</label>
+        <select id="tematica" name="tematica" required>
+          <option value="">Selecciona el área temática</option>
+          @for (tematica of tematicas; track tematica.id) {
+            <option [value]="tematica.id">{{ formatearNombre(tematica.nombre) }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="campo" [hidden]="!esProyectoCurso">
         <label for="materia">Asignatura (opcional)</label>
         <select id="materia" name="materia">
           <option value="">Selecciona una asignatura si aplica</option>
@@ -257,8 +286,15 @@
         El permiso de difusión y los materiales autorizados se registrarán durante la revisión.
       </aside>
 
-      <button class="boton-enviar" type="submit">
-        Enviar solicitud para revisión
+      @if (mensajeExito) {
+        <p class="mensaje-exito" role="status">
+          {{ mensajeExito }}
+          <a routerLink="/mis-proyectos">Ver seguimiento</a>
+        </p>
+      }
+
+      <button class="boton-enviar" type="submit" [disabled]="enviando || solicitudEnviada">
+        {{ enviando ? 'Enviando solicitud...' : solicitudEnviada ? 'Solicitud enviada' : 'Enviar solicitud para revisión' }}
       </button>
 
     </form>

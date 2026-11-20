@@ -1,3 +1,4 @@
+import { usuarioTieneRol } from '../auth/auth.guard';
 import { Component, computed, input, model, OnInit, output, signal, WritableSignal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink, RouterLinkActive } from '@angular/router';
@@ -13,6 +14,7 @@ import { afterNextRender, inject, Injector } from '@angular/core';
 
 })
 export class Catalogo implements OnInit {
+  readonly esSupervisor = usuarioTieneRol('supervisor');
   readonly active = input.required<boolean>();
   readonly works = input.required<Work[]>();
   readonly areas = input.required<string[]>();
