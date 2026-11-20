@@ -1,5 +1,5 @@
 <header class="site-header">
-  <a class="brand" href="/" aria-label="UES Repositorio Digital, inicio">
+  <a class="brand" routerLink="/catalogo" aria-label="UES Repositorio Digital, inicio">
     <img src="/ues-escudo.png" alt="Escudo de la Universidad de El Salvador">
     <span>
       <strong>UES | Repositorio Digital</strong>
@@ -8,10 +8,10 @@
   </a>
 
   <nav class="main-nav" aria-label="Navegación principal">
-    <a href="/">Catálogo</a>
-    <a class="activo" href="#mis-proyectos">Mis proyectos</a>
-    <a href="#subir-proyecto">Subir proyecto</a>
-    <a href="#notificaciones">Notificaciones</a>
+    <a routerLink="/catalogo" routerLinkActive="activo" [routerLinkActiveOptions]="{ exact: true }">Catálogo</a>
+    <a routerLink="/mis-proyectos" routerLinkActive="activo">Mis proyectos</a>
+    <a routerLink="/publicar" routerLinkActive="activo">Subir proyecto</a>
+    <a routerLink="/notificaciones" routerLinkActive="activo">Notificaciones</a>
     
   </nav>
 </header>
@@ -26,34 +26,6 @@
       Consulta tus trabajos enviados, revisa su estado y atiende las
       observaciones del supervisor.
     </p>
-  </section>
-
-  <section class="panel-seccion" id="notificaciones">
-    <div class="encabezado-seccion">
-      <div>
-        <p class="etiqueta">AVISOS DE TU CUENTA</p>
-        <h2>Notificaciones</h2>
-      </div>
-    </div>
-
-    @if (notificaciones.length > 0) {
-      <div class="lista-notificaciones">
-        @for (notificacion of notificaciones; track notificacion.id) {
-          <article class="notificacion">
-            <span class="punto-notificacion" aria-hidden="true"></span>
-            <div>
-              <p>{{ notificacion.mensaje }}</p>
-              <small>{{ notificacion.fecha }}</small>
-            </div>
-            @if (!notificacion.leida) {
-              <span class="etiqueta-nueva">Nueva</span>
-            }
-          </article>
-        }
-      </div>
-    } @else {
-      <p class="estado-vacio">No tienes notificaciones por el momento.</p>
-    }
   </section>
 
   <section class="seccion-proyectos" id="mis-proyectos">

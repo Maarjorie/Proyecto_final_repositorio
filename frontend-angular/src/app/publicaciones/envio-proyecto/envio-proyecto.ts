@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+import { RouterLink, RouterLinkActive } from '@angular/router';
 
 interface AutorFormulario {
   nombres: string;
@@ -14,6 +15,7 @@ interface OpcionCatalogo {
 @Component({
   selector: 'app-envio-proyecto',
   standalone: true,
+  imports: [RouterLink, RouterLinkActive],
   templateUrl: './envio-proyecto.html',
   styleUrl: './envio-proyecto.css'
 })
