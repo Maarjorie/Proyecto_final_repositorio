@@ -131,10 +131,13 @@ export class EnvioProyectoComponent implements OnInit {
     aplicar: (datos: T[]) => void,
     mensajeError: string
   ): void {
-    const datosGuardados = this.leerCatalogo<T>(claveCache);
-
-    if (datosGuardados) {
-      aplicar(datosGuardados);
+    // Los catálogos siempre se piden a la API: si la API no responde, el
+    // formulario queda vacío y avisa, en lugar de mostrar datos guardados.
+    // Se borra la copia que guardaban versiones anteriores del formulario.
+    try {
+      globalThis.sessionStorage.removeItem(claveCache);
+    } catch {
+      // Sin acceso al almacenamiento no hay copia que borrar.
     }
 
     this.http
@@ -144,34 +147,16 @@ export class EnvioProyectoComponent implements OnInit {
         next: datos => {
           aplicar(datos);
           this.cdr.markForCheck();
-          try {
-            globalThis.sessionStorage.setItem(claveCache, JSON.stringify(datos));
-          } catch {
-            // El formulario sigue funcionando aunque el navegador bloquee el almacenamiento.
-          }
         },
-        error: error => {
+        error: (error: unknown) => {
           console.error('Error al cargar catálogo ' + endpoint + ':', error);
-          if (!datosGuardados) {
-            this.mensajeError = mensajeError;
-            this.cdr.markForCheck();
-          }
+          aplicar([]);
+          this.mensajeError = error instanceof HttpErrorResponse && error.status === 0
+            ? 'No se pudo conectar con la API. Verifica que RepositorioApi esté iniciado.'
+            : mensajeError;
+          this.cdr.markForCheck();
         }
       });
-  }
-
-  private leerCatalogo<T>(claveCache: string): T[] | null {
-    try {
-      const contenido = globalThis.sessionStorage.getItem(claveCache);
-      if (!contenido) {
-        return null;
-      }
-
-      const datos: unknown = JSON.parse(contenido);
-      return Array.isArray(datos) ? datos as T[] : null;
-    } catch {
-      return null;
-    }
   }
   get totalRecursos(): number {
     return this.pdfs.length + this.archivosZip.length + this.enlaces.length;
