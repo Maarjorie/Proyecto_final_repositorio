@@ -9,7 +9,6 @@ import { afterNextRender, inject, Injector } from '@angular/core';
   templateUrl: './catalogo.html',
   styleUrl: './catalogo.css',
   host: { '(window:scroll)': 'onCatalogScroll()' },
-
 })
 export class Catalogo implements OnInit {
   readonly active = input.required<boolean>();
@@ -167,7 +166,7 @@ export class Catalogo implements OnInit {
     this.wasBelowCatalogStart = belowCatalogStart;
     this.filtersOpen.set(!belowCatalogStart);
   }
-    private readonly injector = inject(Injector);
+  private readonly injector = inject(Injector);
 
   openNotifications(): void {
     this.navigateTo.emit('requester');
