@@ -72,6 +72,15 @@ public sealed class ProyectosController : ControllerBase
             return Unauthorized(new { mensaje = "No se identificó la cuenta que envía." });
         }
 
+        // RNF-03: el solicitante envía y el supervisor decide. Una cuenta de
+        // supervisor no envía proyectos, para no revisar sus propias entregas.
+        if (User.IsInRole("supervisor"))
+        {
+            return StatusCode(
+                StatusCodes.Status403Forbidden,
+                new { mensaje = "Las cuentas de supervisor revisan entregas; no envían proyectos." });
+        }
+
         // En un reenvío, la entrega a corregir debe ser propia, estar observada
         // y ser la última versión del proyecto.
         TblEntrega? entregaCorregida = null;

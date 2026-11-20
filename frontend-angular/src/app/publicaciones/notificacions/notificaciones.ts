@@ -1,3 +1,4 @@
+import { SesionUsuarioComponent } from '../../auth/sesion-usuario';
 import { usuarioTieneRol } from '../../auth/auth.guard';
 import { DatePipe } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
@@ -28,7 +29,7 @@ export interface Notificacion {
 @Component({
   selector: 'app-notificaciones',
   standalone: true,
-  imports: [DatePipe, RouterLink, RouterLinkActive],
+  imports: [SesionUsuarioComponent, DatePipe, RouterLink, RouterLinkActive],
   templateUrl: './notificaciones.html',
   styleUrl: './notificaciones.css'
 })
@@ -77,15 +78,14 @@ export class NotificacionesComponent implements OnInit {
   }
 
   textoAccion(notificacion: Notificacion): string {
-    return notificacion.tipo === 'Nueva entrega' ? 'Revisar entrega' : 'Ver mi solicitud';
+    return this.esSupervisor ? 'Ir a revisión' : 'Ver mi solicitud';
   }
 
   /** Marca el aviso como leído y lleva a la pantalla donde se atiende. */
   abrir(notificacion: Notificacion): void {
     this.marcarLeida(notificacion);
-    const destino = notificacion.tipo === 'Nueva entrega' && this.esSupervisor
-      ? '/revision-supervisor'
-      : '/mis-proyectos';
+    // Cada rol atiende sus avisos en su propia pantalla.
+    const destino = this.esSupervisor ? '/revision-supervisor' : '/mis-proyectos';
     void this.router.navigateByUrl(destino);
   }
 

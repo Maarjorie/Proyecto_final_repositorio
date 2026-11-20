@@ -42,16 +42,22 @@ public sealed class NotificacionesController : ControllerBase
             })
             .ToListAsync(cancellationToken);
 
-        return Ok(notificaciones.Select(item => new
-        {
-            item.id,
-            item.idEntrega,
-            item.tituloProyecto,
-            tipo = ClasificarMensaje(item.mensaje),
-            item.mensaje,
-            item.fecha,
-            item.leida
-        }));
+        // Cada rol ve sus propios avisos: el supervisor, las entregas que llegan
+        // para revisión; el solicitante, las decisiones sobre sus proyectos.
+        var esSupervisor = User.IsInRole("supervisor");
+
+        return Ok(notificaciones
+            .Select(item => new
+            {
+                item.id,
+                item.idEntrega,
+                item.tituloProyecto,
+                tipo = ClasificarMensaje(item.mensaje),
+                item.mensaje,
+                item.fecha,
+                item.leida
+            })
+            .Where(item => (item.tipo == "Nueva entrega") == esSupervisor));
     }
 
     [HttpPost("{idNotificacion:int}/leida")]

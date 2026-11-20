@@ -1,8 +1,19 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
-import { AUTH_EXPIRY_KEY, AUTH_TOKEN_KEY } from './auth.constants';
+import { AUTH_EXPIRY_KEY, AUTH_TOKEN_KEY, AUTH_USER_KEY } from './auth.constants';
 
-function sesionActiva(): boolean {
+/** Borra la sesión guardada en este navegador (token, vencimiento y usuario). */
+export function cerrarSesion(): void {
+  try {
+    globalThis.sessionStorage?.removeItem(AUTH_TOKEN_KEY);
+    globalThis.sessionStorage?.removeItem(AUTH_EXPIRY_KEY);
+    globalThis.sessionStorage?.removeItem(AUTH_USER_KEY);
+  } catch {
+    // Sin acceso al almacenamiento no hay sesión que borrar.
+  }
+}
+
+export function sesionActiva(): boolean {
   try {
     const token = globalThis.sessionStorage?.getItem(AUTH_TOKEN_KEY);
     const expiry = globalThis.sessionStorage?.getItem(AUTH_EXPIRY_KEY);
@@ -54,6 +65,25 @@ export const requireSession: CanActivateFn = (_route, state) => {
   return router.createUrlTree(['/iniciar-sesion'], {
     queryParams: { returnUrl: state.url }
   });
+};
+
+/**
+ * Pantallas del solicitante (enviar y seguir proyectos). RNF-03: "el
+ * solicitante envía, el supervisor decide"; una cuenta de supervisor usa
+ * su propia interfaz y se redirige a la revisión.
+ */
+export const requireSolicitante: CanActivateFn = (_route, state) => {
+  const router = inject(Router);
+
+  if (!sesionActiva()) {
+    return router.createUrlTree(['/iniciar-sesion'], {
+      queryParams: { returnUrl: state.url }
+    });
+  }
+
+  return usuarioTieneRol('supervisor')
+    ? router.createUrlTree(['/revision-supervisor'])
+    : true;
 };
 
 export const requireSupervisor: CanActivateFn = (_route, state) => {

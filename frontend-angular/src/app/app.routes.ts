@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 import { AuthComponent } from './auth/auth';
-import { requireSession, requireSupervisor } from './auth/auth.guard';
+import { requireSession, requireSolicitante, requireSupervisor } from './auth/auth.guard';
 import { RevisionSupervisorComponent } from './gestion/revision-supervisor/revision-supervisor';
 import { Catalogo } from './catalogo/catalogo';
 import { EnvioProyectoComponent } from './publicaciones/envio-proyecto/envio-proyecto';
@@ -16,8 +16,9 @@ export const routes: Routes = [
     // Las fichas y las áreas se cargan desde la API dentro del componente.
     data: { active: true }
   },
-  { path: 'publicar', component: EnvioProyectoComponent, canActivate: [requireSession] },
-  { path: 'mis-proyectos', component: SeguimientoComponent, canActivate: [requireSession] },
+  // Solo el solicitante envía y sigue proyectos; el supervisor revisa (RNF-03).
+  { path: 'publicar', component: EnvioProyectoComponent, canActivate: [requireSolicitante] },
+  { path: 'mis-proyectos', component: SeguimientoComponent, canActivate: [requireSolicitante] },
   { path: 'notificaciones', component: NotificacionesComponent, canActivate: [requireSession] },
   { path: 'revision-supervisor', component: RevisionSupervisorComponent, canActivate: [requireSupervisor] },
   { path: '', pathMatch: 'full', redirectTo: 'catalogo' },

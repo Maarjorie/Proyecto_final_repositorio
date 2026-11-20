@@ -1,3 +1,4 @@
+import { SesionUsuarioComponent } from '../../auth/sesion-usuario';
 import { usuarioTieneRol } from '../../auth/auth.guard';
 import { DatePipe } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
@@ -71,7 +72,7 @@ export interface DetalleSolicitud {
 @Component({
   selector: 'app-seguimiento',
   standalone: true,
-  imports: [DatePipe, RouterLink, RouterLinkActive],
+  imports: [SesionUsuarioComponent, DatePipe, RouterLink, RouterLinkActive],
   templateUrl: './seguimiento.html',
   styleUrl: './seguimiento.css'
 })

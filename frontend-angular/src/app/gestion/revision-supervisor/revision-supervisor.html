@@ -9,10 +9,9 @@
 
   <nav class="main-nav" aria-label="Navegación principal">
     <a routerLink="/catalogo" routerLinkActive="activo" [routerLinkActiveOptions]="{ exact: true }">Catálogo</a>
-    <a routerLink="/mis-proyectos" routerLinkActive="activo">Mis proyectos</a>
-    <a routerLink="/publicar" routerLinkActive="activo">Subir proyecto</a>
     <a routerLink="/notificaciones" routerLinkActive="activo">Notificaciones</a>
     <a routerLink="/revision-supervisor" routerLinkActive="activo">Revisión supervisor</a>
+    <app-sesion-usuario />
   </nav>
 </header>
 
@@ -47,7 +46,7 @@
   @if (mensaje) {
     <p class="mensaje-exito" role="status">{{ mensaje }}</p>
   }
-  @if (mensajeError) {
+  @if (mensajeError && (pestana === 'publicaciones' || errorEntregaId === null)) {
     <p class="mensaje-error" role="alert">{{ mensajeError }}</p>
   }
 
@@ -140,14 +139,18 @@
               </fieldset>
 
               <label class="campo-observacion">
-                Observaciones
+                Observaciones <span class="dato-secundario">(obligatorias para pedir correcciones o rechazar)</span>
                 <textarea
                   rows="3"
                   [value]="observaciones[entrega.id] ?? ''"
                   (input)="actualizarObservacion(entrega.id, $event)"
-                  placeholder="Obligatorias para rechazar. Para correcciones son opcionales: el detalle se comunica por el medio acordado."
+                  placeholder="Describe qué debe corregir el solicitante, o el motivo del rechazo."
                 ></textarea>
               </label>
+
+              @if (mensajeError && errorEntregaId === entrega.id) {
+                <p class="mensaje-error error-tarjeta" role="alert">{{ mensajeError }}</p>
+              }
 
               <div class="acciones-revision">
                 <button type="button" class="decision aprobar" [disabled]="ocupadoId === entrega.id" (click)="decidir(entrega, 'Aprobada')">
