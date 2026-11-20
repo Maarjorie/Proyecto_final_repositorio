@@ -383,13 +383,277 @@ public sealed class ProyectosController : ControllerBase
             titulo = entrega.IdProyectoNavigation.Titulo,
             tipoTrabajo = entrega.IdProyectoNavigation.IdTipoProyectoNavigation.Nombre,
             fechaEnvio = entrega.FechaEnvio,
+            // RF-19: última actualización = fecha de la decisión, o la recepción si sigue pendiente.
+            ultimaActualizacion = entrega.FechaRevision ?? entrega.FechaEnvio,
             version = versiones[entrega.IdEntrega],
             estado = TraducirEstado(entrega.EstadoEntrega),
+            puedeEliminar = entrega.EstadoEntrega == "pendiente",
             observacion = entrega.TblNotificacions
                 .OrderByDescending(notificacion => notificacion.FechaEnvio)
                 .Select(notificacion => notificacion.Mensaje)
                 .FirstOrDefault()
         }));
+    }
+
+    /// <summary>
+    /// Detalle de solo lectura de una solicitud enviada por la cuenta actual.
+    /// </summary>
+    [HttpGet("mis-proyectos/{idEntrega:int}")]
+    public async Task<IActionResult> ObtenerDetalle(
+        int idEntrega,
+        CancellationToken cancellationToken)
+    {
+        if (!int.TryParse(
+                User.FindFirstValue(ClaimTypes.NameIdentifier),
+                out var idUsuario))
+        {
+            return Unauthorized();
+        }
+
+        var entrega = await _db.TblEntregas
+            .AsNoTracking()
+            .AsSplitQuery()
+            .Include(item => item.IdProyectoNavigation)
+                .ThenInclude(proyecto => proyecto.IdTipoProyectoNavigation)
+            .Include(item => item.IdProyectoNavigation)
+                .ThenInclude(proyecto => proyecto.IdCarreraNavigation)
+                    .ThenInclude(carrera => carrera.IdDepartamentoNavigation)
+            .Include(item => item.IdProyectoNavigation)
+                .ThenInclude(proyecto => proyecto.IdTematicaNavigation)
+            .Include(item => item.IdProyectoNavigation)
+                .ThenInclude(proyecto => proyecto.IdMateriaNavigation)
+            .Include(item => item.IdProyectoNavigation)
+                .ThenInclude(proyecto => proyecto.TblProyectoAutors)
+                    .ThenInclude(relacion => relacion.IdAutorNavigation)
+            .Include(item => item.IdProyectoNavigation)
+                .ThenInclude(proyecto => proyecto.IdEtiqueta)
+            .Include(item => item.TblRecursos)
+                .ThenInclude(recurso => recurso.IdTipoRecursoNavigation)
+            .Include(item => item.TblNotificacions)
+            .Include(item => item.IdUsuarioRevisaNavigation)
+            .FirstOrDefaultAsync(
+                item => item.IdEntrega == idEntrega && item.IdUsuarioEnvia == idUsuario,
+                cancellationToken);
+
+        // Se responde 404 también cuando la entrega es de otra cuenta,
+        // para no revelar qué solicitudes existen.
+        if (entrega is null)
+        {
+            return NotFound(new { mensaje = "No se encontró la solicitud." });
+        }
+
+        var proyecto = entrega.IdProyectoNavigation;
+        var version = await _db.TblEntregas
+            .CountAsync(
+                item => item.IdProyecto == entrega.IdProyecto &&
+                        item.FechaEnvio <= entrega.FechaEnvio,
+                cancellationToken);
+
+        return Ok(new
+        {
+            id = entrega.IdEntrega,
+            titulo = proyecto.Titulo,
+            resumen = proyecto.Resumen,
+            anio = proyecto.Anio,
+            tipoTrabajo = proyecto.IdTipoProyectoNavigation.Nombre,
+            departamento = proyecto.IdCarreraNavigation.IdDepartamentoNavigation.Nombre,
+            carrera = proyecto.IdCarreraNavigation.Nombre,
+            tematica = proyecto.IdTematicaNavigation.Nombre,
+            materia = proyecto.IdMateriaNavigation?.Nombre,
+            fechaEnvio = entrega.FechaEnvio,
+            fechaRevision = entrega.FechaRevision,
+            // RF-19: recepción y última actualización; RF-18: revisor visible.
+            ultimaActualizacion = entrega.FechaRevision ?? entrega.FechaEnvio,
+            revisor = entrega.IdUsuarioRevisaNavigation == null
+                ? null
+                : entrega.IdUsuarioRevisaNavigation.Nombres + " " +
+                  entrega.IdUsuarioRevisaNavigation.Apellidos,
+            version,
+            estado = TraducirEstado(entrega.EstadoEntrega),
+            puedeEliminar = entrega.EstadoEntrega == "pendiente",
+            autores = proyecto.TblProyectoAutors
+                .OrderBy(relacion => relacion.OrdenAutoria)
+                .Select(relacion => new
+                {
+                    nombres = relacion.IdAutorNavigation.Nombres,
+                    apellidos = relacion.IdAutorNavigation.Apellidos,
+                    carnet = relacion.IdAutorNavigation.Carnet
+                }),
+            palabrasClave = proyecto.IdEtiqueta
+                .Select(etiqueta => etiqueta.Nombre)
+                .OrderBy(nombre => nombre),
+            recursos = entrega.TblRecursos
+                .OrderBy(recurso => recurso.IdRecurso)
+                .Select(recurso => new
+                {
+                    id = recurso.IdRecurso,
+                    nombre = recurso.Nombre,
+                    tipo = recurso.IdTipoRecursoNavigation.Nombre,
+                    url = recurso.IdTipoRecursoNavigation.Nombre == "enlace"
+                        ? recurso.Ubicacion
+                        : null
+                }),
+            observaciones = entrega.TblNotificacions
+                .OrderByDescending(notificacion => notificacion.FechaEnvio)
+                .Select(notificacion => new
+                {
+                    fecha = notificacion.FechaEnvio,
+                    mensaje = notificacion.Mensaje
+                })
+        });
+    }
+
+    /// <summary>
+    /// Elimina una solicitud propia mientras siga pendiente de revisión.
+    /// Una vez que el supervisor decide, la entrega queda en el historial
+    /// y solo el supervisor puede retirar la publicación (RF-10).
+    /// </summary>
+    [HttpDelete("mis-proyectos/{idEntrega:int}")]
+    public async Task<IActionResult> EliminarSolicitud(
+        int idEntrega,
+        CancellationToken cancellationToken)
+    {
+        if (!int.TryParse(
+                User.FindFirstValue(ClaimTypes.NameIdentifier),
+                out var idUsuario))
+        {
+            return Unauthorized();
+        }
+
+        var entrega = await _db.TblEntregas
+            .Include(item => item.TblRecursos)
+            .FirstOrDefaultAsync(
+                item => item.IdEntrega == idEntrega && item.IdUsuarioEnvia == idUsuario,
+                cancellationToken);
+
+        if (entrega is null)
+        {
+            return NotFound(new { mensaje = "No se encontró la solicitud." });
+        }
+
+        if (entrega.EstadoEntrega != "pendiente")
+        {
+            return Conflict(new
+            {
+                mensaje = "Solo puedes eliminar solicitudes que aún no han sido revisadas."
+            });
+        }
+
+        var idProyecto = entrega.IdProyecto;
+        var archivos = entrega.TblRecursos
+            .Where(recurso => !Uri.TryCreate(recurso.Ubicacion, UriKind.Absolute, out _))
+            .Select(recurso => Path.GetFullPath(
+                Path.Combine(_environment.ContentRootPath, recurso.Ubicacion)))
+            .ToList();
+
+        await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            await _db.TblRecursos
+                .Where(item => item.IdEntrega == idEntrega)
+                .ExecuteDeleteAsync(cancellationToken);
+            await _db.TblNotificacions
+                .Where(item => item.IdEntrega == idEntrega)
+                .ExecuteDeleteAsync(cancellationToken);
+            await _db.TblEntregas
+                .Where(item => item.IdEntrega == idEntrega)
+                .ExecuteDeleteAsync(cancellationToken);
+
+            var quedanEntregas = await _db.TblEntregas
+                .AnyAsync(item => item.IdProyecto == idProyecto, cancellationToken);
+
+            if (quedanEntregas)
+            {
+                // El proyecto conserva otras versiones: solo se registra el retiro.
+                _db.TblHistorials.Add(new TblHistorial
+                {
+                    IdUsuario = idUsuario,
+                    IdProyecto = idProyecto,
+                    Accion = "eliminación",
+                    Detalle = "El solicitante eliminó una versión pendiente de revisión."
+                });
+                await _db.SaveChangesAsync(cancellationToken);
+            }
+            else
+            {
+                // Era la única entrega: el proyecto nunca llegó a revisarse
+                // y se elimina con sus relaciones.
+                var idsAutores = await _db.TblProyectoAutors
+                    .Where(item => item.IdProyecto == idProyecto)
+                    .Select(item => item.IdAutor)
+                    .ToListAsync(cancellationToken);
+
+                var proyecto = await _db.TblProyectos
+                    .Include(item => item.IdEtiqueta)
+                    .Include(item => item.IdDocentes)
+                    .FirstAsync(item => item.IdProyecto == idProyecto, cancellationToken);
+                proyecto.IdEtiqueta.Clear();
+                proyecto.IdDocentes.Clear();
+                await _db.SaveChangesAsync(cancellationToken);
+
+                await _db.TblProyectoAutors
+                    .Where(item => item.IdProyecto == idProyecto)
+                    .ExecuteDeleteAsync(cancellationToken);
+                await _db.TblHistorials
+                    .Where(item => item.IdProyecto == idProyecto)
+                    .ExecuteDeleteAsync(cancellationToken);
+                await _db.TblFavoritos
+                    .Where(item => item.IdProyecto == idProyecto)
+                    .ExecuteDeleteAsync(cancellationToken);
+                await _db.TblProyectos
+                    .Where(item => item.IdProyecto == idProyecto)
+                    .ExecuteDeleteAsync(cancellationToken);
+
+                // Autores que solo pertenecían a este proyecto y no tienen cuenta.
+                await _db.TblAutors
+                    .Where(autor => idsAutores.Contains(autor.IdAutor) &&
+                                    autor.IdUsuario == null &&
+                                    !autor.TblProyectoAutors.Any())
+                    .ExecuteDeleteAsync(cancellationToken);
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            _logger.LogError(exception, "No se pudo eliminar la entrega {IdEntrega}", idEntrega);
+            return StatusCode(
+                StatusCodes.Status500InternalServerError,
+                new { mensaje = "No se pudo eliminar la solicitud. Inténtalo de nuevo." });
+        }
+
+        // Los archivos se borran solo después de confirmar la transacción.
+        var carpetaSegura = Path.GetFullPath(Path.Combine(
+            _environment.ContentRootPath, "App_Data", "entregas")) + Path.DirectorySeparatorChar;
+        foreach (var ruta in archivos.Where(ruta =>
+                     ruta.StartsWith(carpetaSegura, StringComparison.OrdinalIgnoreCase)))
+        {
+            try
+            {
+                System.IO.File.Delete(ruta);
+            }
+            catch (IOException)
+            {
+                _logger.LogWarning("No se pudo borrar el archivo {Ruta}", ruta);
+            }
+        }
+
+        var carpetaEntrega = Path.Combine(carpetaSegura, idEntrega.ToString());
+        try
+        {
+            if (Directory.Exists(carpetaEntrega) &&
+                !Directory.EnumerateFileSystemEntries(carpetaEntrega).Any())
+            {
+                Directory.Delete(carpetaEntrega);
+            }
+        }
+        catch (IOException)
+        {
+            _logger.LogWarning("No se pudo borrar la carpeta {Ruta}", carpetaEntrega);
+        }
+
+        return Ok(new { mensaje = "La solicitud se eliminó." });
     }
 
     [HttpGet("recursos/{idRecurso:int}")]

@@ -40,6 +40,10 @@
       <span class="contador">{{ proyectos.length }} proyectos</span>
     </div>
 
+    @if (mensajeExito) {
+      <p class="mensaje-exito" role="status">{{ mensajeExito }}</p>
+    }
+
     @if (cargando) {
       <p class="estado-vacio" role="status">Cargando tus proyectos...</p>
     } @else if (mensajeError) {
@@ -50,7 +54,7 @@
           <article class="tarjeta-proyecto">
             <div class="proyecto-cabecera">
               <div>
-                <span class="tipo-trabajo">{{ proyecto.tipoTrabajo }}</span>
+                <span class="tipo-trabajo">{{ formatearNombre(proyecto.tipoTrabajo) }}</span>
                 <h3>{{ proyecto.titulo }}</h3>
               </div>
               <span
@@ -59,12 +63,13 @@
                 [class.correcciones]="proyecto.estado === 'Con correcciones'"
                 [class.aprobada]="proyecto.estado === 'Aprobada'"
                 [class.rechazada]="proyecto.estado === 'Rechazada'">
-                {{ proyecto.estado === 'Pendiente' ? 'En revisión del supervisor' : proyecto.estado }}
+                {{ textoEstado(proyecto.estado) }}
               </span>
             </div>
 
             <div class="datos-proyecto">
-              <span>Enviado: <strong>{{ proyecto.fechaEnvio }}</strong></span>
+              <span>Recibido: <strong>{{ fechaLocal(proyecto.fechaEnvio) | date:'dd/MM/yyyy, h:mm a' }}</strong></span>
+              <span>Última actualización: <strong>{{ fechaLocal(proyecto.ultimaActualizacion) | date:'dd/MM/yyyy, h:mm a' }}</strong></span>
               <span>Versión: <strong>{{ proyecto.version }}</strong></span>
             </div>
 
@@ -72,6 +77,36 @@
               <div class="observacion">
                 <strong>Observación del supervisor</strong>
                 <p>{{ proyecto.observacion }}</p>
+              </div>
+            }
+
+            @if (confirmandoEliminarId === proyecto.id && !detalle) {
+              <div class="confirmacion" role="alertdialog" aria-label="Confirmar eliminación">
+                <p>¿Eliminar esta solicitud? Se borrarán sus datos y archivos. No se puede deshacer.</p>
+                <div class="acciones">
+                  <button type="button" class="boton-peligro"
+                    [disabled]="eliminandoId === proyecto.id"
+                    (click)="eliminarSolicitud(proyecto.id)">
+                    {{ eliminandoId === proyecto.id ? 'Eliminando...' : 'Sí, eliminar' }}
+                  </button>
+                  <button type="button" class="boton-secundario"
+                    [disabled]="eliminandoId === proyecto.id"
+                    (click)="cancelarEliminar()">Cancelar</button>
+                </div>
+              </div>
+            } @else {
+              <div class="acciones">
+                <button type="button" class="boton-principal"
+                  [disabled]="cargandoDetalleId === proyecto.id"
+                  (click)="verDetalle(proyecto)">
+                  {{ cargandoDetalleId === proyecto.id ? 'Abriendo...' : 'Ver detalle' }}
+                </button>
+                @if (proyecto.puedeEliminar) {
+                  <button type="button" class="boton-peligro-suave"
+                    (click)="pedirConfirmacionEliminar(proyecto.id)">
+                    Eliminar solicitud
+                  </button>
+                }
               </div>
             }
           </article>
@@ -88,3 +123,125 @@
     }
   </section>
 </main>
+
+@if (detalle; as solicitud) {
+  <div class="fondo-detalle" (click)="cerrarDetalle()"></div>
+  <section class="panel-detalle" role="dialog" aria-modal="true" aria-labelledby="titulo-detalle">
+    <div class="detalle-cabecera">
+      <div>
+        <p class="etiqueta">SOLICITUD · SOLO LECTURA</p>
+        <h2 id="titulo-detalle">{{ solicitud.titulo }}</h2>
+      </div>
+      <button type="button" class="boton-cerrar" aria-label="Cerrar detalle" (click)="cerrarDetalle()">✕</button>
+    </div>
+
+    <div class="detalle-estado">
+      <span
+        class="estado"
+        [class.pendiente]="solicitud.estado === 'Pendiente'"
+        [class.correcciones]="solicitud.estado === 'Con correcciones'"
+        [class.aprobada]="solicitud.estado === 'Aprobada'"
+        [class.rechazada]="solicitud.estado === 'Rechazada'">
+        {{ textoEstado(solicitud.estado) }}
+      </span>
+      <span>Recibido: <strong>{{ fechaLocal(solicitud.fechaEnvio) | date:'dd/MM/yyyy, h:mm a' }}</strong></span>
+      <span>Última actualización: <strong>{{ fechaLocal(solicitud.ultimaActualizacion) | date:'dd/MM/yyyy, h:mm a' }}</strong></span>
+      @if (solicitud.revisor) {
+        <span>Revisado por: <strong>{{ solicitud.revisor }}</strong></span>
+      }
+      <span>Versión: <strong>{{ solicitud.version }}</strong></span>
+    </div>
+
+    @if (errorDetalle) {
+      <p class="mensaje-error" role="alert">{{ errorDetalle }}</p>
+    }
+
+    <dl class="detalle-datos">
+      <div><dt>Tipo de trabajo</dt><dd>{{ formatearNombre(solicitud.tipoTrabajo) }}</dd></div>
+      <div><dt>Año</dt><dd>{{ solicitud.anio }}</dd></div>
+      <div><dt>Departamento</dt><dd>{{ solicitud.departamento }}</dd></div>
+      <div><dt>Carrera</dt><dd>{{ solicitud.carrera }}</dd></div>
+      <div><dt>Área temática</dt><dd>{{ formatearNombre(solicitud.tematica) }}</dd></div>
+      @if (solicitud.materia) {
+        <div><dt>Asignatura</dt><dd>{{ solicitud.materia }}</dd></div>
+      }
+    </dl>
+
+    <h3>Autores</h3>
+    <ul class="detalle-lista">
+      @for (autor of solicitud.autores; track $index) {
+        <li>
+          {{ autor.nombres }} {{ autor.apellidos }}
+          @if (autor.carnet) { <span class="dato-secundario">· {{ autor.carnet }}</span> }
+        </li>
+      }
+    </ul>
+
+    <h3>Resumen</h3>
+    <p class="detalle-resumen">{{ solicitud.resumen }}</p>
+
+    @if (solicitud.palabrasClave.length > 0) {
+      <h3>Palabras clave</h3>
+      <div class="chips">
+        @for (palabra of solicitud.palabrasClave; track palabra) {
+          <span class="chip">{{ palabra }}</span>
+        }
+      </div>
+    }
+
+    <h3>Materiales enviados</h3>
+    @if (solicitud.recursos.length > 0) {
+      <ul class="detalle-lista">
+        @for (recurso of solicitud.recursos; track recurso.id) {
+          <li class="recurso">
+            <span>{{ recurso.nombre }} <span class="dato-secundario">· {{ recurso.tipo.toUpperCase() }}</span></span>
+            <button type="button" class="boton-secundario" (click)="abrirRecurso(recurso)">
+              {{ recurso.url ? 'Abrir enlace' : 'Descargar' }}
+            </button>
+          </li>
+        }
+      </ul>
+    } @else {
+      <p class="dato-secundario">Sin materiales.</p>
+    }
+
+    @if (solicitud.observaciones.length > 0) {
+      <h3>Observaciones del supervisor</h3>
+      @for (observacion of solicitud.observaciones; track $index) {
+        <div class="observacion">
+          <strong>{{ fechaLocal(observacion.fecha) | date:'dd/MM/yyyy, h:mm a' }}</strong>
+          <p>{{ observacion.mensaje }}</p>
+        </div>
+      }
+    }
+
+    <div class="detalle-pie">
+      @if (solicitud.puedeEliminar) {
+        @if (confirmandoEliminarId === solicitud.id) {
+          <div class="confirmacion" role="alertdialog" aria-label="Confirmar eliminación">
+            <p>¿Eliminar esta solicitud? Se borrarán sus datos y archivos. No se puede deshacer.</p>
+            <div class="acciones">
+              <button type="button" class="boton-peligro"
+                [disabled]="eliminandoId === solicitud.id"
+                (click)="eliminarSolicitud(solicitud.id)">
+                {{ eliminandoId === solicitud.id ? 'Eliminando...' : 'Sí, eliminar' }}
+              </button>
+              <button type="button" class="boton-secundario"
+                [disabled]="eliminandoId === solicitud.id"
+                (click)="cancelarEliminar()">Cancelar</button>
+            </div>
+          </div>
+        } @else {
+          <button type="button" class="boton-peligro-suave"
+            (click)="pedirConfirmacionEliminar(solicitud.id)">Eliminar solicitud</button>
+        }
+      } @else {
+        <p class="dato-secundario">
+          Esta solicitud ya fue revisada por el supervisor y no se puede eliminar;
+          su decisión queda en el historial.
+        </p>
+      }
+      <button type="button" class="boton-principal" (click)="cerrarDetalle()">Cerrar</button>
+    </div>
+  </section>
+}
