@@ -1,3 +1,4 @@
+import { SesionUsuarioComponent } from '../../auth/sesion-usuario';
 import { DatePipe } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, inject, OnInit } from '@angular/core';
@@ -66,7 +67,7 @@ interface BorradorPermiso {
 @Component({
   selector: 'app-revision-supervisor',
   standalone: true,
-  imports: [DatePipe, RouterLink, RouterLinkActive],
+  imports: [SesionUsuarioComponent, DatePipe, RouterLink, RouterLinkActive],
   templateUrl: './revision-supervisor.html',
   styleUrls: [
     '../../publicaciones/seguimiento/seguimiento.css',
@@ -100,6 +101,8 @@ export class RevisionSupervisorComponent implements OnInit {
   retirandoId: number | null = null;
 
   ocupadoId: number | null = null;
+  /** Tarjeta donde se muestra el último error, para verlo junto al botón. */
+  errorEntregaId: number | null = null;
   mensaje = '';
   mensajeError = '';
 
@@ -173,9 +176,15 @@ export class RevisionSupervisorComponent implements OnInit {
   decidir(entrega: EntregaRevision, decision: DecisionRevision): void {
     const observacion = (this.observaciones[entrega.id] ?? '').trim();
     const borrador = this.borradorDecision(entrega);
+    this.errorEntregaId = entrega.id;
 
     if (decision === 'Rechazada' && observacion.length === 0) {
       this.mensajeError = 'Escribe el motivo del rechazo.';
+      return;
+    }
+
+    if (decision === 'Con correcciones' && observacion.length === 0) {
+      this.mensajeError = 'Describe las correcciones que debe hacer el solicitante.';
       return;
     }
 

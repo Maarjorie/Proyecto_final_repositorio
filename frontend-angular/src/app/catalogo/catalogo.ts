@@ -1,3 +1,4 @@
+import { SesionUsuarioComponent } from '../auth/sesion-usuario';
 import { usuarioTieneRol } from '../auth/auth.guard';
 import { Component, computed, input, model, OnInit, output, signal, WritableSignal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -32,7 +33,7 @@ interface FichaApi {
 
 @Component({
   selector: 'app-catalogo',
-  imports: [FormsModule, RouterLink, RouterLinkActive],
+  imports: [SesionUsuarioComponent, FormsModule, RouterLink, RouterLinkActive],
   templateUrl: './catalogo.html',
   styleUrl: './catalogo.css',
   host: { '(window:scroll)': 'onCatalogScroll()' },

@@ -9,31 +9,35 @@
 
   <nav class="main-nav" aria-label="Navegación principal">
     <a routerLink="/catalogo" routerLinkActive="activo" [routerLinkActiveOptions]="{ exact: true }">Catálogo</a>
-    <a routerLink="/mis-proyectos" routerLinkActive="activo">Mis proyectos</a>
-    <a routerLink="/publicar" routerLinkActive="activo">Subir proyecto</a>
+    @if (!esSupervisor) {
+      <a routerLink="/mis-proyectos" routerLinkActive="activo">Mis proyectos</a>
+      <a routerLink="/publicar" routerLinkActive="activo">Subir proyecto</a>
+    }
     <a routerLink="/notificaciones" routerLinkActive="activo">Notificaciones</a>
     @if (esSupervisor) {
       <a routerLink="/revision-supervisor" routerLinkActive="activo">Revisión supervisor</a>
     }
+    <app-sesion-usuario />
   </nav>
 </header>
 
 <main class="pagina-notificaciones">
-  <p class="breadcrumb">Repositorio / Área personal / Notificaciones</p>
+  <p class="breadcrumb">Repositorio / {{ esSupervisor ? 'Gestión' : 'Área personal' }} / Notificaciones</p>
 
   <section class="intro">
-    <p class="etiqueta">ÁREA PERSONAL</p>
+    <p class="etiqueta">{{ esSupervisor ? 'PANEL DE SUPERVISIÓN' : 'ÁREA PERSONAL' }}</p>
     <h1>Notificaciones</h1>
     <p>
-      Aquí recibirás avisos relacionados con la revisión de tus proyectos,
-      como solicitudes de corrección y decisiones del supervisor.
+      {{ esSupervisor
+        ? 'Aquí recibirás un aviso por cada entrega nueva o versión corregida que llegue para revisión.'
+        : 'Aquí recibirás avisos relacionados con la revisión de tus proyectos, como solicitudes de corrección y decisiones del supervisor.' }}
     </p>
   </section>
 
   <section class="panel-notificaciones">
     <div class="encabezado-seccion">
       <div>
-        <p class="etiqueta">AVISOS DE TUS PROYECTOS</p>
+        <p class="etiqueta">{{ esSupervisor ? 'ENTREGAS RECIBIDAS' : 'AVISOS DE TUS PROYECTOS' }}</p>
         <h2>Tus notificaciones</h2>
       </div>
       <div class="encabezado-acciones">
@@ -86,8 +90,9 @@
       <div class="estado-vacio">
         <h3>No tienes notificaciones por el momento</h3>
         <p>
-          Aquí aparecerán los avisos cuando haya observaciones,
-          correcciones o decisiones sobre tus proyectos.
+          {{ esSupervisor
+            ? 'Aquí aparecerán los avisos cuando lleguen entregas para revisar.'
+            : 'Aquí aparecerán los avisos cuando haya observaciones, correcciones o decisiones sobre tus proyectos.' }}
         </p>
       </div>
     }

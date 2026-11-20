@@ -1,3 +1,4 @@
+import { SesionUsuarioComponent } from '../../auth/sesion-usuario';
 import { usuarioTieneRol } from '../../auth/auth.guard';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, inject, OnInit } from '@angular/core';
@@ -54,7 +55,7 @@ const API_URL = 'https://localhost:7244/api';
 @Component({
   selector: 'app-envio-proyecto',
   standalone: true,
-  imports: [RouterLink, RouterLinkActive],
+  imports: [SesionUsuarioComponent, RouterLink, RouterLinkActive],
   templateUrl: './envio-proyecto.html',
   styleUrl: './envio-proyecto.css'
 })

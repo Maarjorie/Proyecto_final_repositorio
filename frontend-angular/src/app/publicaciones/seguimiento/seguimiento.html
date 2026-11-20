@@ -9,13 +9,15 @@
 
   <nav class="main-nav" aria-label="Navegación principal">
     <a routerLink="/catalogo" routerLinkActive="activo" [routerLinkActiveOptions]="{ exact: true }">Catálogo</a>
-    <a routerLink="/mis-proyectos" routerLinkActive="activo">Mis proyectos</a>
-    <a routerLink="/publicar" routerLinkActive="activo">Subir proyecto</a>
+    @if (!esSupervisor) {
+      <a routerLink="/mis-proyectos" routerLinkActive="activo">Mis proyectos</a>
+      <a routerLink="/publicar" routerLinkActive="activo">Subir proyecto</a>
+    }
     <a routerLink="/notificaciones" routerLinkActive="activo">Notificaciones</a>
     @if (esSupervisor) {
       <a routerLink="/revision-supervisor" routerLinkActive="activo">Revisión supervisor</a>
     }
-    
+    <app-sesion-usuario />
   </nav>
 </header>
 

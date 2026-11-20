@@ -129,11 +129,16 @@ public sealed class RevisionController : ControllerBase
 
         var observacion = request.Observacion?.Trim() ?? string.Empty;
 
-        // RF-18: "Rechazar exige motivo". Las correcciones se explican por el
-        // medio externo acordado, así que la observación es opcional.
+        // RF-18: rechazar exige motivo y pedir correcciones exige describirlas,
+        // para que el solicitante sepa qué corregir antes de reenviar (RF-20).
         if (decision == "rechazada" && observacion.Length == 0)
         {
             return BadRequest(new { mensaje = "Escribe el motivo del rechazo." });
+        }
+
+        if (decision == "con_correcciones" && observacion.Length == 0)
+        {
+            return BadRequest(new { mensaje = "Describe las correcciones que debe hacer el solicitante." });
         }
 
         string? permiso = null;
@@ -161,6 +166,12 @@ public sealed class RevisionController : ControllerBase
             return Conflict(new { mensaje = "Esta entrega ya tiene una decisión registrada." });
         }
 
+        // RNF-03: quien envía no decide sobre su propia entrega.
+        if (entrega.IdUsuarioEnvia == idSupervisor)
+        {
+            return Conflict(new { mensaje = "No puedes revisar una entrega que enviaste tú; debe decidirla otro supervisor." });
+        }
+
         var ahora = AhoraUtc();
         var proyecto = entrega.IdProyectoNavigation;
         entrega.EstadoEntrega = decision;
@@ -178,10 +189,6 @@ public sealed class RevisionController : ControllerBase
         if (observacion.Length > 0)
         {
             detalle += " " + observacion;
-        }
-        else if (decision == "con_correcciones")
-        {
-            detalle += " Los detalles se comunicarán por el medio acordado.";
         }
 
         if (decision == "aprobada")
