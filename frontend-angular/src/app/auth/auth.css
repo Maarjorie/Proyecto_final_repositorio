@@ -1,0 +1,247 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  color: #102d50;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.auth-page {
+  min-height: 100vh;
+  box-sizing: border-box;
+  padding: 22px;
+  background:
+    radial-gradient(ellipse at 16% 12%, rgba(54, 139, 191, 0.72), transparent 36%),
+    linear-gradient(135deg, #174978 0%, #0c396f 55%, #0d1c26 100%);
+}
+
+.auth-header {
+  width: min(100%, 1260px);
+  min-height: 74px;
+  box-sizing: border-box;
+  margin: 0 auto 56px;
+  padding: 10px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  border-radius: 24px;
+  background: linear-gradient(110deg, rgba(235, 249, 252, 0.94), rgba(161, 209, 222, 0.88));
+  box-shadow: 0 16px 34px rgba(4, 24, 44, 0.2);
+}
+
+.brand {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #0d1c26;
+  text-decoration: none;
+}
+
+.brand img {
+  width: 48px;
+  height: 56px;
+  object-fit: contain;
+}
+
+.brand-copy {
+  display: grid;
+  gap: 3px;
+}
+
+.brand-copy strong,
+.brand-copy small {
+  font-weight: 800;
+}
+
+.brand-copy strong {
+  font-size: 16px;
+}
+
+.brand-copy small {
+  color: #385976;
+  font-size: 11px;
+}
+
+.catalog-link {
+  padding: 12px 16px;
+  border-radius: 14px;
+  color: #173c60;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.catalog-link:hover {
+  background: rgba(255, 255, 255, 0.52);
+}
+
+.auth-main {
+  width: min(100%, 580px);
+  margin: 0 auto;
+}
+
+.auth-card {
+  padding: clamp(24px, 5vw, 42px);
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  border-radius: 28px;
+  background: linear-gradient(145deg, rgba(235, 249, 252, 0.96), rgba(182, 223, 231, 0.92));
+  box-shadow: 0 22px 46px rgba(4, 24, 44, 0.25);
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  color: #0c396f;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  line-height: 1.5;
+}
+
+h1 {
+  margin: 0;
+  color: #102d50;
+  font-size: clamp(1.9rem, 5vw, 2.5rem);
+  line-height: 1.1;
+}
+
+.intro {
+  margin: 10px 0 26px;
+  color: #45627d;
+  line-height: 1.55;
+}
+
+form {
+  display: grid;
+  gap: 18px;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+label {
+  display: grid;
+  gap: 8px;
+  color: #0c396f;
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+input {
+  width: 100%;
+  min-height: 50px;
+  box-sizing: border-box;
+  padding: 12px 15px;
+  border: 1px solid rgba(255, 255, 255, 0.92);
+  border-radius: 14px;
+  outline: none;
+  background: rgba(255, 255, 255, 0.72);
+  color: #102d50;
+  font: inherit;
+  font-weight: 400;
+  box-shadow: 0 5px 12px rgba(12, 57, 111, 0.08);
+}
+
+input:focus {
+  border-color: #368bbf;
+  box-shadow: 0 0 0 3px rgba(54, 139, 191, 0.2);
+}
+
+input::placeholder {
+  color: #73899c;
+}
+
+.submit-button {
+  min-height: 50px;
+  margin-top: 4px;
+  padding: 12px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  border-radius: 14px;
+  background: linear-gradient(145deg, #263a46, #0d1c26);
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 8px 16px rgba(13, 28, 38, 0.2);
+}
+
+.submit-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.submit-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.error-message {
+  margin: 0 0 18px;
+  padding: 12px 14px;
+  border: 1px solid rgba(157, 45, 45, 0.28);
+  border-radius: 12px;
+  background: rgba(255, 240, 240, 0.72);
+  color: #842d2d;
+  line-height: 1.45;
+}
+
+.switch-copy {
+  margin: 22px 0 0;
+  text-align: center;
+  color: #385976;
+}
+
+.switch-copy a,
+.back-link {
+  color: #0c396f;
+  font-weight: 800;
+}
+
+.back-link {
+  display: block;
+  width: fit-content;
+  margin: 20px auto 0;
+  text-decoration: none;
+}
+
+.back-link:hover,
+.switch-copy a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 560px) {
+  .auth-page {
+    padding: 12px;
+  }
+
+  .auth-header {
+    min-height: 66px;
+    margin-bottom: 28px;
+    padding: 8px 12px;
+    border-radius: 18px;
+  }
+
+  .brand img {
+    width: 40px;
+    height: 48px;
+  }
+
+  .brand-copy strong {
+    font-size: 13px;
+  }
+
+  .brand-copy small {
+    font-size: 9px;
+  }
+
+  .catalog-link {
+    padding: 9px 10px;
+    font-size: 0.8rem;
+  }
+
+  .field-row {
+    grid-template-columns: 1fr;
+  }
+}

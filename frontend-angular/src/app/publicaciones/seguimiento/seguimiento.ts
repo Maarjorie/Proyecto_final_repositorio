@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+import { RouterLink, RouterLinkActive } from '@angular/router';
 
 export type EstadoSolicitud =
   | 'Pendiente'
@@ -16,21 +17,13 @@ export interface ProyectoEnSeguimiento {
   observacion: string | null;
 }
 
-export interface NotificacionUsuario {
-  id: number;
-  proyectoId: number;
-  mensaje: string;
-  fecha: string;
-  leida: boolean;
-}
-
 @Component({
   selector: 'app-seguimiento',
   standalone: true,
+  imports: [RouterLink, RouterLinkActive],
   templateUrl: './seguimiento.html',
   styleUrl: './seguimiento.css'
 })
 export class SeguimientoComponent {
   proyectos: ProyectoEnSeguimiento[] = [];
-  notificaciones: NotificacionUsuario[] = [];
 }

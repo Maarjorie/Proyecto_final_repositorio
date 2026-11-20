@@ -1,11 +1,12 @@
 import { Component, computed, input, model, OnInit, output, signal, WritableSignal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink, RouterLinkActive } from '@angular/router';
 import type { Work } from '../app';
 import { afterNextRender, inject, Injector } from '@angular/core';
 
 @Component({
   selector: 'app-catalogo',
-  imports: [FormsModule],
+  imports: [FormsModule, RouterLink, RouterLinkActive],
   templateUrl: './catalogo.html',
   styleUrl: './catalogo.css',
   host: { '(window:scroll)': 'onCatalogScroll()' },

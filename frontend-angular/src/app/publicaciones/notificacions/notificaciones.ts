@@ -1,4 +1,5 @@
 import { Component } from '@angular/core';
+import { RouterLink, RouterLinkActive } from '@angular/router';
 
 export type TipoNotificacion =
   | 'Correcciones solicitadas'
@@ -17,6 +18,7 @@ export interface Notificacion {
 @Component({
   selector: 'app-notificaciones',
   standalone: true,
+  imports: [RouterLink, RouterLinkActive],
   templateUrl: './notificaciones.html',
   styleUrl: './notificaciones.css'
 })

@@ -1,5 +1,5 @@
 <header class="site-header">
-  <a class="brand" href="/" aria-label="UES Repositorio Digital, inicio">
+  <a class="brand" routerLink="/catalogo" aria-label="UES Repositorio Digital, inicio">
     <img src="/ues-escudo.png" alt="Escudo de la Universidad de El Salvador">
     <span>
       <strong>UES | Repositorio Digital</strong>
@@ -8,10 +8,10 @@
   </a>
 
   <nav class="main-nav" aria-label="Navegación principal">
-    <a href="#catalogo">Catálogo</a>
-    <a href="#mis-proyectos">Mis proyectos</a>
-    <a href="#subir-proyecto">Subir proyecto</a>
-    <a class="activo" href="#notificaciones">Notificaciones</a>
+    <a routerLink="/catalogo" routerLinkActive="activo" [routerLinkActiveOptions]="{ exact: true }">Catálogo</a>
+    <a routerLink="/mis-proyectos" routerLinkActive="activo">Mis proyectos</a>
+    <a routerLink="/publicar" routerLinkActive="activo">Subir proyecto</a>
+    <a routerLink="/notificaciones" routerLinkActive="activo">Notificaciones</a>
   </nav>
 </header>
 

@@ -1,0 +1,123 @@
+<div class="auth-page">
+  <header class="auth-header">
+    <a class="brand" routerLink="/catalogo" aria-label="UES Repositorio Digital">
+      <img src="/ues-escudo.png" alt="Escudo de la Universidad de El Salvador">
+      <span class="brand-copy">
+        <strong>UES | Repositorio Digital</strong>
+        <small>Universidad de El Salvador</small>
+      </span>
+    </a>
+    <a class="catalog-link" routerLink="/catalogo">Explorar catálogo</a>
+  </header>
+
+  <main class="auth-main">
+    <section class="auth-card">
+      <p class="eyebrow">REPOSITORIO ACADÉMICO · UNIVERSIDAD DE EL SALVADOR</p>
+
+      @if (mode() === 'login') {
+        <h1>Iniciar sesión</h1>
+        <p class="intro">Accede para enviar proyectos y consultar su seguimiento.</p>
+      } @else {
+        <h1>Crear una cuenta</h1>
+        <p class="intro">Regístrate para enviar y dar seguimiento a tus proyectos.</p>
+      }
+
+      @if (mensajeError) {
+        <p class="error-message" role="alert">{{ mensajeError }}</p>
+      }
+
+      <form (ngSubmit)="submit()">
+        @if (mode() === 'registro') {
+          <div class="field-row">
+            <label>
+              Nombres
+              <input
+                type="text"
+                name="nombres"
+                [(ngModel)]="nombres"
+                required
+                minlength="2"
+                maxlength="100"
+                autocomplete="given-name"
+                placeholder="Tus nombres">
+            </label>
+            <label>
+              Apellidos
+              <input
+                type="text"
+                name="apellidos"
+                [(ngModel)]="apellidos"
+                required
+                minlength="2"
+                maxlength="100"
+                autocomplete="family-name"
+                placeholder="Tus apellidos">
+            </label>
+          </div>
+        }
+
+        <label>
+          Correo electrónico
+          <input
+            type="email"
+            name="correo"
+            [(ngModel)]="correo"
+            required
+            maxlength="254"
+            autocomplete="email"
+            placeholder="tu.correo@ues.edu.sv">
+        </label>
+
+        <label>
+          Contraseña
+          <input
+            type="password"
+            name="contrasena"
+            [(ngModel)]="contrasena"
+            required
+            [minlength]="mode() === 'registro' ? 8 : 1"
+            autocomplete="current-password"
+            placeholder="Escribe tu contraseña">
+        </label>
+
+        @if (mode() === 'registro') {
+          <label>
+            Confirmar contraseña
+            <input
+              type="password"
+              name="confirmarContrasena"
+              [(ngModel)]="confirmarContrasena"
+              required
+              minlength="8"
+              autocomplete="new-password"
+              placeholder="Escribe de nuevo tu contraseña">
+          </label>
+        }
+
+        <button class="submit-button" type="submit" [disabled]="enviando">
+          @if (enviando) {
+            Procesando...
+          } @else if (mode() === 'login') {
+            Iniciar sesión
+          } @else {
+            Crear cuenta
+          }
+        </button>
+      </form>
+
+      @if (mode() === 'login') {
+        <p class="switch-copy">
+          ¿No tienes cuenta?
+          <a routerLink="/registro" [queryParams]="queryParams">Regístrate aquí</a>
+        </p>
+      } @else {
+        <p class="switch-copy">
+          ¿Ya tienes cuenta?
+          <a routerLink="/iniciar-sesion" [queryParams]="queryParams">Inicia sesión</a>
+        </p>
+      }
+
+      <a class="back-link" routerLink="/catalogo">Volver al catálogo público</a>
+    </section>
+  </main>
+</div>
