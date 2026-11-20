@@ -1,10 +1,10 @@
-<main class="workspace-screen dashboard-screen">
+<main class="workspace-screen">
   <header class="workspace-header glass-panel">
     <a class="brand" href="#inicio" (click)="$event.preventDefault(); navegar.emit('catalog')">
       <img class="ues-crest" src="ues-escudo.png" alt="Escudo UES" />
       <span class="brand-copy"><strong>SIS | Repositorio Digital</strong><small>Panel de administración · demostración</small></span>
     </a>
-    <nav class="dashboard-nav">
+    <nav class="dashboard-nav" aria-label="Navegación principal">
       <button type="button" (click)="navegar.emit('catalog')">Catálogo</button>
       <button type="button" class="active" (click)="navegar.emit('admin')">Administración</button>
       <button type="button" (click)="navegar.emit('supervisor')">Supervisión</button>
@@ -12,87 +12,240 @@
     </nav>
   </header>
 
+  <nav class="admin-tabs glass-panel" aria-label="Categorías de administración">
+    @for (item of tabs; track item.tab) {
+      <a class="admin-tab" [routerLink]="['/admin', item.tab]" [class.active]="activeTab() === item.tab"
+        [attr.aria-current]="activeTab() === item.tab ? 'page' : null">
+        {{ item.label }}
+      </a>
+    }
+  </nav>
+
+  <div class="flip-stage">
+  @for (screen of [activeTab()]; track screen) {
+  <div class="screen-flip" [style.--flip-from]="flipFrom()">
   <section class="dashboard-heading">
-    <p class="eyebrow">CUENTA: ADMINISTRADOR</p>
-    <h1>Cuentas y acceso</h1>
-    <p class="view-intro">Crea cuentas y asigna roles. La aprobación y el retiro de trabajos corresponden al supervisor.</p>
-    <nav class="panel-anchor-nav" aria-label="Secciones del panel de administrador">
-      <a href="#create-account">Crear cuenta</a>
-      <a href="#user-roles">Usuarios y roles</a>
-      <a href="#role-definitions">Qué puede hacer cada rol</a>
-    </nav>
+    <div>
+      <h1>{{ pageTitle() }}</h1>
+      <p class="role-label">Administrador</p>
+    </div>
+    @if (activeTab() === 'cuentas') {
+      <button type="button" class="help-button" (click)="showRolesHelp.set(true)"
+        aria-haspopup="dialog" aria-controls="roles-help">
+        <span class="help-mark" aria-hidden="true">?</span>
+        ¿Qué rol asignar?
+      </button>
+    }
   </section>
 
-  @if (repo.actionNotice()) {
-    <p class="inline-notice action-banner" role="status">{{ repo.actionNotice() }}</p>
+  @if (actionNotice()) {
+    <p class="action-banner" role="status">{{ actionNotice() }}</p>
   }
 
-  <div class="stat-grid">
-    <article class="stat-card glass-panel"><span>Cuentas de muestra</span><strong>{{ repo.users().length }}</strong></article>
-    <article class="stat-card glass-panel"><span>Roles disponibles</span><strong>{{ roles.length }}</strong></article>
-    <article class="stat-card glass-panel"><span>Acceso</span><strong class="stat-text">Asignado por administrador</strong></article>
-  </div>
+  @if (activeCatalog(); as catalog) {
+    <section class="management-card glass-panel">
+      <div class="panel-title">
+        <div>
+          <h2>Agregar {{ catalog.singular }}</h2>
+          <p>{{ catalog.description }}</p>
+        </div>
+        <span class="demo-tag">DEMO</span>
+      </div>
+      <form class="catalog-form" (submit)="$event.preventDefault(); addCatalogRow()">
+        @for (field of catalog.fields; track field.key) {
+          <label>{{ field.label }}{{ field.required ? ' *' : '' }}
+            @if (field.optionsFrom) {
+              <select [name]="field.key" [ngModel]="draft()[field.key] ?? ''" (ngModelChange)="setDraft(field.key, $event)">
+                <option value="">Selecciona…</option>
+                @for (option of optionsFor(field); track option) {
+                  <option [value]="option">{{ option }}</option>
+                }
+              </select>
+            } @else {
+              <input [name]="field.key" autocomplete="off" [ngModel]="draft()[field.key] ?? ''"
+                (ngModelChange)="setDraft(field.key, $event)" />
+            }
+          </label>
+        }
+        <button class="primary-button" type="submit">Agregar</button>
+      </form>
+      @if (catalog.tab === 'carreras' && optionsFor(catalog.fields[2]).length === 0) {
+        <p class="table-note">Primero crea al menos un departamento para poder asignarlo a una carrera.</p>
+      }
+    </section>
 
+    <section class="management-card glass-panel">
+      <div class="panel-title">
+        <div><h2>{{ catalog.label }} registradas</h2></div>
+        <span class="count-tag">{{ filteredCatalogRows().length }} registros</span>
+      </div>
+
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
+        </svg>
+        <input type="search" name="catalogSearch" placeholder="Buscar" aria-label="Buscar en {{ catalog.label }}"
+          autocomplete="off" [ngModel]="search()" (ngModelChange)="search.set($event)" />
+      </div>
+
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              @for (field of catalog.fields; track field.key) { <th>{{ field.label }}</th> }
+              <th>Acción</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of filteredCatalogRows(); track row.id) {
+              <tr>
+                @for (field of catalog.fields; track field.key) { <td>{{ row[field.key] || '—' }}</td> }
+                <td>
+                  <button type="button" class="decision" (click)="requestDelete(catalog.tab, row.id)">Eliminar</button>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td [attr.colspan]="catalog.fields.length + 1" class="empty-row">Aún no hay registros.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  } @else {
   <section class="management-card glass-panel" id="create-account">
     <div class="panel-title">
       <div>
-        <h2>1. Crear cuenta interna</h2>
-        <p>El administrador puede crear cuentas de muestra y asignar roles internos. Las cuentas ordinarias pueden solicitar publicaciones sin un rol especial.</p>
+        <h2>Crear cuenta interna</h2>
+        <p>Agrega cuentas de muestra y asígnales roles internos más adelante.</p>
       </div>
       <span class="demo-tag">DEMO</span>
     </div>
     <form class="add-user-form" (submit)="$event.preventDefault(); addUser()">
-      <label>Nombre de usuario<input name="newUsername" [ngModel]="newUsername()" (ngModelChange)="newUsername.set($event)" required /></label>
-      <label>Nombre de la persona<input name="newUserName" [ngModel]="newUserName()" (ngModelChange)="newUserName.set($event)" required /></label>
+      <label>Nombre de usuario
+        <input name="newUsername" autocomplete="off" [ngModel]="newUsername()" (ngModelChange)="newUsername.set($event)" required />
+      </label>
+      <label>Nombre de la persona
+        <input name="newUserName" autocomplete="off" [ngModel]="newUserName()" (ngModelChange)="newUserName.set($event)" required />
+      </label>
       <button class="primary-button" type="submit">Agregar cuenta</button>
     </form>
   </section>
 
   <section class="management-card glass-panel" id="user-roles">
     <div class="panel-title">
-      <div><h2>2. Usuarios y roles</h2><p>Una cuenta puede tener más de un rol; nadie puede asignarse a sí mismo privilegios.</p></div>
+      <div>
+        <h2>Usuarios y roles</h2>
+        <p>Una cuenta puede tener más de un rol. Cada cambio de permisos pide tu contraseña.</p>
+      </div>
+      <span class="count-tag">{{ filteredUsers().length }} de {{ users().length }}</span>
     </div>
+
+    <div class="search-box">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
+      </svg>
+      <input type="search" name="search" placeholder="Buscar por usuario" aria-label="Buscar por usuario"
+        autocomplete="off" [ngModel]="search()" (ngModelChange)="search.set($event)" />
+    </div>
+
     <div class="table-scroll">
       <table>
-        <thead><tr><th>Usuario</th><th>Nombre</th><th>Roles</th><th>Estado</th><th>Acceso</th></tr></thead>
+        <thead>
+          <tr><th>Usuario</th><th>Roles</th><th>Estado</th><th>Acceso</th></tr>
+        </thead>
         <tbody>
-          @for (user of repo.users(); track user.id) {
+          @for (user of filteredUsers(); track user.id) {
             <tr>
-              <td>{{ user.username }}</td>
-              <td>{{ user.name }}</td>
               <td>
-                <div class="role-checks">
-                  @for (role of roles; track role) {
-                    <label>
-                      <input type="checkbox" [checked]="user.roles.includes(role)" [disabled]="user.id === 1"
-                        (change)="repo.changeUserRole(user.id, role, $any($event.target).checked)" />
-                      <span>{{ role }}</span>
-                    </label>
+                <div class="user-cell">
+                  <span class="avatar" aria-hidden="true">{{ initials(user) }}</span>
+                  <span class="user-text">
+                    <strong>{{ user.username }}</strong>
+                    <small>{{ user.name }}</small>
+                  </span>
+                </div>
+              </td>
+              <td>
+                <div class="role-chips">
+                  @for (role of roleNames; track role) {
+                    <button type="button" class="role-chip" [class.on]="user.roles.includes(role)"
+                      [attr.aria-pressed]="user.roles.includes(role)" [disabled]="user.id === 1"
+                      (click)="requestRoleChange(user.id, role, !user.roles.includes(role))">
+                      {{ role }}
+                    </button>
                   }
                 </div>
               </td>
               <td>
-                <span class="status-pill" [class.status-active]="user.active" [class.status-rejected]="!user.active">{{ user.active ? 'Activo' : 'Inactivo' }}</span>
+                <span class="status-pill" [class.status-active]="user.active" [class.status-rejected]="!user.active">
+                  {{ user.active ? 'Activo' : 'Inactivo' }}
+                </span>
               </td>
               <td>
-                <button type="button" class="decision" [disabled]="user.id === 1" (click)="repo.changeUserActive(user.id)">{{ user.active ? 'Deshabilitar' : 'Habilitar' }}</button>
+                <button type="button" class="decision" [disabled]="user.id === 1" (click)="requestActiveChange(user.id)">
+                  {{ user.active ? 'Deshabilitar' : 'Habilitar' }}
+                </button>
               </td>
             </tr>
+          } @empty {
+            <tr><td colspan="4" class="empty-row">No hay usuarios que coincidan con «{{ search() }}».</td></tr>
           }
         </tbody>
       </table>
     </div>
-    <p class="inline-notice">Este panel es de demostración. El rol de administrador de la cuenta principal no se puede retirar desde aquí.</p>
+    <p class="table-note">La cuenta principal conserva el rol de administrador y no se puede modificar desde aquí.</p>
   </section>
-
-  <section class="management-card glass-panel" id="role-definitions">
-    <div class="panel-title">
-      <div><h2>3. Roles internos</h2><p>Solicitar la publicación de un proyecto es opcional para cualquier cuenta; no es un rol.</p></div>
-    </div>
-    <div class="role-grid">
-      <article class="role-card"><h3>Administrador</h3><p>Gestiona cuentas y asigna roles internos.</p></article>
-      <article class="role-card"><h3>Supervisor</h3><p>Revisa entregas, decide y controla publicaciones.</p></article>
-      <article class="role-card"><h3>Lector</h3><p>Consulta el catálogo y puede solicitar la publicación de un proyecto si lo desea.</p></article>
-    </div>
-  </section>
+  }
+  </div>
+  }
+  </div>
 </main>
+
+@if (showRolesHelp()) {
+  <div class="overlay" (click)="showRolesHelp.set(false)" (keydown.escape)="showRolesHelp.set(false)">
+    <div class="modal" id="roles-help" role="dialog" aria-modal="true" aria-labelledby="roles-help-title"
+      tabindex="-1" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <h2 id="roles-help-title">¿Qué rol asignar?</h2>
+        <button type="button" class="close-button" aria-label="Cerrar" (click)="showRolesHelp.set(false)">×</button>
+      </div>
+      <p class="modal-intro">Consultar el catálogo no requiere un rol. Un administrador sin rol de Supervisor no puede aprobar ni retirar publicaciones.</p>
+      <div class="role-list">
+        @for (role of roles; track role.name) {
+          <article class="role-card">
+            <h3>{{ role.name }}</h3>
+            <p>{{ role.description }}</p>
+          </article>
+        }
+      </div>
+    </div>
+  </div>
+}
+
+@if (pending()) {
+  <div class="overlay" (keydown.escape)="cancelPending()">
+    <form class="modal" role="dialog" aria-modal="true" aria-labelledby="pw-title"
+      (submit)="$event.preventDefault(); confirmPending()">
+      <div class="modal-head">
+        <h2 id="pw-title">Confirma tu contraseña</h2>
+        <button type="button" class="close-button" aria-label="Cancelar" (click)="cancelPending()">×</button>
+      </div>
+      <p class="modal-intro">{{ pendingDescription() }}</p>
+      <label class="pw-field">Contraseña del administrador
+        <input type="password" name="adminPassword" autocomplete="current-password" autofocus
+          [ngModel]="password()" (ngModelChange)="password.set($event)" />
+      </label>
+      @if (passwordError()) {
+        <p class="pw-error" role="alert">{{ passwordError() }}</p>
+      }
+      <div class="modal-actions">
+        <button type="button" class="decision" (click)="cancelPending()" [disabled]="verifying()">Cancelar</button>
+        <button type="submit" class="primary-button" [disabled]="verifying()">
+          {{ verifying() ? 'Verificando…' : 'Confirmar cambio' }}
+        </button>
+      </div>
+    </form>
+  </div>
+}

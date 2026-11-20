@@ -6,10 +6,13 @@ import { Catalogo } from './catalogo/catalogo';
 import { EnvioProyectoComponent } from './publicaciones/envio-proyecto/envio-proyecto';
 import { NotificacionesComponent } from './publicaciones/notificacions/notificaciones';
 import { SeguimientoComponent } from './publicaciones/seguimiento/seguimiento';
+import { AdminPanel } from './gestion/administrador/admin-panel';
 
 export const routes: Routes = [
   { path: 'iniciar-sesion', component: AuthComponent, data: { mode: 'login' } },
   { path: 'registro', component: AuthComponent, data: { mode: 'registro' } },
+  { path: 'admin', pathMatch: 'full', redirectTo: 'admin/cuentas' },
+  { path: 'admin/:seccion', component: AdminPanel },
   {
     path: 'catalogo',
     component: Catalogo,
