@@ -1,6 +1,6 @@
 import { usuarioTieneRol } from '../../auth/auth.guard';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, inject, OnInit } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { AUTH_TOKEN_KEY } from '../../auth/auth.constants';
 
@@ -31,6 +31,7 @@ export interface ProyectoEnSeguimiento {
 })
 export class SeguimientoComponent implements OnInit {
   private readonly http = inject(HttpClient);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   proyectos: ProyectoEnSeguimiento[] = [];
   cargando = true;
@@ -62,10 +63,12 @@ export class SeguimientoComponent implements OnInit {
         next: datos => {
           this.proyectos = datos;
           this.cargando = false;
+          this.cdr.markForCheck();
         },
         error: (error: unknown) => {
           this.cargando = false;
           this.mensajeError = this.mensajeErrorApi(error);
+          this.cdr.markForCheck();
         }
       });
   }

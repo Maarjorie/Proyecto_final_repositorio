@@ -1,5 +1,5 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, input } from '@angular/core';
+import { ChangeDetectorRef, Component, inject, input } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
@@ -31,6 +31,7 @@ export class AuthComponent {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   nombres = '';
   apellidos = '';
@@ -98,6 +99,7 @@ export class AuthComponent {
       this.mensajeError = this.getErrorMessage(error);
     } finally {
       this.enviando = false;
+      this.cdr.markForCheck();
     }
   }
 

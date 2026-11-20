@@ -1,6 +1,6 @@
 import { usuarioTieneRol } from '../../auth/auth.guard';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, inject, OnInit } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { firstValueFrom, retry } from 'rxjs';
 import { AUTH_TOKEN_KEY } from '../../auth/auth.constants';
@@ -41,6 +41,9 @@ const API_URL = 'https://localhost:7244/api';
 })
 export class EnvioProyectoComponent implements OnInit {
   private readonly http = inject(HttpClient);
+  // La app es zoneless: tras una respuesta HTTP hay que avisar a Angular
+  // para que vuelva a pintar la vista.
+  private readonly cdr = inject(ChangeDetectorRef);
 
   autores: AutorFormulario[] = [
     { nombres: '', apellidos: '', carnet: '' }
@@ -140,6 +143,7 @@ export class EnvioProyectoComponent implements OnInit {
       .subscribe({
         next: datos => {
           aplicar(datos);
+          this.cdr.markForCheck();
           try {
             globalThis.sessionStorage.setItem(claveCache, JSON.stringify(datos));
           } catch {
@@ -150,6 +154,7 @@ export class EnvioProyectoComponent implements OnInit {
           console.error('Error al cargar catálogo ' + endpoint + ':', error);
           if (!datosGuardados) {
             this.mensajeError = mensajeError;
+            this.cdr.markForCheck();
           }
         }
       });
@@ -377,6 +382,7 @@ export class EnvioProyectoComponent implements OnInit {
       this.mensajeError = this.mensajeErrorApi(error);
     } finally {
       this.enviando = false;
+      this.cdr.markForCheck();
     }
   }
 

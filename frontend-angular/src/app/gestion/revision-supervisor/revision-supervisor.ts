@@ -1,6 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
-import { Component, inject, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, inject, OnInit } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { AUTH_TOKEN_KEY } from '../../auth/auth.constants';
 
@@ -38,6 +38,7 @@ type DecisionRevision = 'Aprobada' | 'Con correcciones' | 'Rechazada';
 })
 export class RevisionSupervisorComponent implements OnInit {
   private readonly http = inject(HttpClient);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   entregas: EntregaRevision[] = [];
   observaciones: Record<number, string> = {};
@@ -99,11 +100,13 @@ export class RevisionSupervisorComponent implements OnInit {
       .subscribe({
         next: respuesta => {
           this.mensaje = respuesta.mensaje;
+          this.cdr.markForCheck();
           this.cargarPendientes();
         },
         error: (error: unknown) => {
           this.mensajeError = this.mensajeErrorApi(error);
           this.enviandoId = null;
+          this.cdr.markForCheck();
         }
       });
   }
@@ -136,6 +139,7 @@ export class RevisionSupervisorComponent implements OnInit {
         },
         error: (error: unknown) => {
           this.mensajeError = this.mensajeErrorApi(error);
+          this.cdr.markForCheck();
         }
       });
   }
@@ -158,11 +162,13 @@ export class RevisionSupervisorComponent implements OnInit {
           this.entregas = datos;
           this.cargando = false;
           this.enviandoId = null;
+          this.cdr.markForCheck();
         },
         error: (error: unknown) => {
           this.cargando = false;
           this.enviandoId = null;
           this.mensajeError = this.mensajeErrorApi(error);
+          this.cdr.markForCheck();
         }
       });
   }
