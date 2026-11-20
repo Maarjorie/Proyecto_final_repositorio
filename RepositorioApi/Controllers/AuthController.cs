@@ -152,7 +152,9 @@ public class AuthController : ControllerBase
                 id = usuario.IdUsuario,
                 nombres = usuario.Nombres,
                 apellidos = usuario.Apellidos,
-                correo = usuario.Correo
+                correo = usuario.Correo,
+                // El frontend usa los roles para llevar a cada cuenta a su pantalla.
+                roles = usuario.IdRols.Select(rol => rol.NombreRol).ToList()
             }
         };
     }

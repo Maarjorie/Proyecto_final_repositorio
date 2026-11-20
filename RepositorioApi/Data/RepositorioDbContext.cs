@@ -423,6 +423,9 @@ public partial class RepositorioDbContext : DbContext
                 .HasMaxLength(200)
                 .HasColumnName("nombre");
             entity.Property(e => e.Ubicacion).HasColumnName("ubicacion");
+            entity.Property(e => e.DifusionAutorizada)
+                .HasDefaultValue(false)
+                .HasColumnName("difusion_autorizada");
 
             entity.HasOne(d => d.IdEntregaNavigation).WithMany(p => p.TblRecursos)
                 .HasForeignKey(d => d.IdEntrega)

@@ -354,3 +354,103 @@
 .brand small {
   font-weight: 800;
 }
+/* Estados con color propio, en la misma familia que Mis proyectos */
+.tipo-notificacion.correcciones {
+  background: rgba(255, 224, 161, 0.72);
+  color: #604414;
+}
+
+.tipo-notificacion.aprobado {
+  background: rgba(190, 232, 205, 0.8);
+  color: #205331;
+}
+
+.tipo-notificacion.rechazado {
+  background: rgba(245, 198, 198, 0.82);
+  color: #762d2d;
+}
+
+.tarjeta-notificacion.no-leida {
+  border-left: 4px solid #0c396f;
+}
+
+.tarjeta-notificacion.no-leida .estado-lectura {
+  background: #0c396f;
+  color: #fff;
+}
+
+.encabezado-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.notificacion-pie {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.notificacion-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.boton-texto,
+.boton-ir {
+  min-height: 40px;
+  padding: 9px 14px;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 160ms ease, filter 160ms ease;
+}
+
+.boton-texto {
+  border: 1px solid rgba(12, 57, 111, 0.22);
+  background: rgba(248, 252, 255, 0.8);
+  color: #183a5d;
+}
+
+.boton-ir {
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  background: linear-gradient(145deg, #263a46, #0d1c26);
+  color: #fff;
+  box-shadow: 0 8px 16px rgba(13, 28, 38, 0.28), inset 0 1px 2px rgba(255, 255, 255, 0.45);
+}
+
+.boton-texto:hover,
+.boton-ir:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+}
+
+.boton-texto:focus-visible,
+.boton-ir:focus-visible {
+  outline: 3px solid #68c6dd;
+  outline-offset: 2px;
+}
+
+.mensaje-error {
+  margin: 16px 0 0;
+  padding: 14px 18px;
+  border: 1px solid rgba(180, 56, 56, 0.45);
+  border-radius: 14px;
+  background: rgba(255, 236, 236, 0.94);
+  color: #782f2f;
+}
+
+@media (max-width: 520px) {
+  .notificacion-acciones,
+  .notificacion-acciones button {
+    width: 100%;
+  }
+}

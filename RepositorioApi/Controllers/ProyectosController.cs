@@ -31,11 +31,38 @@ public sealed class ProyectosController : ControllerBase
         _logger = logger;
     }
 
+    /// <summary>RF-17: primer envío de un trabajo para revisión.</summary>
     [HttpPost]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(MaximoSolicitudBytes)]
-    public async Task<IActionResult> Crear(
+    public Task<IActionResult> Crear(
         [FromForm] CrearProyectoRequest request,
+        CancellationToken cancellationToken) =>
+        RegistrarEntregaAsync(request, idEntregaCorregida: null, cancellationToken);
+
+    /// <summary>
+    /// RF-20: reenviar una versión corregida de una entrega observada. Se
+    /// registra como otra entrega del mismo proyecto; la anterior conserva sus
+    /// materiales y su decisión. Solo el solicitante de la entrega observada
+    /// puede corregirla (RNF-03).
+    /// </summary>
+    [HttpPost("mis-proyectos/{idEntrega:int}/reenvio")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(MaximoSolicitudBytes)]
+    public Task<IActionResult> Reenviar(
+        int idEntrega,
+        [FromForm] CrearProyectoRequest request,
+        CancellationToken cancellationToken) =>
+        RegistrarEntregaAsync(request, idEntrega, cancellationToken);
+
+    /// <summary>
+    /// Valida y guarda una entrega. Con <paramref name="idEntregaCorregida"/>
+    /// es un reenvío: actualiza los datos del proyecto y crea otra versión.
+    /// Las reglas de materiales son las mismas para el envío y el reenvío.
+    /// </summary>
+    private async Task<IActionResult> RegistrarEntregaAsync(
+        CrearProyectoRequest request,
+        int? idEntregaCorregida,
         CancellationToken cancellationToken)
     {
         if (!int.TryParse(
@@ -43,6 +70,47 @@ public sealed class ProyectosController : ControllerBase
                 out var idUsuario))
         {
             return Unauthorized(new { mensaje = "No se identificó la cuenta que envía." });
+        }
+
+        // En un reenvío, la entrega a corregir debe ser propia, estar observada
+        // y ser la última versión del proyecto.
+        TblEntrega? entregaCorregida = null;
+        if (idEntregaCorregida is not null)
+        {
+            entregaCorregida = await _db.TblEntregas
+                .Include(item => item.IdProyectoNavigation)
+                .Include(item => item.TblRecursos)
+                    .ThenInclude(recurso => recurso.IdTipoRecursoNavigation)
+                .FirstOrDefaultAsync(
+                    item => item.IdEntrega == idEntregaCorregida && item.IdUsuarioEnvia == idUsuario,
+                    cancellationToken);
+
+            if (entregaCorregida is null)
+            {
+                return NotFound(new { mensaje = "No se encontró la solicitud." });
+            }
+
+            if (entregaCorregida.EstadoEntrega != "con_correcciones")
+            {
+                return Conflict(new { mensaje = "Solo puedes reenviar una solicitud a la que el supervisor pidió correcciones." });
+            }
+
+            var hayVersionPosterior = await _db.TblEntregas.AnyAsync(
+                item => item.IdProyecto == entregaCorregida.IdProyecto &&
+                        item.FechaEnvio > entregaCorregida.FechaEnvio,
+                cancellationToken);
+
+            if (hayVersionPosterior)
+            {
+                return Conflict(new { mensaje = "Este proyecto ya tiene una versión más reciente." });
+            }
+
+            // RF-08: actualizar un trabajo ya publicado sin alterar lo visible
+            // requiere guardar los datos por versión, que el esquema aún no tiene.
+            if (entregaCorregida.IdProyectoNavigation.EstadoPublicacion == "publicado")
+            {
+                return Conflict(new { mensaje = "Este trabajo ya está publicado; su actualización todavía no está disponible." });
+            }
         }
 
         List<AutorProyectoRequest>? autores;
@@ -112,7 +180,27 @@ public sealed class ProyectosController : ControllerBase
                 .Select(archivo => (Archivo: archivo, TipoNombre: "ZIP", Extension: ".zip")))
             .ToList();
 
-        if (archivos.Count == 0 && enlaces.Count == 0)
+        // En un reenvío se pueden conservar materiales de la versión observada.
+        var idsConservar = (request.ConservarRecursos ?? []).Distinct().ToList();
+        var conservados = new List<TblRecurso>();
+        if (idsConservar.Count > 0)
+        {
+            if (entregaCorregida is null)
+            {
+                return BadRequest(new { mensaje = "Solo un reenvío puede conservar materiales anteriores." });
+            }
+
+            conservados = entregaCorregida.TblRecursos
+                .Where(recurso => idsConservar.Contains(recurso.IdRecurso))
+                .ToList();
+
+            if (conservados.Count != idsConservar.Count)
+            {
+                return BadRequest(new { mensaje = "Los materiales que conservas deben ser de la versión observada." });
+            }
+        }
+
+        if (archivos.Count == 0 && enlaces.Count == 0 && conservados.Count == 0)
         {
             return BadRequest(new { mensaje = "Agrega al menos un PDF, un ZIP o un enlace." });
         }
@@ -155,8 +243,10 @@ public sealed class ProyectosController : ControllerBase
 
         var requierePdf = tipo.Nombre.Contains("tesis", StringComparison.OrdinalIgnoreCase) ||
                           tipo.Nombre.Contains("graduación", StringComparison.OrdinalIgnoreCase);
+        var tienePdf = (request.Pdfs?.Any(archivo => archivo.Length > 0) ?? false) ||
+                       conservados.Any(recurso => recurso.IdTipoRecursoNavigation.Nombre == "pdf");
 
-        if (requierePdf && !(request.Pdfs?.Any(archivo => archivo.Length > 0) ?? false))
+        if (requierePdf && !tienePdf)
         {
             return BadRequest(new { mensaje = "Para tesis y trabajos de graduación debes adjuntar el PDF completo." });
         }
@@ -177,19 +267,21 @@ public sealed class ProyectosController : ControllerBase
                 new { mensaje = "Faltan tipos de recurso en el catálogo de la API." });
         }
 
-        var proyecto = new TblProyecto
+        var esReenvio = entregaCorregida is not null;
+        var proyecto = entregaCorregida?.IdProyectoNavigation ?? new TblProyecto
         {
-            Titulo = request.Titulo.Trim(),
-            Resumen = request.Resumen.Trim(),
-            Anio = request.Anio,
-            IdTipoProyecto = request.IdTipoProyecto,
-            IdCarrera = request.IdCarrera,
-            IdTematica = request.IdTematica,
-            IdMateria = request.IdMateria,
             EstadoPublicacion = "no_publicado",
             EstadoAutorizacion = "pendiente",
             EsDestacado = false
         };
+
+        proyecto.Titulo = request.Titulo.Trim();
+        proyecto.Resumen = request.Resumen.Trim();
+        proyecto.Anio = request.Anio;
+        proyecto.IdTipoProyecto = request.IdTipoProyecto;
+        proyecto.IdCarrera = request.IdCarrera;
+        proyecto.IdTematica = request.IdTematica;
+        proyecto.IdMateria = request.IdMateria;
 
         var entrega = new TblEntrega
         {
@@ -199,11 +291,31 @@ public sealed class ProyectosController : ControllerBase
         };
 
         var archivosGuardados = new List<string>();
+        var idsAutoresAnteriores = new List<int>();
 
         await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
         try
         {
-            _db.TblProyectos.Add(proyecto);
+            if (esReenvio)
+            {
+                proyecto.FechaActualizacion = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
+
+                // Los autores y las palabras clave se reemplazan por los corregidos.
+                idsAutoresAnteriores = await _db.TblProyectoAutors
+                    .Where(item => item.IdProyecto == proyecto.IdProyecto)
+                    .Select(item => item.IdAutor)
+                    .ToListAsync(cancellationToken);
+                await _db.TblProyectoAutors
+                    .Where(item => item.IdProyecto == proyecto.IdProyecto)
+                    .ExecuteDeleteAsync(cancellationToken);
+                await _db.Entry(proyecto).Collection(item => item.IdEtiqueta).LoadAsync(cancellationToken);
+                proyecto.IdEtiqueta.Clear();
+            }
+            else
+            {
+                _db.TblProyectos.Add(proyecto);
+            }
+
             _db.TblEntregas.Add(entrega);
             await _db.SaveChangesAsync(cancellationToken);
 
@@ -307,16 +419,61 @@ public sealed class ProyectosController : ControllerBase
                 });
             }
 
+            // Los materiales conservados apuntan al mismo archivo; la versión
+            // anterior mantiene su propio registro (RF-20, RNF-07).
+            foreach (var recurso in conservados)
+            {
+                _db.TblRecursos.Add(new TblRecurso
+                {
+                    IdEntrega = entrega.IdEntrega,
+                    IdTipoRecurso = recurso.IdTipoRecurso,
+                    Nombre = recurso.Nombre,
+                    Ubicacion = recurso.Ubicacion
+                });
+            }
+
             _db.TblHistorials.Add(new TblHistorial
             {
                 IdUsuario = idUsuario,
                 IdProyecto = proyecto.IdProyecto,
                 // ck_historial_accion exige la acción en minúsculas.
-                Accion = "envío",
-                Detalle = "Solicitud registrada y pendiente de revisión del supervisor."
+                Accion = esReenvio ? "reenvío" : "envío",
+                Detalle = esReenvio
+                    ? "Versión corregida registrada y pendiente de revisión del supervisor."
+                    : "Solicitud registrada y pendiente de revisión del supervisor."
             });
 
+            // RF-17 / proceso: el sistema avisa al supervisor al recibir una entrega.
+            var idsSupervisores = await _db.TblUsuarios
+                .Where(usuario => usuario.Activo &&
+                                  usuario.IdRols.Any(rol => rol.NombreRol == "supervisor"))
+                .Select(usuario => usuario.IdUsuario)
+                .ToListAsync(cancellationToken);
+
+            foreach (var idSupervisor in idsSupervisores)
+            {
+                _db.TblNotificacions.Add(new TblNotificacion
+                {
+                    IdEntrega = entrega.IdEntrega,
+                    IdUsuarioDestino = idSupervisor,
+                    Mensaje = (esReenvio
+                        ? "Nueva entrega recibida (versión corregida) para revisión: "
+                        : "Nueva entrega recibida para revisión: ") + proyecto.Titulo + "."
+                });
+            }
+
             await _db.SaveChangesAsync(cancellationToken);
+
+            // Autores que dejaron de figurar en el proyecto y no tienen cuenta ni otros proyectos.
+            if (idsAutoresAnteriores.Count > 0)
+            {
+                await _db.TblAutors
+                    .Where(autor => idsAutoresAnteriores.Contains(autor.IdAutor) &&
+                                    autor.IdUsuario == null &&
+                                    !autor.TblProyectoAutors.Any())
+                    .ExecuteDeleteAsync(cancellationToken);
+            }
+
             await transaction.CommitAsync(cancellationToken);
 
             return StatusCode(StatusCodes.Status201Created, new
@@ -325,7 +482,9 @@ public sealed class ProyectosController : ControllerBase
                 idEntrega = entrega.IdEntrega,
                 estado = "Pendiente",
                 publicado = false,
-                mensaje = "El proyecto se envió y quedó pendiente de revisión del supervisor."
+                mensaje = esReenvio
+                    ? "La versión corregida se envió y quedó pendiente de revisión del supervisor."
+                    : "El proyecto se envió y quedó pendiente de revisión del supervisor."
             });
         }
         catch (Exception exception)
@@ -344,7 +503,7 @@ public sealed class ProyectosController : ControllerBase
                 }
             }
 
-            _logger.LogError(exception, "No se pudo guardar el proyecto enviado por el usuario {IdUsuario}", idUsuario);
+            _logger.LogError(exception, "No se pudo guardar la entrega enviada por el usuario {IdUsuario}", idUsuario);
             return StatusCode(
                 StatusCodes.Status500InternalServerError,
                 new { mensaje = "No se pudo guardar el envío. Revisa los datos y vuelve a intentarlo." });
@@ -366,7 +525,7 @@ public sealed class ProyectosController : ControllerBase
             .Where(item => item.IdUsuarioEnvia == idUsuario)
             .Include(item => item.IdProyectoNavigation)
                 .ThenInclude(proyecto => proyecto.IdTipoProyectoNavigation)
-            .Include(item => item.TblNotificacions)
+            .Include(item => item.TblNotificacions.Where(notificacion => notificacion.IdUsuarioDestino == idUsuario))
             .OrderByDescending(item => item.FechaEnvio)
             .ToListAsync(cancellationToken);
 
@@ -377,9 +536,15 @@ public sealed class ProyectosController : ControllerBase
                 .Select((entrega, indice) => new { entrega.IdEntrega, Version = indice + 1 }))
             .ToDictionary(item => item.IdEntrega, item => item.Version);
 
+        var ultimasPorProyecto = entregas
+            .GroupBy(item => item.IdProyecto)
+            .Select(grupo => grupo.OrderByDescending(item => item.FechaEnvio).First().IdEntrega)
+            .ToHashSet();
+
         return Ok(entregas.Select(entrega => new
         {
             id = entrega.IdEntrega,
+            idProyecto = entrega.IdProyecto,
             titulo = entrega.IdProyectoNavigation.Titulo,
             tipoTrabajo = entrega.IdProyectoNavigation.IdTipoProyectoNavigation.Nombre,
             fechaEnvio = entrega.FechaEnvio,
@@ -388,6 +553,9 @@ public sealed class ProyectosController : ControllerBase
             version = versiones[entrega.IdEntrega],
             estado = TraducirEstado(entrega.EstadoEntrega),
             puedeEliminar = entrega.EstadoEntrega == "pendiente",
+            // RF-20: pedir correcciones habilita reenviar la última versión.
+            puedeReenviar = PuedeReenviar(entrega, ultimasPorProyecto.Contains(entrega.IdEntrega)),
+            esUltimaVersion = ultimasPorProyecto.Contains(entrega.IdEntrega),
             observacion = entrega.TblNotificacions
                 .OrderByDescending(notificacion => notificacion.FechaEnvio)
                 .Select(notificacion => notificacion.Mensaje)
@@ -429,7 +597,7 @@ public sealed class ProyectosController : ControllerBase
                 .ThenInclude(proyecto => proyecto.IdEtiqueta)
             .Include(item => item.TblRecursos)
                 .ThenInclude(recurso => recurso.IdTipoRecursoNavigation)
-            .Include(item => item.TblNotificacions)
+            .Include(item => item.TblNotificacions.Where(notificacion => notificacion.IdUsuarioDestino == idUsuario))
             .Include(item => item.IdUsuarioRevisaNavigation)
             .FirstOrDefaultAsync(
                 item => item.IdEntrega == idEntrega && item.IdUsuarioEnvia == idUsuario,
@@ -448,10 +616,24 @@ public sealed class ProyectosController : ControllerBase
                 item => item.IdProyecto == entrega.IdProyecto &&
                         item.FechaEnvio <= entrega.FechaEnvio,
                 cancellationToken);
+        var esUltimaVersion = !await _db.TblEntregas
+            .AnyAsync(
+                item => item.IdProyecto == entrega.IdProyecto &&
+                        item.FechaEnvio > entrega.FechaEnvio,
+                cancellationToken);
 
         return Ok(new
         {
             id = entrega.IdEntrega,
+            idProyecto = entrega.IdProyecto,
+            // Identificadores para precargar el formulario de corrección (RF-20).
+            idTipoProyecto = proyecto.IdTipoProyecto,
+            idDepartamento = proyecto.IdCarreraNavigation.IdDepartamento,
+            idCarrera = proyecto.IdCarrera,
+            idTematica = proyecto.IdTematica,
+            idMateria = proyecto.IdMateria,
+            esUltimaVersion,
+            puedeReenviar = PuedeReenviar(entrega, esUltimaVersion),
             titulo = proyecto.Titulo,
             resumen = proyecto.Resumen,
             anio = proyecto.Anio,
@@ -623,11 +805,20 @@ public sealed class ProyectosController : ControllerBase
                 new { mensaje = "No se pudo eliminar la solicitud. Inténtalo de nuevo." });
         }
 
-        // Los archivos se borran solo después de confirmar la transacción.
+        // Los archivos se borran solo después de confirmar la transacción, y solo
+        // si ninguna otra versión los conserva (un reenvío puede compartirlos).
+        var ubicacionesEnUso = (await _db.TblRecursos
+                .AsNoTracking()
+                .Select(recurso => recurso.Ubicacion)
+                .Where(ubicacion => ubicacion.StartsWith("App_Data/"))
+                .ToListAsync(cancellationToken))
+            .Select(ubicacion => Path.GetFullPath(Path.Combine(_environment.ContentRootPath, ubicacion)))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         var carpetaSegura = Path.GetFullPath(Path.Combine(
             _environment.ContentRootPath, "App_Data", "entregas")) + Path.DirectorySeparatorChar;
         foreach (var ruta in archivos.Where(ruta =>
-                     ruta.StartsWith(carpetaSegura, StringComparison.OrdinalIgnoreCase)))
+                     ruta.StartsWith(carpetaSegura, StringComparison.OrdinalIgnoreCase) &&
+                     !ubicacionesEnUso.Contains(ruta)))
         {
             try
             {
@@ -712,6 +903,11 @@ public sealed class ProyectosController : ControllerBase
 
         return PhysicalFile(ruta, tipoContenido, Path.GetFileName(recurso.Nombre));
     }
+    private static bool PuedeReenviar(TblEntrega entrega, bool esUltimaVersion) =>
+        esUltimaVersion &&
+        entrega.EstadoEntrega == "con_correcciones" &&
+        entrega.IdProyectoNavigation.EstadoPublicacion != "publicado";
+
     private static string TraducirEstado(string estado) =>
         estado.ToLowerInvariant() switch
         {
@@ -756,6 +952,9 @@ public sealed class CrearProyectoRequest
     public List<IFormFile>? Pdfs { get; set; } = [];
 
     public List<IFormFile>? ArchivosZip { get; set; } = [];
+
+    /// <summary>Solo en un reenvío: materiales de la versión observada que se conservan.</summary>
+    public List<int>? ConservarRecursos { get; set; } = [];
 }
 
 public sealed class AutorProyectoRequest

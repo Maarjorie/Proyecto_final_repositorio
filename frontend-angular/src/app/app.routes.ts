@@ -13,17 +13,8 @@ export const routes: Routes = [
   {
     path: 'catalogo',
     component: Catalogo,
-    data: {
-      active: true,
-      works: [],
-      areas: [
-        'Bases de datos',
-        'Desarrollo web',
-        'Redes y Comunicación',
-        'Inteligencia artificial',
-        'Otros'
-      ]
-    }
+    // Las fichas y las áreas se cargan desde la API dentro del componente.
+    data: { active: true }
   },
   { path: 'publicar', component: EnvioProyectoComponent, canActivate: [requireSession] },
   { path: 'mis-proyectos', component: SeguimientoComponent, canActivate: [requireSession] },

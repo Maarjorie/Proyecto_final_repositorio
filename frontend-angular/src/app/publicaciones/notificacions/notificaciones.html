@@ -36,19 +36,30 @@
         <p class="etiqueta">AVISOS DE TUS PROYECTOS</p>
         <h2>Tus notificaciones</h2>
       </div>
-      <span class="contador">{{ notificaciones.length }} avisos</span>
+      <div class="encabezado-acciones">
+        <span class="contador">{{ sinLeer }} sin leer · {{ notificaciones.length }} avisos</span>
+        @if (sinLeer > 0) {
+          <button type="button" class="boton-texto" (click)="marcarTodasLeidas()">Marcar todas como leídas</button>
+        }
+      </div>
     </div>
 
-    @if (notificaciones.length > 0) {
+    @if (mensajeError) {
+      <p class="mensaje-error" role="alert">{{ mensajeError }}</p>
+    }
+
+    @if (cargando) {
+      <div class="estado-vacio" role="status">Cargando notificaciones...</div>
+    } @else if (notificaciones.length > 0) {
       <div class="lista-notificaciones">
         @for (notificacion of notificaciones; track notificacion.id) {
-          <article class="tarjeta-notificacion">
+          <article class="tarjeta-notificacion" [class.no-leida]="!notificacion.leida">
             <div class="notificacion-superior">
               <span
                 class="tipo-notificacion"
                 [class.correcciones]="notificacion.tipo === 'Correcciones solicitadas'"
                 [class.aprobado]="notificacion.tipo === 'Proyecto aprobado'"
-                [class.rechazado]="notificacion.tipo === 'Proyecto rechazado'">
+                [class.rechazado]="notificacion.tipo === 'Proyecto rechazado' || notificacion.tipo === 'Publicación retirada'">
                 {{ notificacion.tipo }}
               </span>
 
@@ -59,7 +70,15 @@
 
             <h3>{{ notificacion.tituloProyecto }}</h3>
             <p>{{ notificacion.mensaje }}</p>
-            <small>{{ notificacion.fecha }}</small>
+            <div class="notificacion-pie">
+              <small>{{ fechaLocal(notificacion.fecha) | date:'dd/MM/yyyy, h:mm a' }}</small>
+              <span class="notificacion-acciones">
+                @if (!notificacion.leida) {
+                  <button type="button" class="boton-texto" (click)="marcarLeida(notificacion)">Marcar como leída</button>
+                }
+                <button type="button" class="boton-ir" (click)="abrir(notificacion)">{{ textoAccion(notificacion) }}</button>
+              </span>
+            </div>
           </article>
         }
       </div>

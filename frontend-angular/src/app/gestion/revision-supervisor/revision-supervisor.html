@@ -21,100 +21,291 @@
 
   <section class="intro">
     <p class="etiqueta">PANEL DE SUPERVISIÓN</p>
-    <h1>Entregas pendientes</h1>
-    <p>Revisa cada proyecto y registra si se aprueba, requiere correcciones o se rechaza.</p>
+    <h1>Revisión de entregas</h1>
+    <p>
+      Revisa las entregas por orden de llegada, registra tu decisión y el permiso
+      de los autores, y administra lo que se muestra en el catálogo.
+    </p>
   </section>
 
+  <div class="pestanas" role="tablist" aria-label="Secciones del panel">
+    <button type="button" role="tab" class="pestana"
+      [class.activa]="pestana === 'pendientes'"
+      [attr.aria-selected]="pestana === 'pendientes'"
+      (click)="cambiarPestana('pendientes')">
+      Pendientes
+      <span class="insignia">{{ entregas.length }}</span>
+    </button>
+    <button type="button" role="tab" class="pestana"
+      [class.activa]="pestana === 'publicaciones'"
+      [attr.aria-selected]="pestana === 'publicaciones'"
+      (click)="cambiarPestana('publicaciones')">
+      Aprobadas y publicaciones
+    </button>
+  </div>
+
   @if (mensaje) {
-    <p class="mensaje-revision" role="status">{{ mensaje }}</p>
+    <p class="mensaje-exito" role="status">{{ mensaje }}</p>
   }
   @if (mensajeError) {
     <p class="mensaje-error" role="alert">{{ mensajeError }}</p>
   }
 
-  <section class="seccion-proyectos">
-    <div class="encabezado-seccion">
-      <div>
-        <p class="etiqueta">REVISIÓN DEL SUPERVISOR</p>
-        <h2>Solicitudes por revisar</h2>
+  @if (pestana === 'pendientes') {
+    <section class="seccion-proyectos" aria-label="Entregas pendientes">
+      <div class="encabezado-seccion">
+        <div>
+          <p class="etiqueta">POR ORDEN DE LLEGADA</p>
+          <h2>Solicitudes por revisar</h2>
+        </div>
+        <span class="contador">{{ entregas.length }} pendientes</span>
       </div>
-      <span class="contador">{{ entregas.length }} pendientes</span>
-    </div>
 
-    @if (cargando) {
-      <div class="estado-vacio" role="status">Cargando entregas...</div>
-    } @else {
-      <div class="lista-proyectos">
-        @for (entrega of entregas; track entrega.id) {
-          <article class="tarjeta-proyecto tarjeta-revision">
-            <div class="proyecto-cabecera">
-              <div>
-                <span class="tipo-trabajo">{{ formatearNombre(entrega.tipoTrabajo) }} · {{ entrega.anio }}</span>
-                <h3>{{ entrega.titulo }}</h3>
-              </div>
-              <span class="estado pendiente">Pendiente de revisión</span>
-            </div>
-
-            <div class="datos-proyecto">
-              <span>Solicitante: <strong>{{ entrega.solicitante }}</strong></span>
-              <span>Recibido: <strong>{{ entrega.fechaEnvio | date:'short' }}</strong></span>
-            </div>
-            <p><strong>Autores:</strong> {{ entrega.autores.join(', ') }}</p>
-            <p><strong>Carrera:</strong> {{ entrega.carrera }} · <strong>Área:</strong> {{ formatearNombre(entrega.tematica) }}</p>
-            <p>{{ entrega.resumen }}</p>
-
-            <div class="recursos-revision">
-              <strong>Materiales</strong>
-              @for (recurso of entrega.recursos; track recurso.id) {
-                <div class="recurso-revision">
-                  <span>{{ recurso.nombre }} · {{ formatearNombre(recurso.tipo) }}</span>
-                  <button type="button" class="boton-secundario" (click)="abrirRecurso(recurso)">
-                    {{ recurso.url ? 'Abrir enlace' : 'Descargar' }}
-                  </button>
+      @if (cargando) {
+        <div class="estado-vacio" role="status">Cargando entregas...</div>
+      } @else {
+        <div class="lista-revision">
+          @for (entrega of entregas; track entrega.id; let posicion = $index) {
+            <article class="tarjeta-proyecto tarjeta-revision">
+              <div class="proyecto-cabecera">
+                <div>
+                  <span class="tipo-trabajo">{{ formatearNombre(entrega.tipoTrabajo) }} · {{ entrega.anio }}</span>
+                  <h3>{{ entrega.titulo }}</h3>
                 </div>
-              } @empty {
-                <small>No hay materiales adjuntos.</small>
+                <span class="estado pendiente">#{{ posicion + 1 }} en la fila</span>
+              </div>
+
+              <div class="datos-proyecto">
+                <span>Solicitante: <strong>{{ entrega.solicitante }}</strong></span>
+                <span>Recibido: <strong>{{ fechaLocal(entrega.fechaEnvio) | date:'dd/MM/yyyy, h:mm a' }}</strong></span>
+                <span>Versión: <strong>{{ entrega.version }}</strong></span>
+              </div>
+
+              <dl class="ficha-revision">
+                <div><dt>Autores</dt><dd>{{ entrega.autores.join(', ') }}</dd></div>
+                <div><dt>Carrera</dt><dd>{{ entrega.carrera }}</dd></div>
+                <div><dt>Departamento</dt><dd>{{ entrega.departamento }}</dd></div>
+                <div><dt>Área</dt><dd>{{ formatearNombre(entrega.tematica) }}</dd></div>
+              </dl>
+              <p class="resumen-revision">{{ entrega.resumen }}</p>
+              @if (entrega.palabrasClave.length > 0) {
+                <div class="chips">
+                  @for (palabra of entrega.palabrasClave; track palabra) {
+                    <span class="chip">{{ palabra }}</span>
+                  }
+                </div>
               }
+
+              <div class="bloque-revision">
+                <strong class="titulo-bloque">Materiales</strong>
+                @for (recurso of entrega.recursos; track recurso.id) {
+                  <div class="recurso-revision">
+                    <span>{{ recurso.nombre }} <span class="dato-secundario">· {{ recurso.tipo.toUpperCase() }}</span></span>
+                    <button type="button" class="boton-secundario" (click)="abrirRecurso(recurso)">
+                      {{ recurso.url ? 'Abrir enlace' : 'Descargar' }}
+                    </button>
+                  </div>
+                } @empty {
+                  <small class="dato-secundario">No hay materiales adjuntos.</small>
+                }
+              </div>
+
+              @let borrador = borradorDecision(entrega);
+              <fieldset class="bloque-revision permiso-autores">
+                <legend class="titulo-bloque">Permiso de los autores <span class="dato-secundario">(se aplica al aprobar)</span></legend>
+                @for (opcion of opcionesPermiso; track opcion.valor) {
+                  <label class="opcion-permiso">
+                    <input type="radio" [name]="'permiso-' + entrega.id"
+                      [checked]="borrador.permiso === opcion.valor"
+                      (change)="elegirPermiso(borrador, opcion.valor)">
+                    <span>
+                      <strong>{{ opcion.texto }}</strong>
+                      <small>{{ opcion.ayuda }}</small>
+                    </span>
+                  </label>
+                }
+                @if (borrador.permiso === 'ficha_y_materiales') {
+                  <div class="materiales-autorizados">
+                    <span class="dato-secundario">Marca los materiales que los autores autorizaron:</span>
+                    @for (recurso of entrega.recursos; track recurso.id) {
+                      <label class="opcion-material">
+                        <input type="checkbox"
+                          [checked]="borrador.recursos.includes(recurso.id)"
+                          (change)="alternarRecurso(borrador, recurso.id, $event)">
+                        {{ recurso.nombre }} <span class="dato-secundario">· {{ recurso.tipo.toUpperCase() }}</span>
+                      </label>
+                    }
+                  </div>
+                }
+              </fieldset>
+
+              <label class="campo-observacion">
+                Observaciones
+                <textarea
+                  rows="3"
+                  [value]="observaciones[entrega.id] ?? ''"
+                  (input)="actualizarObservacion(entrega.id, $event)"
+                  placeholder="Obligatorias para rechazar. Para correcciones son opcionales: el detalle se comunica por el medio acordado."
+                ></textarea>
+              </label>
+
+              <div class="acciones-revision">
+                <button type="button" class="decision aprobar" [disabled]="ocupadoId === entrega.id" (click)="decidir(entrega, 'Aprobada')">
+                  {{ ocupadoId === entrega.id ? 'Guardando...' : 'Aprobar' }}
+                </button>
+                <button type="button" class="decision correcciones" [disabled]="ocupadoId === entrega.id" (click)="decidir(entrega, 'Con correcciones')">
+                  Pedir correcciones
+                </button>
+                <button type="button" class="decision rechazar" [disabled]="ocupadoId === entrega.id" (click)="decidir(entrega, 'Rechazada')">
+                  Rechazar
+                </button>
+              </div>
+            </article>
+          } @empty {
+            <div class="estado-vacio">
+              <h3>No hay entregas pendientes</h3>
+              <p>Los nuevos envíos aparecerán aquí y recibirás un aviso en Notificaciones.</p>
             </div>
-
-            <label class="opcion-difusion">
-              <input
-                type="checkbox"
-                [checked]="permisosDifusion[entrega.id] ?? false"
-                (change)="actualizarPermiso(entrega.id, $event)"
-              >
-              Autorizar difusión pública si se aprueba
-            </label>
-
-            <label class="campo-observacion">
-              Observaciones
-              <textarea
-                rows="3"
-                [value]="observaciones[entrega.id] ?? ''"
-                (input)="actualizarObservacion(entrega.id, $event)"
-                placeholder="Obligatorias para pedir correcciones o rechazar"
-              ></textarea>
-            </label>
-
-            <div class="acciones-revision">
-              <button type="button" class="decision aprobar" [disabled]="enviandoId === entrega.id" (click)="decidir(entrega, 'Aprobada')">
-                Aprobar
-              </button>
-              <button type="button" class="decision correcciones" [disabled]="enviandoId === entrega.id" (click)="decidir(entrega, 'Con correcciones')">
-                Pedir correcciones
-              </button>
-              <button type="button" class="decision rechazar" [disabled]="enviandoId === entrega.id" (click)="decidir(entrega, 'Rechazada')">
-                Rechazar
-              </button>
-            </div>
-          </article>
-        } @empty {
-          <div class="estado-vacio">
-            <h3>No hay entregas pendientes</h3>
-            <p>Los nuevos envíos aparecerán aquí para su revisión.</p>
-          </div>
-        }
+          }
+        </div>
+      }
+    </section>
+  } @else {
+    <section class="seccion-proyectos" aria-label="Aprobadas y publicaciones">
+      <div class="encabezado-seccion">
+        <div>
+          <p class="etiqueta">CATÁLOGO</p>
+          <h2>Entregas aprobadas</h2>
+        </div>
+        <span class="contador">{{ publicaciones.length }} proyectos</span>
       </div>
-    }
-  </section>
+
+      @if (cargandoPublicaciones && !publicacionesCargadas) {
+        <div class="estado-vacio" role="status">Cargando publicaciones...</div>
+      } @else {
+        <div class="lista-revision">
+          @for (publicacion of publicaciones; track publicacion.idProyecto) {
+            <article class="tarjeta-proyecto tarjeta-revision">
+              <div class="proyecto-cabecera">
+                <div>
+                  <span class="tipo-trabajo">{{ formatearNombre(publicacion.tipoTrabajo) }} · {{ publicacion.anio }}</span>
+                  <h3>{{ publicacion.titulo }}</h3>
+                </div>
+                <div class="insignias-estado">
+                  <span class="estado"
+                    [class.aprobada]="publicacion.estadoPublicacion === 'publicado'"
+                    [class.rechazada]="publicacion.estadoPublicacion === 'retirado'"
+                    [class.correcciones]="publicacion.estadoPublicacion === 'no_publicado'">
+                    {{ textoPublicacion(publicacion.estadoPublicacion) }}
+                  </span>
+                  @if (publicacion.destacado) {
+                    <span class="estado destacado">★ Destacado</span>
+                  }
+                </div>
+              </div>
+
+              <div class="datos-proyecto">
+                <span>Aprobado: <strong>{{ fechaLocal(publicacion.fechaAprobacion) | date:'dd/MM/yyyy, h:mm a' }}</strong></span>
+                @if (publicacion.revisor) {
+                  <span>Por: <strong>{{ publicacion.revisor }}</strong></span>
+                }
+                <span>Permiso: <strong>{{ textoPermiso(publicacion.permiso) }}</strong></span>
+              </div>
+              <p class="dato-secundario">{{ publicacion.autores.join(', ') }} · {{ publicacion.carrera }}</p>
+
+              @if (publicacion.estadoPublicacion === 'retirado') {
+                <div class="observacion">
+                  <strong>Motivo del retiro</strong>
+                  @if (publicacion.fechaRetiro) {
+                    <span class="dato-secundario"> · {{ fechaLocal(publicacion.fechaRetiro) | date:'dd/MM/yyyy, h:mm a' }}</span>
+                  }
+                  <p>{{ publicacion.motivoRetiro }}</p>
+                </div>
+              } @else {
+                @let permiso = borradorPublicacion(publicacion);
+                <fieldset class="bloque-revision permiso-autores">
+                  <legend class="titulo-bloque">Permiso de los autores</legend>
+                  @for (opcion of opcionesPermiso; track opcion.valor) {
+                    <label class="opcion-permiso">
+                      <input type="radio" [name]="'permiso-pub-' + publicacion.idProyecto"
+                        [checked]="permiso.permiso === opcion.valor"
+                        (change)="elegirPermiso(permiso, opcion.valor)">
+                      <span>
+                        <strong>{{ opcion.texto }}</strong>
+                        <small>{{ opcion.ayuda }}</small>
+                      </span>
+                    </label>
+                  }
+                  @if (permiso.permiso === 'ficha_y_materiales') {
+                    <div class="materiales-autorizados">
+                      @for (recurso of publicacion.recursos; track recurso.id) {
+                        <div class="recurso-revision">
+                          <label class="opcion-material">
+                            <input type="checkbox"
+                              [checked]="permiso.recursos.includes(recurso.id)"
+                              (change)="alternarRecurso(permiso, recurso.id, $event)">
+                            {{ recurso.nombre }} <span class="dato-secundario">· {{ recurso.tipo.toUpperCase() }}</span>
+                          </label>
+                          <button type="button" class="boton-secundario" (click)="abrirRecurso(recurso)">
+                            {{ recurso.url ? 'Abrir' : 'Descargar' }}
+                          </button>
+                        </div>
+                      }
+                    </div>
+                  }
+                  @if (permisoCambio(publicacion)) {
+                    <div class="acciones">
+                      <button type="button" class="boton-principal"
+                        [disabled]="ocupadoId === publicacion.idProyecto"
+                        (click)="guardarPermiso(publicacion)">
+                        {{ ocupadoId === publicacion.idProyecto ? 'Guardando...' : 'Guardar permiso' }}
+                      </button>
+                    </div>
+                  }
+                </fieldset>
+
+                @if (publicacion.estadoPublicacion === 'publicado') {
+                  @if (retirandoId === publicacion.idProyecto) {
+                    <div class="confirmacion" role="alertdialog" aria-label="Retirar publicación">
+                      <label class="campo-observacion">
+                        Motivo del retiro (obligatorio, queda en el historial)
+                        <textarea rows="3"
+                          [value]="motivosRetiro[publicacion.idProyecto] ?? ''"
+                          (input)="actualizarMotivo(publicacion.idProyecto, $event)"
+                          placeholder="Ej.: los autores retiraron su permiso de difusión."></textarea>
+                      </label>
+                      <div class="acciones">
+                        <button type="button" class="boton-peligro"
+                          [disabled]="ocupadoId === publicacion.idProyecto"
+                          (click)="confirmarRetiro(publicacion)">
+                          {{ ocupadoId === publicacion.idProyecto ? 'Retirando...' : 'Confirmar retiro' }}
+                        </button>
+                        <button type="button" class="boton-secundario" (click)="cancelarRetiro()">Cancelar</button>
+                      </div>
+                    </div>
+                  } @else {
+                    <div class="acciones">
+                      <button type="button" class="boton-secundario"
+                        [disabled]="ocupadoId === publicacion.idProyecto"
+                        (click)="alternarDestacado(publicacion)">
+                        {{ publicacion.destacado ? 'Quitar destacado' : '★ Marcar como destacado' }}
+                      </button>
+                      <button type="button" class="boton-peligro-suave" (click)="iniciarRetiro(publicacion)">
+                        Retirar publicación
+                      </button>
+                    </div>
+                  }
+                }
+              }
+            </article>
+          } @empty {
+            <div class="estado-vacio">
+              <h3>Aún no hay entregas aprobadas</h3>
+              <p>Cuando apruebes una entrega aparecerá aquí con su permiso y su estado en el catálogo.</p>
+            </div>
+          }
+        </div>
+      }
+    </section>
+  }
 </main>

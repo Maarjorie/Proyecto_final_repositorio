@@ -22,6 +22,7 @@ export interface ProyectoEnSeguimiento {
   version: number;
   estado: EstadoSolicitud;
   puedeEliminar: boolean;
+  puedeReenviar: boolean;
   observacion: string | null;
 }
 
@@ -60,6 +61,7 @@ export interface DetalleSolicitud {
   version: number;
   estado: EstadoSolicitud;
   puedeEliminar: boolean;
+  puedeReenviar: boolean;
   autores: AutorDetalle[];
   palabrasClave: string[];
   recursos: RecursoDetalle[];

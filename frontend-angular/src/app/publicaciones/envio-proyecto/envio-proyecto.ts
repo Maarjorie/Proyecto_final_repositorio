@@ -1,7 +1,7 @@
 import { usuarioTieneRol } from '../../auth/auth.guard';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, inject, OnInit } from '@angular/core';
-import { RouterLink, RouterLinkActive } from '@angular/router';
+import { ActivatedRoute, RouterLink, RouterLinkActive } from '@angular/router';
 import { firstValueFrom, retry } from 'rxjs';
 import { AUTH_TOKEN_KEY } from '../../auth/auth.constants';
 
@@ -22,6 +22,25 @@ interface RespuestaEnvio {
   estado: string;
   publicado: boolean;
   mensaje: string;
+}
+
+/** Datos de la versión observada que se precargan al corregir (RF-20). */
+interface SolicitudACorregir {
+  id: number;
+  puedeReenviar: boolean;
+  version: number;
+  titulo: string;
+  resumen: string;
+  anio: number;
+  idTipoProyecto: number;
+  idDepartamento: number;
+  idCarrera: number;
+  idTematica: number;
+  idMateria: number | null;
+  autores: { nombres: string; apellidos: string; carnet: string | null }[];
+  palabrasClave: string[];
+  recursos: { id: number; nombre: string; tipo: string; url: string | null }[];
+  observaciones: { fecha: string; mensaje: string }[];
 }
 
 type DepartamentoCatalogo = OpcionCatalogo;
@@ -68,6 +87,26 @@ export class EnvioProyectoComponent implements OnInit {
 
   departamentoSeleccionado = '';
   carreraSeleccionada = '';
+
+  // Valores del formulario enlazados para poder precargarlos al corregir.
+  titulo = '';
+  anio = '';
+  resumen = '';
+  tematicaSeleccionada = '';
+  materiaSeleccionada = '';
+  palabrasClaveTexto = '';
+  enlacesTexto = '';
+
+  // RF-20: reenvío de una versión corregida.
+  private readonly route = inject(ActivatedRoute);
+  correccion: SolicitudACorregir | null = null;
+  cargandoCorreccion = false;
+  errorCorreccion = '';
+  conservarRecursos: number[] = [];
+
+  get corrigiendo(): boolean {
+    return this.correccion !== null;
+  }
 
   get carrerasFiltradas(): CarreraCatalogo[] {
     const idDepartamento = Number(this.departamentoSeleccionado);
@@ -123,6 +162,85 @@ export class EnvioProyectoComponent implements OnInit {
       datos => this.tematicas = datos,
       'No se pudieron cargar las áreas temáticas.'
     );
+
+    const corregir = Number(this.route.snapshot.queryParamMap.get('corregir'));
+    if (corregir > 0) {
+      this.cargarCorreccion(corregir);
+    }
+  }
+
+  /** RF-20: precarga la versión observada para enviar la corrección. */
+  private cargarCorreccion(idEntrega: number): void {
+    let token: string | null = null;
+    try {
+      token = globalThis.sessionStorage.getItem(AUTH_TOKEN_KEY);
+    } catch {
+      token = null;
+    }
+    if (!token) {
+      this.errorCorreccion = 'Tu sesión venció. Inicia sesión de nuevo.';
+      return;
+    }
+
+    this.cargandoCorreccion = true;
+    this.http
+      .get<SolicitudACorregir>(API_URL + '/proyectos/mis-proyectos/' + idEntrega, {
+        headers: { Authorization: 'Bearer ' + token }
+      })
+      .subscribe({
+        next: datos => {
+          this.cargandoCorreccion = false;
+          if (!datos.puedeReenviar) {
+            this.errorCorreccion =
+              'Esta solicitud no admite correcciones: el supervisor no las pidió o ya existe una versión más reciente.';
+            this.cdr.markForCheck();
+            return;
+          }
+
+          this.correccion = datos;
+          this.titulo = datos.titulo;
+          this.resumen = datos.resumen;
+          this.anio = String(datos.anio);
+          this.tipoProyecto = String(datos.idTipoProyecto);
+          this.departamentoSeleccionado = String(datos.idDepartamento);
+          this.carreraSeleccionada = String(datos.idCarrera);
+          this.tematicaSeleccionada = String(datos.idTematica);
+          this.materiaSeleccionada = datos.idMateria ? String(datos.idMateria) : '';
+          this.autores = datos.autores.length > 0
+            ? datos.autores.map(autor => ({
+                nombres: autor.nombres,
+                apellidos: autor.apellidos,
+                carnet: autor.carnet ?? ''
+              }))
+            : [{ nombres: '', apellidos: '', carnet: '' }];
+          this.palabrasClave = [...datos.palabrasClave];
+          this.palabrasClaveTexto = datos.palabrasClave.join('\n');
+          // Por defecto se conservan todos los materiales; el solicitante
+          // desmarca los que reemplaza.
+          this.conservarRecursos = datos.recursos.map(recurso => recurso.id);
+          this.cdr.markForCheck();
+        },
+        error: (error: unknown) => {
+          this.cargandoCorreccion = false;
+          this.errorCorreccion = this.mensajeErrorApi(error);
+          this.cdr.markForCheck();
+        }
+      });
+  }
+
+  alternarConservar(idRecurso: number, event: Event): void {
+    const marcado = (event.target as HTMLInputElement).checked;
+    this.conservarRecursos = marcado
+      ? [...this.conservarRecursos, idRecurso]
+      : this.conservarRecursos.filter(id => id !== idRecurso);
+    this.limpiarMensajes();
+  }
+
+  actualizarCampo(
+    campo: 'titulo' | 'anio' | 'resumen' | 'tematicaSeleccionada' | 'materiaSeleccionada',
+    event: Event
+  ): void {
+    this[campo] = (event.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value;
   }
 
   private cargarCatalogo<T>(
@@ -159,7 +277,8 @@ export class EnvioProyectoComponent implements OnInit {
       });
   }
   get totalRecursos(): number {
-    return this.pdfs.length + this.archivosZip.length + this.enlaces.length;
+    return this.pdfs.length + this.archivosZip.length + this.enlaces.length +
+      this.conservarRecursos.length;
   }
 
   agregarAutor(): void {
@@ -299,7 +418,10 @@ export class EnvioProyectoComponent implements OnInit {
     const nombreTipo = this.tipoProyectoSeleccionado?.nombre.toLowerCase() ?? '';
     const requierePdf =
       nombreTipo.includes('tesis') || nombreTipo.includes('graduación');
-    const tienePdf = this.pdfs.some(
+    const conservaPdf = (this.correccion?.recursos ?? []).some(
+      recurso => recurso.tipo === 'pdf' && this.conservarRecursos.includes(recurso.id)
+    );
+    const tienePdf = conservaPdf || this.pdfs.some(
       archivo => archivo.name.toLowerCase().endsWith('.pdf')
     );
 
@@ -348,14 +470,22 @@ export class EnvioProyectoComponent implements OnInit {
     this.archivosZip.forEach(archivo =>
       datos.append('ArchivosZip', archivo, archivo.name)
     );
+    this.conservarRecursos.forEach(id =>
+      datos.append('ConservarRecursos', String(id))
+    );
 
     this.enviando = true;
     this.limpiarMensajes();
 
+    // RF-20: la corrección se registra como otra entrega del mismo proyecto.
+    const url = this.correccion
+      ? API_URL + '/proyectos/mis-proyectos/' + this.correccion.id + '/reenvio'
+      : API_URL + '/proyectos';
+
     try {
       const respuesta = await firstValueFrom(
         this.http.post<RespuestaEnvio>(
-          API_URL + '/proyectos',
+          url,
           datos,
           { headers: { Authorization: 'Bearer ' + token } }
         )

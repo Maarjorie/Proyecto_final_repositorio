@@ -24,23 +24,54 @@
 
 <main class="pagina-publicacion" id="subir-proyecto">
   <section class="encabezado-pagina">
-    <p class="miga">Repositorio / Solicitar publicación</p>
+    <p class="miga">Repositorio / {{ corrigiendo ? 'Enviar corrección' : 'Solicitar publicación' }}</p>
     <p class="etiqueta">REPOSITORIO ACADÉMICO · UNIVERSIDAD DE EL SALVADOR</p>
-    <h1>Solicitar publicación de proyecto</h1>
-    <p class="descripcion">Envía tu trabajo para revisión.</p>
+    <h1>{{ corrigiendo ? 'Enviar versión corregida' : 'Solicitar publicación de proyecto' }}</h1>
+    <p class="descripcion">
+      {{ corrigiendo
+        ? 'Corrige lo que pidió el supervisor. Se registrará como una nueva versión del mismo proyecto.'
+        : 'Envía tu trabajo para revisión.' }}
+    </p>
   </section>
 
   <section class="tarjeta-publicacion">
     <div class="encabezado-formulario">
       <div>
-        <p class="etiqueta">FORMULARIO DE ENVÍO</p>
+        <p class="etiqueta">{{ corrigiendo ? 'REENVÍO DE CORRECCIONES' : 'FORMULARIO DE ENVÍO' }}</p>
         <h2>Datos del proyecto</h2>
-        
       </div>
-      <span class="paso">01 <small>/ 01</small></span>
+      <span class="paso">
+        @if (correccion) {
+          v{{ correccion.version + 1 }} <small>/ nueva versión</small>
+        } @else {
+          01 <small>/ 01</small>
+        }
+      </span>
     </div>
 
-    <form class="formulario" (submit)="enviarSolicitud($event)">
+    @if (cargandoCorreccion) {
+      <p class="aviso-correccion" role="status">Cargando la solicitud a corregir...</p>
+    }
+    @if (errorCorreccion) {
+      <p class="mensaje-error" role="alert">
+        {{ errorCorreccion }}
+        <a routerLink="/mis-proyectos">Volver a Mis proyectos</a>
+      </p>
+    }
+    @if (correccion) {
+      <aside class="aviso-correccion">
+        <strong>Corrigiendo la versión {{ correccion.version }}</strong>
+        @for (observacion of correccion.observaciones; track $index) {
+          <p>{{ observacion.mensaje }}</p>
+        } @empty {
+          <p>El supervisor comunicará el detalle de las correcciones por el medio acordado.</p>
+        }
+        <small>La versión anterior conserva sus materiales y la decisión del supervisor.</small>
+      </aside>
+    }
+
+    <form class="formulario" (submit)="enviarSolicitud($event)"
+      [hidden]="cargandoCorreccion || errorCorreccion.length > 0">
       <div class="campo">
         <label for="titulo">Título del proyecto</label>
         <input
@@ -49,6 +80,8 @@
           type="text"
           maxlength="300"
           placeholder="Escribe el título completo"
+          [value]="titulo"
+          (input)="actualizarCampo('titulo', $event)"
           required
         >
       </div>
@@ -124,6 +157,8 @@
             min="1"
             max="9999"
             placeholder="Ej. 2026"
+            [value]="anio"
+            (input)="actualizarCampo('anio', $event)"
             required
           >
         </div>
@@ -138,7 +173,7 @@
           >
             <option value="">Selecciona el tipo</option>
             @for (tipo of tiposProyecto; track tipo.id) {
-              <option [value]="tipo.id">{{ formatearNombre(tipo.nombre) }}</option>
+              <option [value]="tipo.id" [selected]="tipo.id === +tipoProyecto">{{ formatearNombre(tipo.nombre) }}</option>
             }
           </select>
         </div>
@@ -156,7 +191,7 @@
           >
             <option value="">Selecciona el departamento</option>
             @for (departamento of departamentos; track departamento.id) {
-              <option [value]="departamento.id">{{ departamento.nombre }}</option>
+              <option [value]="departamento.id" [selected]="departamento.id === +departamentoSeleccionado">{{ departamento.nombre }}</option>
             }
           </select>
         </div>
@@ -175,7 +210,7 @@
               {{ departamentoSeleccionado ? 'Selecciona la carrera' : 'Primero selecciona un departamento' }}
             </option>
             @for (carrera of carrerasFiltradas; track carrera.id) {
-              <option [value]="carrera.id">{{ carrera.nombre }}</option>
+              <option [value]="carrera.id" [selected]="carrera.id === +carreraSeleccionada">{{ carrera.nombre }}</option>
             }
           </select>
         </div>
@@ -183,20 +218,20 @@
 
       <div class="campo">
         <label for="tematica">Área temática</label>
-        <select id="tematica" name="tematica" required>
+        <select id="tematica" name="tematica" required (change)="actualizarCampo('tematicaSeleccionada', $event)">
           <option value="">Selecciona el área temática</option>
           @for (tematica of tematicas; track tematica.id) {
-            <option [value]="tematica.id">{{ formatearNombre(tematica.nombre) }}</option>
+            <option [value]="tematica.id" [selected]="tematica.id === +tematicaSeleccionada">{{ formatearNombre(tematica.nombre) }}</option>
           }
         </select>
       </div>
 
       <div class="campo" [hidden]="!esProyectoCurso">
         <label for="materia">Asignatura (opcional)</label>
-        <select id="materia" name="materia">
+        <select id="materia" name="materia" (change)="actualizarCampo('materiaSeleccionada', $event)">
           <option value="">Selecciona una asignatura si aplica</option>
           @for (materia of materias; track materia.id) {
-            <option [value]="materia.id">{{ materia.nombre }}</option>
+            <option [value]="materia.id" [selected]="materia.id === +materiaSeleccionada">{{ materia.nombre }}</option>
           }
         </select>
       </div>
@@ -208,6 +243,8 @@
           name="resumen"
           rows="5"
           placeholder="Describe brevemente el proyecto."
+          [value]="resumen"
+          (input)="actualizarCampo('resumen', $event)"
           required
         ></textarea>
       </div>
@@ -219,6 +256,7 @@
           name="palabrasClave"
           rows="2"
           placeholder="Escribe una palabra clave por línea"
+          [value]="palabrasClaveTexto"
           (input)="actualizarPalabrasClave($event)"
         ></textarea>
       </div>
@@ -228,6 +266,21 @@
         <p class="ayuda">
           Agrega al menos un recurso. Para trabajo de grado se requiere el PDF completo.
         </p>
+
+        @if (correccion && correccion.recursos.length > 0) {
+          <div class="materiales-anteriores">
+            <strong>Materiales de la versión {{ correccion.version }}</strong>
+            <small>Desmarca los que vas a reemplazar. Los marcados pasan a la nueva versión sin volver a subirlos.</small>
+            @for (recurso of correccion.recursos; track recurso.id) {
+              <label class="material-anterior">
+                <input type="checkbox"
+                  [checked]="conservarRecursos.includes(recurso.id)"
+                  (change)="alternarConservar(recurso.id, $event)">
+                <span>{{ recurso.nombre }} <small>· {{ recurso.tipo.toUpperCase() }}</small></span>
+              </label>
+            }
+          </div>
+        }
 
         <div class="campo">
           <label for="pdfs">Documentos PDF </label>
@@ -294,7 +347,11 @@
       }
 
       <button class="boton-enviar" type="submit" [disabled]="enviando || solicitudEnviada">
-        {{ enviando ? 'Enviando solicitud...' : solicitudEnviada ? 'Solicitud enviada' : 'Enviar solicitud para revisión' }}
+        @if (corrigiendo) {
+          {{ enviando ? 'Enviando corrección...' : solicitudEnviada ? 'Corrección enviada' : 'Enviar versión corregida' }}
+        } @else {
+          {{ enviando ? 'Enviando solicitud...' : solicitudEnviada ? 'Solicitud enviada' : 'Enviar solicitud para revisión' }}
+        }
       </button>
 
     </form>
