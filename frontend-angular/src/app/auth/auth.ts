@@ -15,6 +15,7 @@ interface AuthResponse {
     nombres: string;
     apellidos: string;
     correo: string;
+    roles?: string[];
   };
 }
 
@@ -46,6 +47,26 @@ export class AuthComponent {
     return requested?.startsWith('/') && !requested.startsWith('//')
       ? requested
       : '/catalogo';
+  }
+
+  /**
+   * Si la persona venía de una página protegida, vuelve a ella. Si no, entra a
+   * la pantalla de su rol: el supervisor a la revisión (RF-21) y el
+   * solicitante a sus proyectos (RF-19).
+   */
+  private destinoTrasIngresar(roles: string[]): string {
+    if (this.route.snapshot.queryParamMap.has('returnUrl') && this.returnUrl !== '/catalogo') {
+      const pideRevision = this.returnUrl.startsWith('/revision-supervisor');
+      if (!pideRevision || roles.includes('supervisor')) {
+        return this.returnUrl;
+      }
+    }
+
+    if (roles.includes('supervisor')) {
+      return '/revision-supervisor';
+    }
+
+    return '/mis-proyectos';
   }
 
   get queryParams(): Record<string, string> | null {
@@ -94,7 +115,7 @@ export class AuthComponent {
         return;
       }
 
-      await this.router.navigateByUrl(this.returnUrl);
+      await this.router.navigateByUrl(this.destinoTrasIngresar(response.usuario.roles ?? []));
     } catch (error: unknown) {
       this.mensajeError = this.getErrorMessage(error);
     } finally {

@@ -4,6 +4,31 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import type { Work } from '../app';
 import { afterNextRender, inject, Injector } from '@angular/core';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+
+const API_URL = 'https://localhost:7244/api';
+
+interface OpcionApi {
+  id: number;
+  nombre: string;
+}
+
+/** Ficha que devuelve GET /api/catalogo. */
+interface FichaApi {
+  id: number;
+  titulo: string;
+  autores: string[];
+  anio: number;
+  carrera: string;
+  tematica: string;
+  tipoTrabajo: string;
+  materia: string | null;
+  resumen: string;
+  palabrasClave: string[];
+  destacado: boolean;
+  permiso: 'solo_ficha' | 'ficha_y_materiales';
+  recursos: { id: number; nombre: string; tipo: string; url: string | null }[];
+}
 
 @Component({
   selector: 'app-catalogo',
@@ -16,8 +41,12 @@ import { afterNextRender, inject, Injector } from '@angular/core';
 export class Catalogo implements OnInit {
   readonly esSupervisor = usuarioTieneRol('supervisor');
   readonly active = input.required<boolean>();
-  readonly works = input.required<Work[]>();
-  readonly areas = input.required<string[]>();
+  private readonly http = inject(HttpClient);
+
+  /** Fichas publicadas y autorizadas que entrega la API (RF-07, RF-10, RF-11). */
+  readonly works = signal<Work[]>([]);
+  readonly areas = signal<string[]>([]);
+  readonly cargandoCatalogo = signal(true);
   readonly actionNotice = model('');
   readonly navigateTo = output<'requester' | 'login'>();
 
@@ -63,11 +92,76 @@ export class Catalogo implements OnInit {
   readonly pageWorks = computed(() => this.filteredWorks().slice((this.page() - 1) * this.pageSize, this.page() * this.pageSize));
 
   ngOnInit(): void {
+    this.http.get<OpcionApi[]>(API_URL + '/catalogos/tematicas').subscribe({
+      next: (tematicas) => this.areas.set(tematicas.map((tematica) => this.capitalizar(tematica.nombre))),
+      error: () => this.areas.set([])
+    });
+
+    this.http.get<FichaApi[]>(API_URL + '/catalogo').subscribe({
+      next: (fichas) => {
+        this.works.set(fichas.map((ficha) => this.aWork(ficha)));
+        this.cargandoCatalogo.set(false);
+        this.abrirFichaDelEnlace();
+      },
+      error: (error: unknown) => {
+        this.cargandoCatalogo.set(false);
+        this.actionNotice.set(
+          error instanceof HttpErrorResponse && error.status === 0
+            ? 'No se pudo conectar con la API. Verifica que RepositorioApi esté iniciado.'
+            : 'No se pudo cargar el catálogo. Inténtalo de nuevo.'
+        );
+      }
+    });
+  }
+
+  /** Un enlace compartido (#trabajo-N) abre la ficha solo si sigue publicada (RF-09). */
+  private abrirFichaDelEnlace(): void {
     const match = globalThis.location?.hash.match(/^#trabajo-(\d+)$/);
-    if (match) {
-      const work = this.publicWorks().find((item) => item.id === Number(match[1]));
-      if (work) this.selectedWork.set(work);
+    if (!match) return;
+
+    const work = this.publicWorks().find((item) => item.id === Number(match[1]));
+    if (work) {
+      this.selectedWork.set(work);
+    } else {
+      this.actionNotice.set('La ficha de ese enlace ya no está disponible en el catálogo.');
     }
+  }
+
+  private capitalizar(texto: string): string {
+    return texto.length === 0 ? texto : texto.charAt(0).toLocaleUpperCase('es-SV') + texto.slice(1);
+  }
+
+  private aWork(ficha: FichaApi): Work {
+    const tipoRecurso = (tipo: string): Work['resources'][number]['kind'] =>
+      tipo === 'pdf' ? 'PDF' : tipo === 'zip' ? 'ZIP' : 'Enlace de descarga';
+
+    return {
+      id: ficha.id,
+      title: ficha.titulo,
+      authors: ficha.autores,
+      year: ficha.anio,
+      career: ficha.carrera,
+      area: this.capitalizar(ficha.tematica),
+      type: this.capitalizar(ficha.tipoTrabajo),
+      subject: ficha.materia ?? '',
+      summary: ficha.resumen,
+      keywords: ficha.palabrasClave,
+      // RF-16: sin dato y permiso del asesor, la ficha se publica sin su nombre.
+      advisor: '',
+      advisorAllowed: false,
+      permission: ficha.permiso === 'ficha_y_materiales' ? 'Ficha y materiales autorizados' : 'Solo ficha',
+      approvedResourceIds: ficha.recursos.map((recurso) => recurso.id),
+      resources: ficha.recursos.map((recurso) => ({
+        id: recurso.id,
+        name: recurso.nombre,
+        kind: tipoRecurso(recurso.tipo),
+        // Los archivos se sirven por la API, que vuelve a comprobar el permiso (RF-11).
+        href: recurso.url ?? API_URL + '/catalogo/recursos/' + recurso.id
+      })),
+      published: true,
+      featured: ficha.destacado,
+      withdrawnReason: ''
+    };
   }
 
   private publicWorks(): Work[] {

@@ -1,26 +1,120 @@
-:host {
-  display: block;
-  min-height: 100vh;
-}
+/* Usa la base de Mis proyectos (seguimiento.css) y agrega lo propio de la revisión. */
 
 .pagina-revision {
   padding-bottom: 48px;
 }
 
-.tarjeta-revision > p {
+/* Pestañas */
+.pestanas {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 22px;
+  padding: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(235, 249, 252, 0.94), rgba(182, 223, 231, 0.86));
+  box-shadow: 0 10px 24px rgba(5, 27, 54, 0.22), inset 0 1px 4px #fff;
+}
+
+.pestana {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 10px 16px;
+  border: 1px solid transparent;
+  border-radius: 13px;
+  background: transparent;
+  color: #294967;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 160ms ease, transform 160ms ease;
+}
+
+.pestana:hover:not(.activa) {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.pestana.activa {
+  border-color: rgba(255, 255, 255, 0.65);
+  background: linear-gradient(145deg, #263a46, #0d1c26);
+  color: #fff;
+  box-shadow: 0 8px 16px rgba(13, 28, 38, 0.28), inset 0 1px 2px rgba(255, 255, 255, 0.45);
+}
+
+.insignia {
+  min-width: 24px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(104, 198, 221, 0.45);
+  color: inherit;
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+.pestana.activa .insignia {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* Lista: tarjetas anchas, una por fila, porque llevan formularios. */
+.lista-revision {
+  display: grid;
+  gap: 18px;
+}
+
+.tarjeta-revision {
+  padding: 24px;
+}
+
+.ficha-revision {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: 10px 20px;
+  margin: 16px 0 10px;
+}
+
+.ficha-revision dt {
+  color: #526f88;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.ficha-revision dd {
+  margin: 3px 0 0;
+  color: #102d50;
+  overflow-wrap: anywhere;
+}
+
+.resumen-revision {
   margin: 10px 0;
   color: #405d78;
   line-height: 1.6;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
 }
 
-.recursos-revision {
+.bloque-revision {
   display: grid;
-  gap: 10px;
-  margin: 20px 0;
+  gap: 8px;
+  margin: 18px 0 0;
   padding: 16px;
-  border: 1px solid rgba(16, 65, 101, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.82);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.35);
+  background: rgba(248, 252, 255, 0.5);
+  min-width: 0;
+}
+
+.titulo-bloque {
+  color: #183a5d;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+fieldset.bloque-revision > legend {
+  padding: 0 6px;
 }
 
 .recurso-revision {
@@ -30,35 +124,110 @@
   gap: 12px;
   padding: 8px 0;
   border-top: 1px solid rgba(16, 65, 101, 0.12);
+  overflow-wrap: anywhere;
 }
 
-.opcion-difusion {
+/* Permiso de los autores (RF-10) */
+.permiso-autores {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+}
+
+.permiso-autores > .materiales-autorizados,
+.permiso-autores > .acciones {
+  grid-column: 1 / -1;
+}
+
+.opcion-permiso {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(12, 57, 111, 0.16);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.opcion-permiso:has(input:checked) {
+  border-color: #0c396f;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: inset 0 0 0 1px #0c396f;
+}
+
+.opcion-permiso input,
+.opcion-material input {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  accent-color: #0c396f;
+}
+
+.opcion-permiso span {
+  display: grid;
+  gap: 2px;
+}
+
+.opcion-permiso strong {
+  color: #102d50;
+  font-size: 0.9rem;
+}
+
+.opcion-permiso small {
+  color: #526f88;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.materiales-autorizados {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(104, 198, 221, 0.14);
+}
+
+.opcion-material {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 16px 0;
-  color: #173c60;
-  font-weight: 700;
+  color: #102d50;
+  cursor: pointer;
 }
 
 .campo-observacion {
   display: grid;
   gap: 8px;
+  margin-top: 18px;
   color: #173c60;
   font-weight: 700;
 }
 
+.confirmacion .campo-observacion {
+  margin-top: 0;
+}
+
 .campo-observacion textarea {
   width: 100%;
+  min-width: 0;
   padding: 12px;
   border: 1px solid rgba(16, 65, 101, 0.2);
   border-radius: 12px;
   color: #173c60;
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.85);
   font: inherit;
+  font-weight: 400;
   resize: vertical;
+  box-sizing: border-box;
 }
 
+.campo-observacion textarea:focus-visible {
+  outline: 3px solid #68c6dd;
+  outline-offset: 1px;
+}
+
+/* Botones de decisión con el acabado "vidrio" de la app */
 .acciones-revision {
   display: flex;
   flex-wrap: wrap;
@@ -66,23 +235,85 @@
   margin-top: 16px;
 }
 
-.acciones-revision button:disabled {
-  cursor: wait;
+.decision {
+  min-height: 44px;
+  padding: 11px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  border-radius: 14px;
+  color: #fff;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 160ms ease, filter 160ms ease;
+}
+
+.decision.aprobar {
+  background: linear-gradient(145deg, #2f7d52, #174a30 75%);
+  box-shadow: 0 8px 16px rgba(16, 58, 34, 0.3), inset 0 1px 2px rgba(255, 255, 255, 0.4);
+}
+
+.decision.correcciones {
+  background: linear-gradient(145deg, #b07a1f, #6e4a0f 75%);
+  box-shadow: 0 8px 16px rgba(80, 52, 10, 0.3), inset 0 1px 2px rgba(255, 255, 255, 0.4);
+}
+
+.decision.rechazar {
+  background: linear-gradient(145deg, #a53a3a, #5e1b1b 75%);
+  box-shadow: 0 8px 16px rgba(70, 16, 16, 0.3), inset 0 1px 2px rgba(255, 255, 255, 0.4);
+}
+
+.decision:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+}
+
+.decision:focus-visible {
+  outline: 3px solid #68c6dd;
+  outline-offset: 2px;
+}
+
+.decision:disabled {
+  cursor: progress;
   opacity: 0.65;
 }
 
-.mensaje-revision {
-  margin: 0 0 18px;
-  padding: 14px 18px;
-  border: 1px solid rgba(30, 119, 79, 0.35);
-  border-radius: 14px;
-  color: #174d37;
-  background: rgba(224, 246, 235, 0.94);
+.insignias-estado {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.estado.destacado {
+  background: rgba(255, 224, 161, 0.85);
+  color: #604414;
 }
 
 @media (max-width: 700px) {
+  .tarjeta-revision {
+    padding: 18px;
+  }
+
   .recurso-revision {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .acciones-revision .decision {
+    flex: 1 1 140px;
+  }
+
+  .pestanas {
+    display: flex;
+  }
+
+  .pestana {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .insignias-estado {
+    justify-content: flex-start;
   }
 }
