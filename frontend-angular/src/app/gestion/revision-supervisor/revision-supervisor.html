@@ -1,0 +1,120 @@
+<header class="site-header">
+  <a class="brand" routerLink="/catalogo" aria-label="UES Repositorio Digital, inicio">
+    <img src="/ues-escudo.png" alt="Escudo de la Universidad de El Salvador">
+    <span>
+      <strong>UES | Repositorio Digital</strong>
+      <small>Universidad de El Salvador</small>
+    </span>
+  </a>
+
+  <nav class="main-nav" aria-label="Navegación principal">
+    <a routerLink="/catalogo" routerLinkActive="activo" [routerLinkActiveOptions]="{ exact: true }">Catálogo</a>
+    <a routerLink="/mis-proyectos" routerLinkActive="activo">Mis proyectos</a>
+    <a routerLink="/publicar" routerLinkActive="activo">Subir proyecto</a>
+    <a routerLink="/notificaciones" routerLinkActive="activo">Notificaciones</a>
+    <a routerLink="/revision-supervisor" routerLinkActive="activo">Revisión supervisor</a>
+  </nav>
+</header>
+
+<main class="pagina-seguimiento pagina-revision">
+  <p class="breadcrumb">Repositorio / Gestión / Revisión de entregas</p>
+
+  <section class="intro">
+    <p class="etiqueta">PANEL DE SUPERVISIÓN</p>
+    <h1>Entregas pendientes</h1>
+    <p>Revisa cada proyecto y registra si se aprueba, requiere correcciones o se rechaza.</p>
+  </section>
+
+  @if (mensaje) {
+    <p class="mensaje-revision" role="status">{{ mensaje }}</p>
+  }
+  @if (mensajeError) {
+    <p class="mensaje-error" role="alert">{{ mensajeError }}</p>
+  }
+
+  <section class="seccion-proyectos">
+    <div class="encabezado-seccion">
+      <div>
+        <p class="etiqueta">REVISIÓN DEL SUPERVISOR</p>
+        <h2>Solicitudes por revisar</h2>
+      </div>
+      <span class="contador">{{ entregas.length }} pendientes</span>
+    </div>
+
+    @if (cargando) {
+      <div class="estado-vacio" role="status">Cargando entregas...</div>
+    } @else {
+      <div class="lista-proyectos">
+        @for (entrega of entregas; track entrega.id) {
+          <article class="tarjeta-proyecto tarjeta-revision">
+            <div class="proyecto-cabecera">
+              <div>
+                <span class="tipo-trabajo">{{ formatearNombre(entrega.tipoTrabajo) }} · {{ entrega.anio }}</span>
+                <h3>{{ entrega.titulo }}</h3>
+              </div>
+              <span class="estado pendiente">Pendiente de revisión</span>
+            </div>
+
+            <div class="datos-proyecto">
+              <span>Solicitante: <strong>{{ entrega.solicitante }}</strong></span>
+              <span>Recibido: <strong>{{ entrega.fechaEnvio | date:'short' }}</strong></span>
+            </div>
+            <p><strong>Autores:</strong> {{ entrega.autores.join(', ') }}</p>
+            <p><strong>Carrera:</strong> {{ entrega.carrera }} · <strong>Área:</strong> {{ formatearNombre(entrega.tematica) }}</p>
+            <p>{{ entrega.resumen }}</p>
+
+            <div class="recursos-revision">
+              <strong>Materiales</strong>
+              @for (recurso of entrega.recursos; track recurso.id) {
+                <div class="recurso-revision">
+                  <span>{{ recurso.nombre }} · {{ formatearNombre(recurso.tipo) }}</span>
+                  <button type="button" class="boton-secundario" (click)="abrirRecurso(recurso)">
+                    {{ recurso.url ? 'Abrir enlace' : 'Descargar' }}
+                  </button>
+                </div>
+              } @empty {
+                <small>No hay materiales adjuntos.</small>
+              }
+            </div>
+
+            <label class="opcion-difusion">
+              <input
+                type="checkbox"
+                [checked]="permisosDifusion[entrega.id] ?? false"
+                (change)="actualizarPermiso(entrega.id, $event)"
+              >
+              Autorizar difusión pública si se aprueba
+            </label>
+
+            <label class="campo-observacion">
+              Observaciones
+              <textarea
+                rows="3"
+                [value]="observaciones[entrega.id] ?? ''"
+                (input)="actualizarObservacion(entrega.id, $event)"
+                placeholder="Obligatorias para pedir correcciones o rechazar"
+              ></textarea>
+            </label>
+
+            <div class="acciones-revision">
+              <button type="button" class="decision aprobar" [disabled]="enviandoId === entrega.id" (click)="decidir(entrega, 'Aprobada')">
+                Aprobar
+              </button>
+              <button type="button" class="decision correcciones" [disabled]="enviandoId === entrega.id" (click)="decidir(entrega, 'Con correcciones')">
+                Pedir correcciones
+              </button>
+              <button type="button" class="decision rechazar" [disabled]="enviandoId === entrega.id" (click)="decidir(entrega, 'Rechazada')">
+                Rechazar
+              </button>
+            </div>
+          </article>
+        } @empty {
+          <div class="estado-vacio">
+            <h3>No hay entregas pendientes</h3>
+            <p>Los nuevos envíos aparecerán aquí para su revisión.</p>
+          </div>
+        }
+      </div>
+    }
+  </section>
+</main>

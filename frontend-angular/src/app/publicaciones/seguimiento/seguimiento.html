@@ -12,6 +12,9 @@
     <a routerLink="/mis-proyectos" routerLinkActive="activo">Mis proyectos</a>
     <a routerLink="/publicar" routerLinkActive="activo">Subir proyecto</a>
     <a routerLink="/notificaciones" routerLinkActive="activo">Notificaciones</a>
+    @if (esSupervisor) {
+      <a routerLink="/revision-supervisor" routerLinkActive="activo">Revisión supervisor</a>
+    }
     
   </nav>
 </header>
@@ -37,7 +40,11 @@
       <span class="contador">{{ proyectos.length }} proyectos</span>
     </div>
 
-    @if (proyectos.length > 0) {
+    @if (cargando) {
+      <p class="estado-vacio" role="status">Cargando tus proyectos...</p>
+    } @else if (mensajeError) {
+      <p class="mensaje-error" role="alert">{{ mensajeError }}</p>
+    } @else if (proyectos.length > 0) {
       <div class="lista-proyectos">
         @for (proyecto of proyectos; track proyecto.id) {
           <article class="tarjeta-proyecto">
@@ -52,7 +59,7 @@
                 [class.correcciones]="proyecto.estado === 'Con correcciones'"
                 [class.aprobada]="proyecto.estado === 'Aprobada'"
                 [class.rechazada]="proyecto.estado === 'Rechazada'">
-                {{ proyecto.estado }}
+                {{ proyecto.estado === 'Pendiente' ? 'En revisión del supervisor' : proyecto.estado }}
               </span>
             </div>
 

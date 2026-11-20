@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { AuthComponent } from './auth/auth';
-import { requireSession } from './auth/auth.guard';
+import { requireSession, requireSupervisor } from './auth/auth.guard';
+import { RevisionSupervisorComponent } from './gestion/revision-supervisor/revision-supervisor';
 import { Catalogo } from './catalogo/catalogo';
 import { EnvioProyectoComponent } from './publicaciones/envio-proyecto/envio-proyecto';
 import { NotificacionesComponent } from './publicaciones/notificacions/notificaciones';
@@ -27,6 +28,7 @@ export const routes: Routes = [
   { path: 'publicar', component: EnvioProyectoComponent, canActivate: [requireSession] },
   { path: 'mis-proyectos', component: SeguimientoComponent, canActivate: [requireSession] },
   { path: 'notificaciones', component: NotificacionesComponent, canActivate: [requireSession] },
+  { path: 'revision-supervisor', component: RevisionSupervisorComponent, canActivate: [requireSupervisor] },
   { path: '', pathMatch: 'full', redirectTo: 'catalogo' },
   { path: '**', redirectTo: 'catalogo' }
 ];

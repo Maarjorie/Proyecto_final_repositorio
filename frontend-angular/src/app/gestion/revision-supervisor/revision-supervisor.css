@@ -1,0 +1,88 @@
+:host {
+  display: block;
+  min-height: 100vh;
+}
+
+.pagina-revision {
+  padding-bottom: 48px;
+}
+
+.tarjeta-revision > p {
+  margin: 10px 0;
+  color: #405d78;
+  line-height: 1.6;
+}
+
+.recursos-revision {
+  display: grid;
+  gap: 10px;
+  margin: 20px 0;
+  padding: 16px;
+  border: 1px solid rgba(16, 65, 101, 0.18);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.recurso-revision {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid rgba(16, 65, 101, 0.12);
+}
+
+.opcion-difusion {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0;
+  color: #173c60;
+  font-weight: 700;
+}
+
+.campo-observacion {
+  display: grid;
+  gap: 8px;
+  color: #173c60;
+  font-weight: 700;
+}
+
+.campo-observacion textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid rgba(16, 65, 101, 0.2);
+  border-radius: 12px;
+  color: #173c60;
+  background: rgba(255, 255, 255, 0.8);
+  font: inherit;
+  resize: vertical;
+}
+
+.acciones-revision {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.acciones-revision button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.mensaje-revision {
+  margin: 0 0 18px;
+  padding: 14px 18px;
+  border: 1px solid rgba(30, 119, 79, 0.35);
+  border-radius: 14px;
+  color: #174d37;
+  background: rgba(224, 246, 235, 0.94);
+}
+
+@media (max-width: 700px) {
+  .recurso-revision {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

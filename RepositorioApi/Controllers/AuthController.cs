@@ -54,6 +54,14 @@ public class AuthController : ControllerBase
             usuarioNuevo,
             request.Contrasena);
 
+        // Toda cuenta nueva recibe el rol básico "usuario".
+        var rolUsuario = await _db.TblRols
+            .FirstOrDefaultAsync(rol => rol.NombreRol == "usuario");
+        if (rolUsuario is not null)
+        {
+            usuarioNuevo.IdRols.Add(rolUsuario);
+        }
+
         _db.TblUsuarios.Add(usuarioNuevo);
         await _db.SaveChangesAsync();
 

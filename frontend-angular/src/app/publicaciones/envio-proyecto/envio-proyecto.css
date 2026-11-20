@@ -246,6 +246,14 @@
   box-shadow: 0 0 0 3px rgba(54, 139, 191, 0.2);
 }
 
+.campo select:disabled {
+  cursor: not-allowed;
+  color: #657b8e;
+  background: rgba(205, 226, 232, 0.8);
+  box-shadow: none;
+  opacity: 0.72;
+}
+
 .campo input[type="file"] {
   padding: 8px;
 }
@@ -467,3 +475,23 @@
 .brand small {
   font-weight: 800;
 }
+.mensaje-exito {
+  margin: 18px 0 0;
+  padding: 14px 16px;
+  border: 1px solid rgba(30, 119, 79, 0.35);
+  border-radius: 14px;
+  background: rgba(224, 246, 235, 0.9);
+  color: #174d37;
+}
+
+.mensaje-exito a {
+  margin-left: 8px;
+  color: #0c396f;
+  font-weight: 700;
+}
+
+.boton-enviar:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
