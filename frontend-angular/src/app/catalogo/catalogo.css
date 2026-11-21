@@ -1239,3 +1239,238 @@ td select {
 .brand small {
   font-weight: 800;
 }
+/* =====================================================================
+   Filtros mejorados: conteo por opción, filtros activos y buscador de autor
+   ===================================================================== */
+
+/* Cuántos trabajos quedarían al marcar la opción. */
+.facet-count {
+  margin-left: auto;
+  min-width: 26px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(12, 57, 111, 0.1);
+  color: #183653;
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.check-option > span:not(.facet-count) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Opción que dejaría sin resultados: se ve, pero atenuada y sin poder marcarse. */
+.check-option.sin-resultados {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.check-option.sin-resultados .facet-count {
+  background: transparent;
+}
+
+.filter-search {
+  width: 100%;
+  min-height: 38px;
+  margin-bottom: 8px;
+  padding: 0 12px;
+  border: 1px solid rgba(12, 57, 111, 0.2);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #183653;
+  font: inherit;
+  font-size: 13px;
+}
+
+.filter-search:focus-visible {
+  outline: 3px solid #68c6dd;
+  outline-offset: 1px;
+}
+
+.filter-empty {
+  margin: 4px 0;
+  color: #526f88;
+  font-size: 12px;
+}
+
+/* Filtros activos sobre los resultados. */
+.active-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: -4px 0 16px;
+}
+
+.active-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  min-height: 36px;
+  padding: 7px 12px 7px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 999px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(196, 230, 238, 0.92));
+  color: #183653;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 14px rgba(5, 27, 54, 0.18);
+  overflow-wrap: anywhere;
+  text-align: left;
+  animation: ues-aparecer 280ms var(--ues-ease, ease-out) backwards;
+  transition: transform 160ms ease, background 160ms ease;
+}
+
+.active-chip span {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(12, 57, 111, 0.12);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.active-chip:hover {
+  transform: translateY(-1px);
+  background: #fff;
+}
+
+.active-chip:hover span {
+  background: #a53a3a;
+  color: #fff;
+}
+
+.clear-all {
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.active-chip:focus-visible,
+.clear-all:focus-visible {
+  outline: 3px solid #68c6dd;
+  outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------
+   Grupos con muchas opciones (100 autores, 40 temáticas...)
+   --------------------------------------------------------------------- */
+
+/* La casilla no se aplasta cuando el texto es largo (p. ej. carreras). */
+.check-option input {
+  flex: 0 0 auto;
+}
+
+.check-option {
+  align-items: flex-start;
+  padding: 3px 0;
+}
+
+.check-option input,
+.check-option .facet-count {
+  margin-top: 1px;
+}
+
+.option-label {
+  flex: 1 1 auto;
+  line-height: 1.35;
+}
+
+.option-list {
+  display: grid;
+  gap: 6px;
+}
+
+/* Expandido: la lista se desplaza dentro del grupo y no estira la página. */
+.option-list-expandida {
+  max-height: 290px;
+  padding-right: 6px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(12, 57, 111, 0.45) transparent;
+}
+
+.ver-mas {
+  justify-self: start;
+  margin-top: 6px;
+  padding: 6px 2px;
+  border: 0;
+  background: transparent;
+  color: var(--ateneo-blue);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.ver-mas:hover {
+  color: #102d50;
+}
+
+.ver-mas:focus-visible {
+  outline: 3px solid #68c6dd;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Cuántas opciones están marcadas en cada grupo, junto a su título. */
+.group-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--ateneo-blue);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  vertical-align: 1px;
+}
+
+/* Atajo "Más áreas": mismo tamaño que las demás, con contorno. */
+.area-chip-mas {
+  border-color: rgba(255, 255, 255, 0.75);
+  background: transparent;
+  color: #fff;
+}
+
+.area-chip-mas:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Atajos de área: pasan a otra línea en vez de aplastarse, y el texto de
+   cada botón no se parte. */
+.area-shortcuts {
+  flex-wrap: wrap;
+  row-gap: 10px;
+}
+
+.area-shortcuts > strong {
+  flex: 0 0 auto;
+}
+
+.area-chip {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}

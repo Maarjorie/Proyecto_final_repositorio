@@ -1,6 +1,6 @@
 import { SesionUsuarioComponent } from '../auth/sesion-usuario';
 import { esCuentaDeGestion, usuarioTieneRol } from '../auth/auth.guard';
-import { Component, computed, input, model, OnInit, output, signal, WritableSignal } from '@angular/core';
+import { Component, computed, effect, input, model, OnInit, output, signal, WritableSignal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import type { Work } from '../app';
@@ -8,6 +8,14 @@ import { afterNextRender, inject, Injector } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 
 const API_URL = 'https://localhost:7244/api';
+
+/** Grupos de filtros del catálogo. */
+type FilterGroup = 'area' | 'year' | 'type' | 'career' | 'subject' | 'author';
+
+/** Pasa a minúsculas y quita tildes: "Informática" y "informatica" coinciden. */
+function normalizar(texto: string): string {
+  return texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLocaleLowerCase('es');
+}
 
 interface OpcionApi {
   id: number;
@@ -69,30 +77,223 @@ export class Catalogo implements OnInit {
   readonly selectedWork = signal<Work | null>(null);
 
   readonly years = computed(() => [...new Set(this.publicWorks().map((work) => work.year))].sort((a, b) => b - a));
-  readonly authors = computed(() => [...new Set(this.publicWorks().flatMap((work) => work.authors))].sort());
-  readonly types = computed(() => [...new Set(this.publicWorks().map((work) => work.type))].sort());
-  readonly careers = computed(() => [...new Set(this.publicWorks().map((work) => work.career))].sort());
-  readonly subjects = computed(() => [...new Set(this.publicWorks().map((work) => work.subject).filter(Boolean))].sort());
-  readonly filteredWorks = computed(() => {
-    const term = this.query().trim().toLocaleLowerCase('es');
-    let results = this.publicWorks().filter((work) => {
-      const searchable = this.searchableText(work, this.searchScope());
-      return (
-        (!term || searchable.toLocaleLowerCase('es').includes(term)) &&
-        (!this.selectedAreas().length || this.selectedAreas().includes(work.area)) &&
-        (!this.selectedYears().length || this.selectedYears().includes(work.year)) &&
-        (!this.selectedTypes().length || this.selectedTypes().includes(work.type)) &&
-        (!this.selectedCareers().length || this.selectedCareers().includes(work.career)) &&
-        (!this.selectedSubjects().length || this.selectedSubjects().includes(work.subject)) &&
-        (!this.selectedAuthors().length || work.authors.some((author) => this.selectedAuthors().includes(author))) &&
-        (!this.favoritesOnly() || this.favoriteIds().includes(work.id))
-      );
-    });
-    results = [...results].sort((a, b) => this.sortOrder() === 'old' ? a.year - b.year : b.year - a.year);
-    return results;
+  readonly authors = computed(() => [...new Set(this.publicWorks().flatMap((work) => work.authors))].sort((a, b) => a.localeCompare(b, 'es')));
+  readonly types = computed(() => [...new Set(this.publicWorks().map((work) => work.type))].sort((a, b) => a.localeCompare(b, 'es')));
+  readonly careers = computed(() => [...new Set(this.publicWorks().map((work) => work.career))].sort((a, b) => a.localeCompare(b, 'es')));
+  readonly subjects = computed(() => [...new Set(this.publicWorks().map((work) => work.subject).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es')));
+
+  /**
+   * Grupos de filtros preparados para muchas opciones (100 autores, 40
+   * temáticas...): se muestran las más usadas, el resto con "Ver todas", las
+   * que darían 0 resultados se ocultan y cada grupo grande tiene buscador.
+   */
+  readonly facetLimit = 6;
+  /** A partir de cuántas opciones el grupo muestra su propio buscador. */
+  readonly facetSearchFrom = 8;
+  readonly expandedGroups = signal<FilterGroup[]>([]);
+  readonly groupQueries = signal<Partial<Record<FilterGroup, string>>>({});
+
+  readonly facetGroups = computed(() => {
+    const definiciones: { key: FilterGroup; title: string; values: (string | number)[]; selection: WritableSignal<(string | number)[]> }[] = [
+      { key: 'area', title: 'Área temática', values: this.areas(), selection: this.selectedAreas as WritableSignal<(string | number)[]> },
+      { key: 'year', title: 'Año', values: this.years(), selection: this.selectedYears as WritableSignal<(string | number)[]> },
+      { key: 'type', title: 'Tipo de trabajo', values: this.types(), selection: this.selectedTypes as WritableSignal<(string | number)[]> },
+      { key: 'career', title: 'Carrera', values: this.careers(), selection: this.selectedCareers as WritableSignal<(string | number)[]> },
+      { key: 'subject', title: 'Asignatura', values: this.subjects(), selection: this.selectedSubjects as WritableSignal<(string | number)[]> },
+      { key: 'author', title: 'Autor', values: this.authors(), selection: this.selectedAuthors as WritableSignal<(string | number)[]> }
+    ];
+    const expandidos = this.expandedGroups();
+    const busquedas = this.groupQueries();
+
+    return definiciones
+      .map((grupo) => {
+        const seleccion = grupo.selection();
+        // Opciones con resultados (o ya marcadas), las marcadas primero y luego
+        // las de más trabajos. El año se ordena del más reciente al más antiguo.
+        const disponibles = grupo.values
+          .map((value) => ({ value, label: String(value), count: this.count(grupo.key, value), selected: seleccion.includes(value) }))
+          .filter((option) => option.count > 0 || option.selected)
+          .sort((a, b) =>
+            Number(b.selected) - Number(a.selected) ||
+            (grupo.key === 'year' ? Number(b.value) - Number(a.value) : b.count - a.count || a.label.localeCompare(b.label, 'es'))
+          );
+
+        const termino = normalizar((busquedas[grupo.key] ?? '').trim());
+        const coincidentes = termino ? disponibles.filter((option) => normalizar(option.label).includes(termino)) : disponibles;
+        const expandido = expandidos.includes(grupo.key) || termino.length > 0;
+        // Las marcadas nunca se esconden detrás de "Ver todas".
+        const limite = Math.max(this.facetLimit, coincidentes.filter((option) => option.selected).length);
+        const visibles = expandido ? coincidentes : coincidentes.slice(0, limite);
+
+        return {
+          key: grupo.key,
+          title: grupo.title,
+          selection: grupo.selection,
+          total: disponibles.length,
+          selectedCount: seleccion.length,
+          searchable: disponibles.length >= this.facetSearchFrom,
+          query: busquedas[grupo.key] ?? '',
+          expanded: expandido,
+          canExpand: !termino && coincidentes.length > limite,
+          hiddenCount: coincidentes.length - visibles.length,
+          options: visibles
+        };
+      })
+      .filter((grupo) => grupo.total > 0);
   });
+
+  toggleGroupExpanded(key: FilterGroup): void {
+    this.expandedGroups.update((actuales) =>
+      actuales.includes(key) ? actuales.filter((item) => item !== key) : [...actuales, key]
+    );
+  }
+
+  setGroupQuery(key: FilterGroup, value: string): void {
+    this.groupQueries.update((actuales) => ({ ...actuales, [key]: value }));
+  }
+
+  /**
+   * Atajos de "Explorar por área": solo las áreas con trabajos, las más usadas
+   * primero, hasta 8. El resto queda en el filtro con "Más áreas".
+   */
+  readonly areaShortcutLimit = 8;
+  readonly areaShortcuts = computed(() => {
+    const seleccion = this.selectedAreas();
+    return this.areas()
+      .map((area) => ({ area, count: this.count('area', area), selected: seleccion.includes(area) }))
+      .filter((item) => item.count > 0 || item.selected)
+      .sort((a, b) => Number(b.selected) - Number(a.selected) || b.count - a.count || a.area.localeCompare(b.area, 'es'))
+      .slice(0, this.areaShortcutLimit);
+  });
+  readonly moreAreas = computed(() =>
+    Math.max(0, this.areas().filter((area) => this.count('area', area) > 0).length - this.areaShortcuts().length)
+  );
+
+  /** "Más áreas": abre el grupo de área completo dentro de los filtros. */
+  showAllAreas(): void {
+    this.filtersOpen.set(true);
+    if (!this.expandedGroups().includes('area')) this.toggleGroupExpanded('area');
+    afterNextRender(() => {
+      document.getElementById('filtro-area')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, { injector: this.injector });
+  }
+
+  /**
+   * Texto de búsqueda de cada ficha, ya normalizado (sin tildes ni mayúsculas)
+   * y separado por campo. Se calcula una vez cuando llegan las fichas.
+   */
+  private readonly searchIndex = computed(() => {
+    const index = new Map<number, Record<string, string>>();
+    for (const work of this.publicWorks()) {
+      const title = normalizar(work.title);
+      const author = normalizar(work.authors.join(' '));
+      const topic = normalizar(`${work.area} ${work.summary} ${work.keywords.join(' ')}`);
+      index.set(work.id, {
+        title,
+        author,
+        topic,
+        all: `${title} ${author} ${topic} ${normalizar(`${work.career} ${work.type} ${work.subject} ${work.advisor} ${work.year}`)}`
+      });
+    }
+    return index;
+  });
+
+  /** Palabras buscadas: cada una debe aparecer, en cualquier orden. */
+  private readonly searchTerms = computed(() => normalizar(this.query()).split(/\s+/).filter(Boolean));
+
+  /** Resultado final con todos los filtros y el orden elegido. */
+  readonly filteredWorks = computed(() => {
+    const results = this.publicWorks().filter((work) => this.matches(work, null));
+    const order = this.sortOrder();
+    return [...results].sort((a, b) => {
+      if (order === 'featured' && a.featured !== b.featured) return a.featured ? -1 : 1;
+      if (order === 'title') return a.title.localeCompare(b.title, 'es');
+      const byYear = order === 'old' ? a.year - b.year : b.year - a.year;
+      // Desempate estable: por título, para que el orden no cambie al filtrar.
+      return byYear !== 0 ? byYear : a.title.localeCompare(b.title, 'es');
+    });
+  });
+
+  /**
+   * Cuántos trabajos quedarían al marcar cada opción, considerando los demás
+   * filtros activos (búsqueda por facetas). Así se ve qué opción da 0 resultados.
+   */
+  readonly facetCounts = computed(() => {
+    const contar = <K extends string | number>(grupo: FilterGroup, valores: (work: Work) => K[]) => {
+      const conteo = new Map<K, number>();
+      for (const work of this.publicWorks()) {
+        if (!this.matches(work, grupo)) continue;
+        for (const valor of new Set(valores(work))) {
+          conteo.set(valor, (conteo.get(valor) ?? 0) + 1);
+        }
+      }
+      return conteo;
+    };
+    return {
+      area: contar('area', (work) => [work.area]),
+      year: contar('year', (work) => [work.year]),
+      type: contar('type', (work) => [work.type]),
+      career: contar('career', (work) => [work.career]),
+      subject: contar('subject', (work) => (work.subject ? [work.subject] : [])),
+      author: contar('author', (work) => work.authors)
+    };
+  });
+
+  /** Filtros marcados, para mostrarlos como etiquetas que se pueden quitar. */
+  readonly activeFilters = computed(() => {
+    const chips: { label: string; remove: () => void }[] = [];
+    const add = <T extends string | number>(selection: WritableSignal<T[]>, prefijo: string) => {
+      for (const value of selection()) {
+        chips.push({ label: `${prefijo}: ${value}`, remove: () => this.toggleSelection(selection, value) });
+      }
+    };
+    if (this.query().trim()) {
+      chips.push({ label: `Búsqueda: «${this.query().trim()}»`, remove: () => { this.query.set(''); this.page.set(1); } });
+    }
+    add(this.selectedAreas, 'Área');
+    add(this.selectedYears, 'Año');
+    add(this.selectedTypes, 'Tipo');
+    add(this.selectedCareers, 'Carrera');
+    add(this.selectedSubjects, 'Asignatura');
+    add(this.selectedAuthors, 'Autor');
+    if (this.favoritesOnly()) {
+      chips.push({ label: 'Solo favoritos', remove: () => { this.favoritesOnly.set(false); this.page.set(1); } });
+    }
+    return chips;
+  });
+
   readonly pageCount = computed(() => Math.max(1, Math.ceil(this.filteredWorks().length / this.pageSize)));
-  readonly pageWorks = computed(() => this.filteredWorks().slice((this.page() - 1) * this.pageSize, this.page() * this.pageSize));
+  /** La página nunca queda fuera de rango aunque cambien los resultados. */
+  readonly currentPage = computed(() => Math.min(this.page(), this.pageCount()));
+  readonly pageWorks = computed(() =>
+    this.filteredWorks().slice((this.currentPage() - 1) * this.pageSize, this.currentPage() * this.pageSize)
+  );
+
+  /** Comprueba todos los filtros excepto el grupo indicado (para los conteos). */
+  private matches(work: Work, except: FilterGroup | null): boolean {
+    const terms = this.searchTerms();
+    if (terms.length) {
+      const text = this.searchIndex().get(work.id)?.[this.searchScope()] ?? '';
+      if (!terms.every((term) => text.includes(term))) return false;
+    }
+    const pasa = <T>(grupo: FilterGroup, seleccion: T[], valor: T | T[]) =>
+      except === grupo || !seleccion.length ||
+      (Array.isArray(valor) ? valor.some((item) => seleccion.includes(item)) : seleccion.includes(valor));
+
+    return (
+      pasa('area', this.selectedAreas(), work.area) &&
+      pasa('year', this.selectedYears(), work.year) &&
+      pasa('type', this.selectedTypes(), work.type) &&
+      pasa('career', this.selectedCareers(), work.career) &&
+      pasa('subject', this.selectedSubjects(), work.subject) &&
+      pasa('author', this.selectedAuthors(), work.authors) &&
+      (!this.favoritesOnly() || this.favoriteIds().includes(work.id))
+    );
+  }
+
+  count(grupo: FilterGroup, value: string | number): number {
+    return (this.facetCounts()[grupo] as Map<string | number, number>).get(value) ?? 0;
+  }
 
   ngOnInit(): void {
     this.http.get<OpcionApi[]>(API_URL + '/catalogos/tematicas').subscribe({
@@ -171,11 +372,60 @@ export class Catalogo implements OnInit {
     return this.works().filter((work) => work.published && work.permission !== 'Pendiente');
   }
 
-  private searchableText(work: Work, scope: string): string {
-    if (scope === 'title') return work.title;
-    if (scope === 'author') return work.authors.join(' ');
-    if (scope === 'topic') return `${work.area} ${work.summary} ${work.keywords.join(' ')}`;
-    return `${work.title} ${work.authors.join(' ')} ${work.area} ${work.summary} ${work.keywords.join(' ')}`;
+  constructor() {
+    // Los filtros viven en la URL (?q=...&area=...): sobreviven a una recarga,
+    // al botón "atrás" y se pueden compartir como enlace.
+    this.leerFiltrosDeUrl();
+    effect(() => this.escribirFiltrosEnUrl());
+  }
+
+  private leerFiltrosDeUrl(): void {
+    let params: URLSearchParams;
+    try {
+      params = new URLSearchParams(globalThis.location?.search ?? '');
+    } catch {
+      return;
+    }
+    const campos = ['all', 'title', 'author', 'topic'];
+    const ordenes = ['recent', 'old', 'title', 'featured'];
+    this.query.set(params.get('q') ?? '');
+    if (campos.includes(params.get('campo') ?? '')) this.searchScope.set(params.get('campo')!);
+    if (ordenes.includes(params.get('orden') ?? '')) this.sortOrder.set(params.get('orden')!);
+    this.selectedAreas.set(params.getAll('area'));
+    this.selectedYears.set(params.getAll('anio').map(Number).filter(Number.isFinite));
+    this.selectedTypes.set(params.getAll('tipo'));
+    this.selectedCareers.set(params.getAll('carrera'));
+    this.selectedSubjects.set(params.getAll('materia'));
+    this.selectedAuthors.set(params.getAll('autor'));
+    this.favoritesOnly.set(params.get('favoritos') === '1');
+    const pagina = Number(params.get('pagina'));
+    this.page.set(Number.isInteger(pagina) && pagina > 0 ? pagina : 1);
+  }
+
+  private escribirFiltrosEnUrl(): void {
+    const params = new URLSearchParams();
+    const query = this.query().trim();
+    if (query) params.set('q', query);
+    if (this.searchScope() !== 'all') params.set('campo', this.searchScope());
+    this.selectedAreas().forEach((value) => params.append('area', value));
+    this.selectedYears().forEach((value) => params.append('anio', String(value)));
+    this.selectedTypes().forEach((value) => params.append('tipo', value));
+    this.selectedCareers().forEach((value) => params.append('carrera', value));
+    this.selectedSubjects().forEach((value) => params.append('materia', value));
+    this.selectedAuthors().forEach((value) => params.append('autor', value));
+    if (this.favoritesOnly()) params.set('favoritos', '1');
+    if (this.sortOrder() !== 'recent') params.set('orden', this.sortOrder());
+    if (this.page() > 1) params.set('pagina', String(this.page()));
+
+    const location = globalThis.location;
+    // Solo mientras se está en el catálogo, para no tocar la URL de otra pantalla.
+    if (!location || location.pathname !== '/catalogo') return;
+    const search = params.toString();
+    const url = location.pathname + (search ? '?' + search : '') + location.hash;
+    if (url !== location.pathname + location.search + location.hash) {
+      // replaceState: no agrega una entrada al historial por cada tecla.
+      globalThis.history.replaceState(globalThis.history.state, '', url);
+    }
   }
 
   private readFavorites(): number[] {
@@ -213,9 +463,14 @@ export class Catalogo implements OnInit {
     this.selectedCareers.set([]);
     this.selectedSubjects.set([]);
     this.selectedAuthors.set([]);
+    this.groupQueries.set({});
+    this.expandedGroups.set([]);
     this.favoritesOnly.set(false);
     this.page.set(1);
   }
+
+  /** Hay algún filtro o búsqueda activa (para mostrar "Limpiar todo"). */
+  readonly hasActiveFilters = computed(() => this.activeFilters().length > 0);
 
   toggleFavorite(id: number): void {
     const current = this.favoriteIds();
@@ -245,7 +500,8 @@ export class Catalogo implements OnInit {
   }
 
   movePage(direction: number): void {
-    this.page.set(Math.min(this.pageCount(), Math.max(1, this.page() + direction)));
+    this.page.set(Math.min(this.pageCount(), Math.max(1, this.currentPage() + direction)));
+    document.getElementById('catalogo')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   permissionAllowsResource(work: Work, resourceId: number): boolean {

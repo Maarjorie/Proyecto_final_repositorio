@@ -73,15 +73,20 @@
 
       <div class="area-shortcuts" id="areas">
         <strong>Explorar por<br />área</strong>
-        @for (area of areas(); track area) {
+        @for (atajo of areaShortcuts(); track atajo.area) {
           <button
             type="button"
             class="area-chip"
-            [class.selected]="isSelected(selectedAreas, area)"
-            [attr.aria-pressed]="isSelected(selectedAreas, area)"
-            (click)="toggleSelection(selectedAreas, area)"
+            [class.selected]="atajo.selected"
+            [attr.aria-pressed]="atajo.selected"
+            (click)="toggleSelection(selectedAreas, atajo.area)"
           >
-            {{ area }}
+            {{ atajo.area }}
+          </button>
+        }
+        @if (moreAreas() > 0) {
+          <button type="button" class="area-chip area-chip-mas" (click)="showAllAreas()">
+            Más áreas ({{ moreAreas() }})
           </button>
         }
       </div>
@@ -121,102 +126,55 @@
             Limpiar
           </button>
 
-          <details class="filter-group">
-            <summary>Año</summary>
-            <div class="filter-options">
-              @for (year of years(); track year) {
-                <label class="check-option">
+          <!-- Un mismo bloque para todos los grupos. Preparado para muchas
+               opciones: muestra las más usadas, "Ver todas" para el resto,
+               buscador en grupos grandes y oculta las que darían 0 resultados. -->
+          @for (grupo of facetGroups(); track grupo.key) {
+            <details class="filter-group" [id]="'filtro-' + grupo.key"
+              [open]="grupo.key === 'area' || grupo.key === 'year' || grupo.selectedCount > 0 || grupo.expanded">
+              <summary>
+                {{ grupo.title }}
+                @if (grupo.selectedCount > 0) {
+                  <span class="group-badge" [attr.aria-label]="grupo.selectedCount + ' marcados'">{{ grupo.selectedCount }}</span>
+                }
+              </summary>
+              <div class="filter-options">
+                @if (grupo.searchable) {
                   <input
-                    type="checkbox"
-                    [checked]="isSelected(selectedYears, year)"
-                    (change)="toggleSelection(selectedYears, year)"
+                    type="search"
+                    class="filter-search"
+                    [placeholder]="'Buscar en ' + grupo.title.toLowerCase() + '...'"
+                    [attr.aria-label]="'Buscar en ' + grupo.title"
+                    [value]="grupo.query"
+                    (input)="setGroupQuery(grupo.key, $any($event.target).value)"
                   />
-                  <span>{{ year }}</span>
-                </label>
-              }
-            </div>
-          </details>
+                }
 
-          <details class="filter-group" open>
-            <summary>Área temática</summary>
-            <div class="filter-options">
-              @for (area of areas(); track area) {
-                <label class="check-option">
-                  <input
-                    type="checkbox"
-                    [checked]="isSelected(selectedAreas, area)"
-                    (change)="toggleSelection(selectedAreas, area)"
-                  />
-                  <span>{{ area }}</span>
-                </label>
-              }
-            </div>
-          </details>
+                <div class="option-list" [class.option-list-expandida]="grupo.expanded">
+                  @for (option of grupo.options; track option.value) {
+                    <label class="check-option">
+                      <input
+                        type="checkbox"
+                        [checked]="option.selected"
+                        (change)="toggleSelection(grupo.selection, option.value)"
+                      />
+                      <span class="option-label">{{ option.label }}</span>
+                      <span class="facet-count" aria-label="trabajos">{{ option.count }}</span>
+                    </label>
+                  } @empty {
+                    <p class="filter-empty">Ninguna opción coincide.</p>
+                  }
+                </div>
 
-          <details class="filter-group">
-            <summary>Tipo de trabajo</summary>
-            <div class="filter-options">
-              @for (type of types(); track type) {
-                <label class="check-option">
-                  <input
-                    type="checkbox"
-                    [checked]="isSelected(selectedTypes, type)"
-                    (change)="toggleSelection(selectedTypes, type)"
-                  />
-                  <span>{{ type }}</span>
-                </label>
-              }
-            </div>
-          </details>
-
-          <details class="filter-group">
-            <summary>Carrera</summary>
-            <div class="filter-options">
-              @for (career of careers(); track career) {
-                <label class="check-option">
-                  <input
-                    type="checkbox"
-                    [checked]="isSelected(selectedCareers, career)"
-                    (change)="toggleSelection(selectedCareers, career)"
-                  />
-                  <span>{{ career }}</span>
-                </label>
-              }
-            </div>
-          </details>
-
-          <details class="filter-group">
-            <summary>Asignatura</summary>
-            <div class="filter-options">
-              @for (subject of subjects(); track subject) {
-                <label class="check-option">
-                  <input
-                    type="checkbox"
-                    [checked]="isSelected(selectedSubjects, subject)"
-                    (change)="toggleSelection(selectedSubjects, subject)"
-                  />
-                  <span>{{ subject }}</span>
-                </label>
-              }
-            </div>
-          </details>
-
-          <details class="filter-group">
-            <summary>Autor</summary>
-            <div class="filter-options">
-              @for (author of authors(); track author) {
-                <label class="check-option">
-                  <input
-                    type="checkbox"
-                    [checked]="isSelected(selectedAuthors, author)"
-                    (change)="toggleSelection(selectedAuthors, author)"
-                  />
-                  <span>{{ author }}</span>
-                </label>
-              }
-            </div>
-          </details>
-
+                @if (grupo.canExpand) {
+                  <button type="button" class="ver-mas" (click)="toggleGroupExpanded(grupo.key)"
+                    [attr.aria-expanded]="grupo.expanded">
+                    {{ grupo.expanded ? 'Ver menos' : 'Ver todas (' + grupo.total + ')' }}
+                  </button>
+                }
+              </div>
+            </details>
+          }
           <button
             type="button"
             class="secondary-button favorite-filter"
@@ -250,9 +208,25 @@
             >
               <option value="recent">Más recientes</option>
               <option value="old">Más antiguos</option>
+              <option value="title">Título (A–Z)</option>
+              <option value="featured">Destacados primero</option>
             </select>
           </label>
         </div>
+
+        <!-- Filtros activos: se ven todos de un vistazo y se quitan con un clic. -->
+        @if (hasActiveFilters()) {
+          <div class="active-filters" aria-label="Filtros activos">
+            @for (chip of activeFilters(); track chip.label) {
+              <button type="button" class="active-chip" (click)="chip.remove()"
+                [attr.aria-label]="'Quitar filtro ' + chip.label">
+                {{ chip.label }}
+                <span aria-hidden="true">×</span>
+              </button>
+            }
+            <button type="button" class="clear-all" (click)="clearFilters()">Limpiar todo</button>
+          </div>
+        }
 
         <div class="work-list">
           @for (work of pageWorks(); track work.id) {
@@ -354,20 +328,20 @@
           <button
             type="button"
             class="page-button"
-            [disabled]="page() <= 1"
+            [disabled]="currentPage() <= 1"
             (click)="movePage(-1)"
           >
             ← Anterior
           </button>
 
           <span class="page-status">
-            Página {{ page() }} de {{ pageCount() }} · hasta 10 trabajos
+            Página {{ currentPage() }} de {{ pageCount() }} · hasta 10 trabajos
           </span>
 
           <button
             type="button"
             class="page-button"
-            [disabled]="page() >= pageCount()"
+            [disabled]="currentPage() >= pageCount()"
             (click)="movePage(1)"
           >
             Siguiente →
