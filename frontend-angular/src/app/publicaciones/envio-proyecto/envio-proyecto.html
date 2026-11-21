@@ -241,6 +241,34 @@
         </select>
       </div>
 
+      <!-- RF-16: docentes que asesoraron el trabajo. Su nombre se muestra en
+           el catálogo solo si el supervisor registra que se autorizó. -->
+      <div class="campo campo-asesores">
+        <label for="asesor-0">Docente asesor (opcional)</label>
+        @for (asesor of asesores; track $index; let i = $index) {
+          <div class="fila-asesor">
+            <select [id]="'asesor-' + i" [attr.aria-label]="'Docente asesor ' + (i + 1)" (change)="elegirAsesor(i, $event)">
+              <option value="" [selected]="!asesor">{{ docentes.length ? 'Selecciona un docente' : 'No hay docentes registrados' }}</option>
+              @for (docente of docentesDisponibles(i); track docente.id) {
+                <option [value]="docente.id" [selected]="asesor === '' + docente.id">
+                  {{ docente.nombres }} {{ docente.apellidos }} · {{ docente.codigo }}
+                </option>
+              }
+            </select>
+            @if (asesores.length > 1 || asesor) {
+              <button class="boton-secundario" type="button" (click)="quitarAsesor(i)"
+                [attr.aria-label]="'Quitar docente asesor ' + (i + 1)">Quitar</button>
+            }
+          </div>
+        }
+        @if (asesores.length < 3 && asesores[asesores.length - 1]) {
+          <button class="boton-secundario boton-agregar-asesor" type="button" (click)="agregarAsesor()">
+            Agregar otro asesor
+          </button>
+        }
+        <small>El nombre del asesor aparecerá en la ficha pública solo si se autoriza durante la revisión.</small>
+      </div>
+
       <div class="campo">
         <label for="resumen">Resumen del proyecto</label>
         <textarea

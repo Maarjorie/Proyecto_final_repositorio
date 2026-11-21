@@ -50,6 +50,10 @@ public sealed class RevisionController : ControllerBase
                     .ThenInclude(autorProyecto => autorProyecto.IdAutorNavigation)
             .Include(entrega => entrega.IdProyectoNavigation)
                 .ThenInclude(proyecto => proyecto.IdEtiqueta)
+            .Include(entrega => entrega.IdProyectoNavigation)
+                .ThenInclude(proyecto => proyecto.TblProyectoDocentes)
+                    .ThenInclude(asesor => asesor.IdDocenteNavigation)
+                        .ThenInclude(docente => docente.IdUsuarioNavigation)
             .Include(entrega => entrega.IdUsuarioEnviaNavigation)
             .Include(entrega => entrega.TblRecursos)
                 .ThenInclude(recurso => recurso.IdTipoRecursoNavigation)
@@ -89,6 +93,7 @@ public sealed class RevisionController : ControllerBase
                     relacion.IdAutorNavigation.Nombres + " " +
                     relacion.IdAutorNavigation.Apellidos)
                 .ToList(),
+            asesores = MapearAsesores(entrega.IdProyectoNavigation),
             recursos = entrega.TblRecursos
                 .OrderBy(recurso => recurso.IdRecurso)
                 .Select(recurso => MapearRecurso(recurso))
@@ -206,6 +211,7 @@ public sealed class RevisionController : ControllerBase
                 return BadRequest(new { mensaje = error });
             }
 
+            await AplicarPermisoAsesoresAsync(proyecto.IdProyecto, request.AsesoresAutorizados, cancellationToken);
             detalle += " " + DescribirPublicacion(proyecto);
         }
         // Con correcciones o rechazo, una versión publicada antes sigue visible (RF-08).
@@ -256,6 +262,10 @@ public sealed class RevisionController : ControllerBase
             .Include(entrega => entrega.IdProyectoNavigation)
                 .ThenInclude(proyecto => proyecto.TblProyectoAutors)
                     .ThenInclude(relacion => relacion.IdAutorNavigation)
+            .Include(entrega => entrega.IdProyectoNavigation)
+                .ThenInclude(proyecto => proyecto.TblProyectoDocentes)
+                    .ThenInclude(asesor => asesor.IdDocenteNavigation)
+                        .ThenInclude(docente => docente.IdUsuarioNavigation)
             .Include(entrega => entrega.IdUsuarioRevisaNavigation)
             .Include(entrega => entrega.TblRecursos)
                 .ThenInclude(recurso => recurso.IdTipoRecursoNavigation)
@@ -304,6 +314,7 @@ public sealed class RevisionController : ControllerBase
                 destacado = proyecto.EsDestacado,
                 motivoRetiro = proyecto.EstadoPublicacion == "retirado" ? retiro?.Detalle : null,
                 fechaRetiro = proyecto.EstadoPublicacion == "retirado" ? retiro?.FechaAccion : null,
+                asesores = MapearAsesores(proyecto),
                 recursos = entrega.TblRecursos
                     .OrderBy(recurso => recurso.IdRecurso)
                     .Select(recurso => MapearRecurso(recurso))
@@ -352,6 +363,7 @@ public sealed class RevisionController : ControllerBase
             return BadRequest(new { mensaje = error });
         }
 
+        await AplicarPermisoAsesoresAsync(idProyecto, request.AsesoresAutorizados, cancellationToken);
         proyecto.FechaActualizacion = AhoraUtc();
         var detalle = "Permiso de los autores: " + DescribirPermiso(permiso) + ". " +
                       DescribirPublicacion(proyecto);
@@ -542,6 +554,38 @@ public sealed class RevisionController : ControllerBase
         return null;
     }
 
+    /// <summary>
+    /// RF-16: marca qué asesores autorizaron mostrar su nombre. Los que no
+    /// están en la lista quedan sin autorizar (la ficha se publica sin ellos).
+    /// </summary>
+    private async Task AplicarPermisoAsesoresAsync(
+        int idProyecto,
+        List<int>? asesoresAutorizados,
+        CancellationToken cancellationToken)
+    {
+        var autorizados = (asesoresAutorizados ?? []).ToHashSet();
+        var asesores = await _db.TblProyectoDocentes
+            .Where(item => item.IdProyecto == idProyecto)
+            .ToListAsync(cancellationToken);
+
+        foreach (var asesor in asesores)
+        {
+            asesor.NombreAutorizado = autorizados.Contains(asesor.IdDocente);
+        }
+    }
+
+    private static object MapearAsesores(TblProyecto proyecto) =>
+        proyecto.TblProyectoDocentes
+            .Select(asesor => new
+            {
+                idDocente = asesor.IdDocente,
+                nombre = asesor.IdDocenteNavigation.IdUsuarioNavigation.Nombres + " " +
+                         asesor.IdDocenteNavigation.IdUsuarioNavigation.Apellidos,
+                autorizado = asesor.NombreAutorizado
+            })
+            .OrderBy(asesor => asesor.nombre)
+            .ToList();
+
     private static string PermisoActual(TblProyecto proyecto, TblEntrega entrega) =>
         proyecto.EstadoAutorizacion switch
         {
@@ -609,6 +653,9 @@ public sealed class DecisionRevisionRequest
     public string? Permiso { get; set; }
 
     public List<int>? RecursosAutorizados { get; set; }
+
+    /// <summary>RF-16: docentes asesores cuyo nombre se autorizó mostrar.</summary>
+    public List<int>? AsesoresAutorizados { get; set; }
 }
 
 public sealed class PermisoRequest
@@ -617,6 +664,9 @@ public sealed class PermisoRequest
     public string Permiso { get; set; } = string.Empty;
 
     public List<int>? RecursosAutorizados { get; set; }
+
+    /// <summary>RF-16: docentes asesores cuyo nombre se autorizó mostrar.</summary>
+    public List<int>? AsesoresAutorizados { get; set; }
 }
 
 public sealed class RetiroRequest

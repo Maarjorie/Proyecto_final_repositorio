@@ -321,3 +321,8 @@ fieldset.bloque-revision > legend {
 .error-tarjeta {
   margin: 14px 0 0;
 }
+
+/* RF-16: casillas de los asesores, separadas visualmente de los materiales. */
+.asesores-autorizados {
+  background: rgba(190, 232, 205, 0.32);
+}

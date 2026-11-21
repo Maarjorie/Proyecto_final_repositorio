@@ -27,6 +27,8 @@ interface FichaApi {
   resumen: string;
   palabrasClave: string[];
   destacado: boolean;
+  /** RF-16: solo los asesores que autorizaron mostrar su nombre. */
+  asesores?: string[];
   permiso: 'solo_ficha' | 'ficha_y_materiales';
   recursos: { id: number; nombre: string; tipo: string; url: string | null }[];
 }
@@ -147,9 +149,9 @@ export class Catalogo implements OnInit {
       subject: ficha.materia ?? '',
       summary: ficha.resumen,
       keywords: ficha.palabrasClave,
-      // RF-16: sin dato y permiso del asesor, la ficha se publica sin su nombre.
-      advisor: '',
-      advisorAllowed: false,
+      // RF-16: la API solo envía los asesores autorizados; sin ellos la ficha se publica sin el dato.
+      advisor: (ficha.asesores ?? []).join(', '),
+      advisorAllowed: (ficha.asesores ?? []).length > 0,
       permission: ficha.permiso === 'ficha_y_materiales' ? 'Ficha y materiales autorizados' : 'Solo ficha',
       approvedResourceIds: ficha.recursos.map((recurso) => recurso.id),
       resources: ficha.recursos.map((recurso) => ({

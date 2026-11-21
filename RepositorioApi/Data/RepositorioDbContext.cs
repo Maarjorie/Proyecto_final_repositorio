@@ -36,6 +36,8 @@ public partial class RepositorioDbContext : DbContext
 
     public virtual DbSet<TblProyectoAutor> TblProyectoAutors { get; set; }
 
+    public virtual DbSet<TblProyectoDocente> TblProyectoDocentes { get; set; }
+
     public virtual DbSet<TblRecurso> TblRecursos { get; set; }
 
     public virtual DbSet<TblRol> TblRols { get; set; }
@@ -348,23 +350,26 @@ public partial class RepositorioDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("fk_proyecto_tipo");
 
+            // Tabla intermedia con datos propios: el permiso de mostrar al asesor (RF-16).
             entity.HasMany(d => d.IdDocentes).WithMany(p => p.IdProyectos)
-                .UsingEntity<Dictionary<string, object>>(
-                    "TblProyectoDocente",
-                    r => r.HasOne<TblDocente>().WithMany()
-                        .HasForeignKey("IdDocente")
+                .UsingEntity<TblProyectoDocente>(
+                    r => r.HasOne(e => e.IdDocenteNavigation).WithMany(p => p.TblProyectoDocentes)
+                        .HasForeignKey(e => e.IdDocente)
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_proyecto_docente_docente"),
-                    l => l.HasOne<TblProyecto>().WithMany()
-                        .HasForeignKey("IdProyecto")
+                    l => l.HasOne(e => e.IdProyectoNavigation).WithMany(p => p.TblProyectoDocentes)
+                        .HasForeignKey(e => e.IdProyecto)
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_proyecto_docente_proyecto"),
                     j =>
                     {
-                        j.HasKey("IdProyecto", "IdDocente").HasName("pk_proyecto_docente");
+                        j.HasKey(e => new { e.IdProyecto, e.IdDocente }).HasName("pk_proyecto_docente");
                         j.ToTable("tbl_proyecto_docente");
-                        j.IndexerProperty<int>("IdProyecto").HasColumnName("id_proyecto");
-                        j.IndexerProperty<int>("IdDocente").HasColumnName("id_docente");
+                        j.Property(e => e.IdProyecto).HasColumnName("id_proyecto");
+                        j.Property(e => e.IdDocente).HasColumnName("id_docente");
+                        j.Property(e => e.NombreAutorizado)
+                            .HasDefaultValue(false)
+                            .HasColumnName("nombre_autorizado");
                     });
 
             entity.HasMany(d => d.IdEtiqueta).WithMany(p => p.IdProyectos)

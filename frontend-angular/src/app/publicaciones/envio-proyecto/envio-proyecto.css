@@ -564,3 +564,32 @@
   color: inherit;
   font-weight: 800;
 }
+
+/* RF-16: docentes asesores */
+.campo-asesores {
+  gap: 8px;
+}
+
+.fila-asesor {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.fila-asesor select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.fila-asesor .boton-secundario {
+  flex: 0 0 auto;
+}
+
+.boton-agregar-asesor {
+  justify-self: start;
+}
+
+.campo-asesores small {
+  color: var(--muted);
+  font-size: 12px;
+}

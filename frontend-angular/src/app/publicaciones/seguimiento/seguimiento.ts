@@ -65,6 +65,7 @@ export interface DetalleSolicitud {
   puedeReenviar: boolean;
   autores: AutorDetalle[];
   palabrasClave: string[];
+  asesores: { idDocente: number; nombre: string; autorizado: boolean }[];
   recursos: RecursoDetalle[];
   observaciones: ObservacionDetalle[];
 }

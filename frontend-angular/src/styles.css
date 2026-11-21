@@ -15,3 +15,219 @@
   flex: 1 1 auto;
   min-width: 0;
 }
+
+/* =====================================================================
+   Animaciones de la aplicación
+   Suaves y cortas: acompañan la navegación sin distraer. Se usa
+   `backwards` (no `both`) para que, al terminar, no bloqueen los efectos
+   de :hover de cada componente.
+   ===================================================================== */
+
+:root {
+  --ues-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ues-ease-rebote: cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+@keyframes ues-aparecer {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.985);
+  }
+}
+
+@keyframes ues-desde-izquierda {
+  from {
+    opacity: 0;
+    transform: translateX(-22px);
+  }
+}
+
+@keyframes ues-emerger {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.94);
+  }
+}
+
+@keyframes ues-velo {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes ues-aviso {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes ues-latido {
+  0% {
+    box-shadow: 0 0 0 0 rgba(12, 57, 111, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 9px rgba(12, 57, 111, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(12, 57, 111, 0);
+  }
+}
+
+/* --- Transición entre pantallas (View Transitions del router) ---
+   El encabezado conserva su lugar y solo cambia el contenido. */
+.site-header,
+.workspace-header,
+.auth-header {
+  view-transition-name: encabezado;
+}
+
+::view-transition-old(root) {
+  animation: 180ms ease-in both ues-salir;
+}
+
+::view-transition-new(root) {
+  animation: 420ms var(--ues-ease) both ues-entrar;
+}
+
+::view-transition-group(encabezado) {
+  animation-duration: 320ms;
+  animation-timing-function: var(--ues-ease);
+}
+
+@keyframes ues-salir {
+  to {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes ues-entrar {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+/* --- Encabezados de página: título y descripción entran en cascada --- */
+.intro > *,
+.encabezado-pagina > * {
+  animation: ues-aparecer 620ms var(--ues-ease) backwards;
+}
+
+.intro > :nth-child(2),
+.encabezado-pagina > :nth-child(2) { animation-delay: 70ms; }
+.intro > :nth-child(3),
+.encabezado-pagina > :nth-child(3) { animation-delay: 140ms; }
+.intro > :nth-child(4),
+.encabezado-pagina > :nth-child(4) { animation-delay: 210ms; }
+
+/* --- Paneles principales --- */
+.auth-card,
+.tarjeta-publicacion,
+.panel-notificaciones,
+.pestanas {
+  animation: ues-aparecer 640ms var(--ues-ease) 120ms backwards;
+}
+
+.filters {
+  animation: ues-desde-izquierda 640ms var(--ues-ease) 160ms backwards;
+}
+
+/* --- Tarjetas en lista: aparecen una tras otra --- */
+.work-list > .work-card,
+.lista-proyectos > .tarjeta-proyecto,
+.lista-notificaciones > .tarjeta-notificacion,
+.lista-revision > .tarjeta-revision {
+  animation: ues-aparecer 560ms var(--ues-ease) backwards;
+  animation-delay: 160ms;
+}
+
+.work-list > :nth-child(2),
+.lista-proyectos > :nth-child(2),
+.lista-notificaciones > :nth-child(2),
+.lista-revision > :nth-child(2) { animation-delay: 230ms; }
+.work-list > :nth-child(3),
+.lista-proyectos > :nth-child(3),
+.lista-notificaciones > :nth-child(3),
+.lista-revision > :nth-child(3) { animation-delay: 300ms; }
+.work-list > :nth-child(4),
+.lista-proyectos > :nth-child(4),
+.lista-notificaciones > :nth-child(4),
+.lista-revision > :nth-child(4) { animation-delay: 370ms; }
+.work-list > :nth-child(5),
+.lista-proyectos > :nth-child(5),
+.lista-notificaciones > :nth-child(5),
+.lista-revision > :nth-child(5) { animation-delay: 440ms; }
+.work-list > :nth-child(n + 6),
+.lista-proyectos > :nth-child(n + 6),
+.lista-notificaciones > :nth-child(n + 6),
+.lista-revision > :nth-child(n + 6) { animation-delay: 500ms; }
+
+/* Al pasar el cursor, las tarjetas se elevan un poco. */
+.tarjeta-proyecto,
+.tarjeta-notificacion {
+  transition: transform 260ms var(--ues-ease), box-shadow 260ms var(--ues-ease);
+}
+
+.tarjeta-proyecto:hover,
+.tarjeta-notificacion:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 24px 48px rgba(5, 27, 54, 0.34), inset 0 2px 8px rgba(255, 255, 255, 0.95);
+}
+
+/* --- Ventanas emergentes: el fondo se oscurece y la ventana emerge --- */
+.dialog-backdrop,
+.fondo-detalle {
+  animation: ues-velo 220ms ease-out backwards;
+}
+
+.work-dialog {
+  animation: ues-emerger 380ms var(--ues-ease-rebote) backwards;
+}
+
+/* El panel de detalle de Mis proyectos ya usa transform para centrarse. */
+.panel-detalle {
+  animation: ues-velo 260ms ease-out backwards;
+}
+
+/* --- Avisos de éxito o error: bajan suavemente --- */
+.mensaje-exito,
+.mensaje-error,
+.mensaje-revision,
+.action-banner,
+.confirmacion {
+  animation: ues-aviso 320ms var(--ues-ease) backwards;
+}
+
+/* --- Notificación nueva: un pulso suave para llamar la atención --- */
+.tarjeta-notificacion.no-leida .estado-lectura {
+  animation: ues-latido 2.2s ease-out 600ms 3;
+}
+
+/* --- Botones: se hunden un poco al presionarlos --- */
+button:not(:disabled):active,
+a.boton-corregir:active,
+a.boton-sesion:active {
+  transform: translateY(1px) scale(0.97);
+  transition-duration: 80ms;
+}
+
+/* --- Respeta la opción del sistema "reducir movimiento" --- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}

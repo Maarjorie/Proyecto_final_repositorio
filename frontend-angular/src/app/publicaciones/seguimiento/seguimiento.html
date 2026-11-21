@@ -186,6 +186,18 @@
       }
     </ul>
 
+    @if (solicitud.asesores.length > 0) {
+      <h3>Docentes asesores</h3>
+      <ul class="detalle-lista">
+        @for (asesor of solicitud.asesores; track asesor.idDocente) {
+          <li>
+            {{ asesor.nombre }}
+            <span class="dato-secundario">· {{ asesor.autorizado ? 'Se muestra en el catálogo' : 'Su nombre no se publica' }}</span>
+          </li>
+        }
+      </ul>
+    }
+
     <h3>Resumen</h3>
     <p class="detalle-resumen">{{ solicitud.resumen }}</p>
 

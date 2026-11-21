@@ -40,8 +40,17 @@ interface SolicitudACorregir {
   idMateria: number | null;
   autores: { nombres: string; apellidos: string; carnet: string | null }[];
   palabrasClave: string[];
+  asesores: { idDocente: number; nombre: string; autorizado: boolean }[];
   recursos: { id: number; nombre: string; tipo: string; url: string | null }[];
   observaciones: { fecha: string; mensaje: string }[];
+}
+
+/** Docente que puede asesorar un trabajo (GET /api/catalogos/docentes). */
+interface DocenteCatalogo {
+  id: number;
+  codigo: string;
+  nombres: string;
+  apellidos: string;
 }
 
 type DepartamentoCatalogo = OpcionCatalogo;
@@ -86,6 +95,33 @@ export class EnvioProyectoComponent implements OnInit {
   tiposProyecto: OpcionCatalogo[] = [];
   tematicas: OpcionCatalogo[] = [];
   materias: OpcionCatalogo[] = [];
+  docentes: DocenteCatalogo[] = [];
+
+  /** RF-16: ids de los docentes asesores elegidos ('' = sin elegir). Hasta 3. */
+  asesores: string[] = [''];
+
+  agregarAsesor(): void {
+    if (this.asesores.length < 3) {
+      this.asesores = [...this.asesores, ''];
+    }
+  }
+
+  quitarAsesor(indice: number): void {
+    this.asesores = this.asesores.length > 1
+      ? this.asesores.filter((_, i) => i !== indice)
+      : [''];
+  }
+
+  elegirAsesor(indice: number, event: Event): void {
+    const valor = (event.target as HTMLSelectElement).value;
+    this.asesores = this.asesores.map((actual, i) => (i === indice ? valor : actual));
+  }
+
+  /** Un docente ya elegido en otra fila no se vuelve a ofrecer. */
+  docentesDisponibles(indice: number): DocenteCatalogo[] {
+    const elegidos = this.asesores.filter((id, i) => i !== indice && id);
+    return this.docentes.filter(docente => !elegidos.includes(String(docente.id)));
+  }
 
   departamentoSeleccionado = '';
   carreraSeleccionada = '';
@@ -165,6 +201,13 @@ export class EnvioProyectoComponent implements OnInit {
       'No se pudieron cargar las áreas temáticas.'
     );
 
+    this.cargarCatalogo<DocenteCatalogo>(
+      '/catalogos/docentes',
+      'repositorio.catalogos.docentes',
+      datos => this.docentes = datos,
+      'No se pudieron cargar los docentes.'
+    );
+
     const corregir = Number(this.route.snapshot.queryParamMap.get('corregir'));
     if (corregir > 0) {
       this.cargarCorreccion(corregir);
@@ -217,6 +260,9 @@ export class EnvioProyectoComponent implements OnInit {
             : [{ nombres: '', apellidos: '', carnet: '' }];
           this.palabrasClave = [...datos.palabrasClave];
           this.palabrasClaveTexto = datos.palabrasClave.join('\n');
+          this.asesores = (datos.asesores ?? []).length > 0
+            ? datos.asesores.map(asesor => String(asesor.idDocente))
+            : [''];
           // Por defecto se conservan todos los materiales; el solicitante
           // desmarca los que reemplaza.
           this.conservarRecursos = datos.recursos.map(recurso => recurso.id);
@@ -454,6 +500,9 @@ export class EnvioProyectoComponent implements OnInit {
     datos.append('IdCarrera', this.carreraSeleccionada);
     datos.append('IdTematica', this.valorFormulario(formulario, 'tematica'));
     datos.append('AutoresJson', JSON.stringify(this.autores));
+    this.asesores
+      .filter(id => id)
+      .forEach(id => datos.append('IdDocentesAsesores', id));
 
     const materia = this.valorFormulario(formulario, 'materia');
     if (materia) {

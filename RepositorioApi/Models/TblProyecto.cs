@@ -49,5 +49,8 @@ public partial class TblProyecto
 
     public virtual ICollection<TblDocente> IdDocentes { get; set; } = new List<TblDocente>();
 
+    /// <summary>Asesores con su permiso de difusión (RF-16).</summary>
+    public virtual ICollection<TblProyectoDocente> TblProyectoDocentes { get; set; } = new List<TblProyectoDocente>();
+
     public virtual ICollection<TblEtiqueta> IdEtiqueta { get; set; } = new List<TblEtiqueta>();
 }

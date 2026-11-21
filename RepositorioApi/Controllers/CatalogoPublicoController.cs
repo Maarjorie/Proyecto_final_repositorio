@@ -34,6 +34,9 @@ public sealed class CatalogoPublicoController : ControllerBase
             .Include(proyecto => proyecto.IdTematicaNavigation)
             .Include(proyecto => proyecto.IdMateriaNavigation)
             .Include(proyecto => proyecto.IdEtiqueta)
+            .Include(proyecto => proyecto.TblProyectoDocentes.Where(asesor => asesor.NombreAutorizado))
+                .ThenInclude(asesor => asesor.IdDocenteNavigation)
+                    .ThenInclude(docente => docente.IdUsuarioNavigation)
             .Include(proyecto => proyecto.TblProyectoAutors)
                 .ThenInclude(relacion => relacion.IdAutorNavigation)
             .Include(proyecto => proyecto.TblEntregas.Where(entrega => entrega.EstadoEntrega == "aprobada"))
@@ -79,6 +82,13 @@ public sealed class CatalogoPublicoController : ControllerBase
                 resumen = proyecto.Resumen,
                 palabrasClave = proyecto.IdEtiqueta.Select(etiqueta => etiqueta.Nombre).OrderBy(nombre => nombre).ToList(),
                 destacado = proyecto.EsDestacado,
+                // RF-16: solo los asesores que autorizaron mostrar su nombre.
+                asesores = proyecto.TblProyectoDocentes
+                    .Select(asesor =>
+                        asesor.IdDocenteNavigation.IdUsuarioNavigation.Nombres + " " +
+                        asesor.IdDocenteNavigation.IdUsuarioNavigation.Apellidos)
+                    .OrderBy(nombre => nombre)
+                    .ToList(),
                 permiso = recursos.Count > 0 ? "ficha_y_materiales" : "solo_ficha",
                 recursos
             };

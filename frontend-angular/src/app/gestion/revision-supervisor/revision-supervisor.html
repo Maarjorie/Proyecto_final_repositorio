@@ -85,6 +85,9 @@
                 <div><dt>Carrera</dt><dd>{{ entrega.carrera }}</dd></div>
                 <div><dt>Departamento</dt><dd>{{ entrega.departamento }}</dd></div>
                 <div><dt>Área</dt><dd>{{ formatearNombre(entrega.tematica) }}</dd></div>
+                @if (entrega.asesores.length > 0) {
+                  <div><dt>Asesores</dt><dd>{{ nombresAsesores(entrega.asesores) }}</dd></div>
+                }
               </dl>
               <p class="resumen-revision">{{ entrega.resumen }}</p>
               @if (entrega.palabrasClave.length > 0) {
@@ -132,6 +135,19 @@
                           [checked]="borrador.recursos.includes(recurso.id)"
                           (change)="alternarRecurso(borrador, recurso.id, $event)">
                         {{ recurso.nombre }} <span class="dato-secundario">· {{ recurso.tipo.toUpperCase() }}</span>
+                      </label>
+                    }
+                  </div>
+                }
+                @if (entrega.asesores.length > 0) {
+                  <div class="materiales-autorizados asesores-autorizados">
+                    <span class="dato-secundario">Docentes asesores: marca los que autorizaron mostrar su nombre en la ficha (RF-16).</span>
+                    @for (asesor of entrega.asesores; track asesor.idDocente) {
+                      <label class="opcion-material">
+                        <input type="checkbox"
+                          [checked]="borrador.asesores.includes(asesor.idDocente)"
+                          (change)="alternarAsesor(borrador, asesor.idDocente, $event)">
+                        {{ asesor.nombre }}
                       </label>
                     }
                   </div>
@@ -253,6 +269,19 @@
                             {{ recurso.url ? 'Abrir' : 'Descargar' }}
                           </button>
                         </div>
+                      }
+                    </div>
+                  }
+                  @if (publicacion.asesores.length > 0) {
+                    <div class="materiales-autorizados asesores-autorizados">
+                      <span class="dato-secundario">Docentes asesores que autorizaron mostrar su nombre (RF-16):</span>
+                      @for (asesor of publicacion.asesores; track asesor.idDocente) {
+                        <label class="opcion-material">
+                          <input type="checkbox"
+                            [checked]="permiso.asesores.includes(asesor.idDocente)"
+                            (change)="alternarAsesor(permiso, asesor.idDocente, $event)">
+                          {{ asesor.nombre }}
+                        </label>
                       }
                     </div>
                   }

@@ -268,6 +268,26 @@ public sealed class ProyectosController : ControllerBase
             return BadRequest(new { mensaje = "Para tesis y trabajos de graduación debes adjuntar el PDF completo." });
         }
 
+        // RF-16: docentes asesores (opcionales). Su nombre solo se publica si
+        // el supervisor registra que se autorizó.
+        var idsAsesores = (request.IdDocentesAsesores ?? []).Where(id => id > 0).Distinct().ToList();
+        if (idsAsesores.Count > 3)
+        {
+            return BadRequest(new { mensaje = "Registra hasta 3 docentes asesores." });
+        }
+
+        if (idsAsesores.Count > 0)
+        {
+            var asesoresValidos = await _db.TblDocentes
+                .CountAsync(
+                    docente => idsAsesores.Contains(docente.IdDocente) && docente.IdUsuarioNavigation.Activo,
+                    cancellationToken);
+            if (asesoresValidos != idsAsesores.Count)
+            {
+                return BadRequest(new { mensaje = "Selecciona docentes asesores válidos." });
+            }
+        }
+
         var tiposRecurso = await _db.TblTipoRecursos
             .AsNoTracking()
             .ToListAsync(cancellationToken);
@@ -382,6 +402,27 @@ public sealed class ProyectosController : ControllerBase
                 }
 
                 proyecto.IdEtiqueta.Add(etiqueta);
+            }
+
+            // RF-16: asesores. En un reenvío se reemplazan por los corregidos y
+            // cada asesor que se mantiene conserva el permiso ya registrado.
+            var asesoresActuales = esReenvio
+                ? await _db.TblProyectoDocentes
+                    .Where(item => item.IdProyecto == proyecto.IdProyecto)
+                    .ToListAsync(cancellationToken)
+                : [];
+
+            _db.TblProyectoDocentes.RemoveRange(
+                asesoresActuales.Where(item => !idsAsesores.Contains(item.IdDocente)));
+
+            foreach (var idDocente in idsAsesores.Where(id => asesoresActuales.All(item => item.IdDocente != id)))
+            {
+                _db.TblProyectoDocentes.Add(new TblProyectoDocente
+                {
+                    IdProyecto = proyecto.IdProyecto,
+                    IdDocente = idDocente,
+                    NombreAutorizado = false
+                });
             }
 
             var carpetaEntrega = Path.Combine(
@@ -612,6 +653,10 @@ public sealed class ProyectosController : ControllerBase
                     .ThenInclude(relacion => relacion.IdAutorNavigation)
             .Include(item => item.IdProyectoNavigation)
                 .ThenInclude(proyecto => proyecto.IdEtiqueta)
+            .Include(item => item.IdProyectoNavigation)
+                .ThenInclude(proyecto => proyecto.TblProyectoDocentes)
+                    .ThenInclude(asesor => asesor.IdDocenteNavigation)
+                        .ThenInclude(docente => docente.IdUsuarioNavigation)
             .Include(item => item.TblRecursos)
                 .ThenInclude(recurso => recurso.IdTipoRecursoNavigation)
             .Include(item => item.TblNotificacions.Where(notificacion => notificacion.IdUsuarioDestino == idUsuario))
@@ -678,6 +723,16 @@ public sealed class ProyectosController : ControllerBase
                     apellidos = relacion.IdAutorNavigation.Apellidos,
                     carnet = relacion.IdAutorNavigation.Carnet
                 }),
+            // RF-16: asesores registrados y si se autorizó mostrar su nombre.
+            asesores = proyecto.TblProyectoDocentes
+                .Select(asesor => new
+                {
+                    idDocente = asesor.IdDocente,
+                    nombre = asesor.IdDocenteNavigation.IdUsuarioNavigation.Nombres + " " +
+                             asesor.IdDocenteNavigation.IdUsuarioNavigation.Apellidos,
+                    autorizado = asesor.NombreAutorizado
+                })
+                .OrderBy(asesor => asesor.nombre),
             palabrasClave = proyecto.IdEtiqueta
                 .Select(etiqueta => etiqueta.Nombre)
                 .OrderBy(nombre => nombre),
@@ -972,6 +1027,9 @@ public sealed class CrearProyectoRequest
 
     /// <summary>Solo en un reenvío: materiales de la versión observada que se conservan.</summary>
     public List<int>? ConservarRecursos { get; set; } = [];
+
+    /// <summary>RF-16: docentes que asesoraron el trabajo (opcional, hasta 3).</summary>
+    public List<int>? IdDocentesAsesores { get; set; } = [];
 }
 
 public sealed class AutorProyectoRequest

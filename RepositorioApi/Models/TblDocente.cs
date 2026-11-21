@@ -16,4 +16,6 @@ public partial class TblDocente
     public virtual ICollection<TblMaterium> TblMateria { get; set; } = new List<TblMaterium>();
 
     public virtual ICollection<TblProyecto> IdProyectos { get; set; } = new List<TblProyecto>();
+
+    public virtual ICollection<TblProyectoDocente> TblProyectoDocentes { get; set; } = new List<TblProyectoDocente>();
 }

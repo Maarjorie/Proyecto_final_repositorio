@@ -16,6 +16,13 @@ interface RecursoRevision {
   autorizado: boolean;
 }
 
+/** RF-16: docente asesor del proyecto y si se autorizó mostrar su nombre. */
+interface AsesorRevision {
+  idDocente: number;
+  nombre: string;
+  autorizado: boolean;
+}
+
 interface EntregaRevision {
   id: number;
   idProyecto: number;
@@ -31,6 +38,7 @@ interface EntregaRevision {
   version: number;
   solicitante: string;
   autores: string[];
+  asesores: AsesorRevision[];
   recursos: RecursoRevision[];
 }
 
@@ -52,6 +60,7 @@ interface Publicacion {
   destacado: boolean;
   motivoRetiro: string | null;
   fechaRetiro: string | null;
+  asesores: AsesorRevision[];
   recursos: RecursoRevision[];
 }
 
@@ -62,6 +71,8 @@ type Pestana = 'pendientes' | 'publicaciones';
 interface BorradorPermiso {
   permiso: Permiso;
   recursos: number[];
+  /** RF-16: docentes asesores cuyo nombre se autoriza mostrar. */
+  asesores: number[];
 }
 
 @Component({
@@ -150,7 +161,7 @@ export class RevisionSupervisorComponent implements OnInit {
   // ----- Pendientes (RF-18, RF-21) -----
 
   borradorDecision(entrega: EntregaRevision): BorradorPermiso {
-    return this.permisosDecision[entrega.id] ??= { permiso: 'pendiente', recursos: [] };
+    return this.permisosDecision[entrega.id] ??= { permiso: 'pendiente', recursos: [], asesores: [] };
   }
 
   actualizarObservacion(id: number, event: Event): void {
@@ -164,6 +175,18 @@ export class RevisionSupervisorComponent implements OnInit {
       borrador.recursos = [];
     }
     this.mensajeError = '';
+  }
+
+  nombresAsesores(asesores: AsesorRevision[]): string {
+    return asesores.map(asesor => asesor.nombre).join(', ');
+  }
+
+  /** RF-16: marca si se autoriza mostrar el nombre de un asesor. */
+  alternarAsesor(borrador: BorradorPermiso, idDocente: number, event: Event): void {
+    const marcado = (event.target as HTMLInputElement).checked;
+    borrador.asesores = marcado
+      ? [...borrador.asesores, idDocente]
+      : borrador.asesores.filter(id => id !== idDocente);
   }
 
   alternarRecurso(borrador: BorradorPermiso, idRecurso: number, event: Event): void {
@@ -199,7 +222,8 @@ export class RevisionSupervisorComponent implements OnInit {
       decision,
       observacion,
       permiso: decision === 'Aprobada' ? borrador.permiso : null,
-      recursosAutorizados: decision === 'Aprobada' ? borrador.recursos : []
+      recursosAutorizados: decision === 'Aprobada' ? borrador.recursos : [],
+      asesoresAutorizados: decision === 'Aprobada' ? borrador.asesores : []
     };
 
     this.ejecutar(
@@ -231,7 +255,8 @@ export class RevisionSupervisorComponent implements OnInit {
   borradorPublicacion(publicacion: Publicacion): BorradorPermiso {
     return this.permisosPublicacion[publicacion.idProyecto] ??= {
       permiso: publicacion.permiso,
-      recursos: publicacion.recursos.filter(recurso => recurso.autorizado).map(recurso => recurso.id)
+      recursos: publicacion.recursos.filter(recurso => recurso.autorizado).map(recurso => recurso.id),
+      asesores: publicacion.asesores.filter(asesor => asesor.autorizado).map(asesor => asesor.idDocente)
     };
   }
 
@@ -242,8 +267,14 @@ export class RevisionSupervisorComponent implements OnInit {
       .map(recurso => recurso.id)
       .sort((a, b) => a - b)
       .join(',');
+    const asesoresActuales = publicacion.asesores
+      .filter(asesor => asesor.autorizado)
+      .map(asesor => asesor.idDocente)
+      .sort((a, b) => a - b)
+      .join(',');
     return borrador.permiso !== publicacion.permiso ||
-      [...borrador.recursos].sort((a, b) => a - b).join(',') !== actuales;
+      [...borrador.recursos].sort((a, b) => a - b).join(',') !== actuales ||
+      [...borrador.asesores].sort((a, b) => a - b).join(',') !== asesoresActuales;
   }
 
   guardarPermiso(publicacion: Publicacion): void {
@@ -257,7 +288,7 @@ export class RevisionSupervisorComponent implements OnInit {
       publicacion.idProyecto,
       this.http.put<{ mensaje: string }>(
         API_URL + '/revision/proyectos/' + publicacion.idProyecto + '/permiso',
-        { permiso: borrador.permiso, recursosAutorizados: borrador.recursos },
+        { permiso: borrador.permiso, recursosAutorizados: borrador.recursos, asesoresAutorizados: borrador.asesores },
         { headers: this.cabeceras() ?? {} }
       ),
       respuesta => {
