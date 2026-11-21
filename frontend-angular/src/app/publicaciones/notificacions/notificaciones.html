@@ -29,11 +29,6 @@
   <section class="intro">
     <p class="etiqueta">{{ esSupervisor ? 'PANEL DE SUPERVISIÓN' : 'ÁREA PERSONAL' }}</p>
     <h1>Notificaciones</h1>
-    <p>
-      {{ esSupervisor
-        ? 'Aquí recibirás un aviso por cada entrega nueva o versión corregida que llegue para revisión.'
-        : 'Aquí recibirás avisos relacionados con la revisión de tus proyectos, como solicitudes de corrección y decisiones del supervisor.' }}
-    </p>
   </section>
 
   <section class="panel-notificaciones">
@@ -90,12 +85,7 @@
       </div>
     } @else {
       <div class="estado-vacio">
-        <h3>No tienes notificaciones por el momento</h3>
-        <p>
-          {{ esSupervisor
-            ? 'Aquí aparecerán los avisos cuando lleguen entregas para revisar.'
-            : 'Aquí aparecerán los avisos cuando haya observaciones, correcciones o decisiones sobre tus proyectos.' }}
-        </p>
+        <h3>No tienes notificaciones</h3>
       </div>
     }
   </section>

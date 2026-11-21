@@ -32,11 +32,6 @@
     <p class="miga">Repositorio / {{ corrigiendo ? 'Enviar corrección' : 'Solicitar publicación' }}</p>
     <p class="etiqueta">REPOSITORIO ACADÉMICO · UNIVERSIDAD DE EL SALVADOR</p>
     <h1>{{ corrigiendo ? 'Enviar versión corregida' : 'Solicitar publicación de proyecto' }}</h1>
-    <p class="descripcion">
-      {{ corrigiendo
-        ? 'Corrige lo que pidió el supervisor. Se registrará como una nueva versión del mismo proyecto.'
-        : 'Envía tu trabajo para revisión.' }}
-    </p>
   </section>
 
   <section class="tarjeta-publicacion">
@@ -68,10 +63,7 @@
         <strong>Corrigiendo la versión {{ correccion.version }}</strong>
         @for (observacion of correccion.observaciones; track $index) {
           <p>{{ observacion.mensaje }}</p>
-        } @empty {
-          <p>El supervisor comunicará el detalle de las correcciones por el medio acordado.</p>
         }
-        <small>La versión anterior conserva sus materiales y la decisión del supervisor.</small>
       </aside>
     }
 
@@ -93,7 +85,6 @@
 
       <fieldset class="grupo-autores">
         <legend>Autores</legend>
-        <p class="ayuda">Registra cada autor por separado. El carnet es opcional.</p>
 
         @for (autor of autores; track $index; let i = $index) {
           <div class="fila autor-fila">
@@ -131,7 +122,7 @@
                 maxlength="20"
                 [value]="autor.carnet"
                 (input)="actualizarAutor(i, 'carnet', $event)"
-                placeholder="Carnet"
+                placeholder="Carnet (opcional)"
               >
             </div>
 
@@ -229,7 +220,7 @@
           [requerido]="true"
           [opciones]="opcionesTematicas"
           [(valor)]="tematicaSeleccionada"
-          placeholder="Escribe para buscar el área temática…"
+          placeholder="Buscar área temática"
         />
       </div>
 
@@ -240,8 +231,8 @@
           <option value="" [selected]="!materiaSeleccionada">
             {{ !carreraSeleccionada ? 'Primero selecciona la carrera'
               : cargandoMaterias ? 'Cargando asignaturas…'
-              : materias.length ? 'Selecciona una asignatura si aplica'
-              : 'Esta carrera aún no tiene asignaturas registradas' }}
+              : materias.length ? 'Sin asignatura'
+              : 'Sin asignaturas registradas' }}
           </option>
           <!-- Solo las asignaturas del plan de la carrera, por ciclo. -->
           @for (grupo of materiasPorCiclo; track grupo.titulo) {
@@ -269,7 +260,7 @@
               [valor]="asesor"
               (valorChange)="elegirAsesor(i, $event)"
               [deshabilitado]="docentes.length === 0"
-              [placeholder]="docentes.length ? 'Busca por nombre o código…' : 'No hay docentes registrados'"
+              [placeholder]="docentes.length ? 'Nombre o código' : 'No hay docentes registrados'"
             />
             @if (asesores.length > 1 || asesor) {
               <button class="boton-secundario" type="button" (click)="quitarAsesor(i)"
@@ -282,7 +273,6 @@
             Agregar otro asesor
           </button>
         }
-        <small>El nombre del asesor aparecerá en la ficha pública solo si se autoriza durante la revisión.</small>
       </div>
 
       <div class="campo">
@@ -319,7 +309,6 @@
         @if (correccion && correccion.recursos.length > 0) {
           <div class="materiales-anteriores">
             <strong>Materiales de la versión {{ correccion.version }}</strong>
-            <small>Desmarca los que vas a reemplazar. Los marcados pasan a la nueva versión sin volver a subirlos.</small>
             @for (recurso of correccion.recursos; track recurso.id) {
               <label class="material-anterior">
                 <input type="checkbox"
@@ -341,7 +330,6 @@
             multiple
             (change)="actualizarPdfs($event)"
           >
-          <small>Puedes seleccionar el documento principal.</small>
           <small [hidden]="pdfs.length === 0">
             {{ pdfs.length }} PDF seleccionados.
           </small>
@@ -357,7 +345,6 @@
             multiple
             (change)="actualizarZips($event)"
           >
-          <small>Si necesitas enviar una carpeta, comprímela como ZIP.</small>
           <small [hidden]="archivosZip.length === 0">
             {{ archivosZip.length }} ZIP seleccionados.
           </small>
@@ -384,9 +371,6 @@
         </p>
       </fieldset>
 
-      <aside class="aviso-permiso">
-        El permiso de difusión y los materiales autorizados se registrarán durante la revisión.
-      </aside>
 
       @if (mensajeExito) {
         <p class="mensaje-exito" role="status">

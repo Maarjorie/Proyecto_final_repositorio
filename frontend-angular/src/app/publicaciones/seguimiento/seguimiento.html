@@ -29,10 +29,6 @@
   <section class="intro">
     <p class="etiqueta">ÁREA PERSONAL</p>
     <h1>Mis proyectos</h1>
-    <p>
-      Consulta tus trabajos enviados, revisa su estado y atiende las
-      observaciones del supervisor.
-    </p>
   </section>
 
   <section class="seccion-proyectos" id="mis-proyectos">
@@ -124,10 +120,6 @@
     } @else {
       <div class="estado-vacio">
         <h3>Aún no has enviado proyectos</h3>
-        <p>
-          Cuando envíes un trabajo desde tu cuenta, aquí podrás consultar
-          su estado, observaciones e historial de versiones.
-        </p>
       </div>
     }
   </section>
@@ -257,18 +249,12 @@
             (click)="pedirConfirmacionEliminar(solicitud.id)">Eliminar solicitud</button>
         }
       } @else if (solicitud.puedeReenviar) {
-        <p class="dato-secundario">
-          El supervisor pidió correcciones. Envía una versión corregida;
-          esta versión conserva sus materiales y la decisión.
-        </p>
+        <p class="dato-secundario">El supervisor pidió correcciones.</p>
         <a class="boton-corregir" routerLink="/publicar" [queryParams]="{ corregir: solicitud.id }">
           Enviar corrección
         </a>
       } @else {
-        <p class="dato-secundario">
-          Esta solicitud ya fue revisada por el supervisor y no se puede eliminar;
-          su decisión queda en el historial.
-        </p>
+        <p class="dato-secundario">Ya revisada; no se puede eliminar.</p>
       }
       <button type="button" class="boton-principal" (click)="cerrarDetalle()">Cerrar</button>
     </div>

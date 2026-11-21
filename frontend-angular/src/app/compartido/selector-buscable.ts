@@ -1,4 +1,4 @@
-import { Component, ElementRef, computed, inject, input, model, signal } from '@angular/core';
+import { Component, DestroyRef, ElementRef, computed, effect, inject, input, model, signal, viewChild } from '@angular/core';
 
 /** Opción del selector. `grupo` agrupa la lista; `detalle` es un texto secundario. */
 export interface OpcionBuscable {
@@ -29,12 +29,33 @@ let siguienteId = 0;
 })
 export class SelectorBuscable {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly campo = viewChild.required<ElementRef<HTMLInputElement>>('campo');
+  private readonly lista = viewChild<ElementRef<HTMLUListElement>>('lista');
+
+  constructor() {
+    // La lista se pinta sobre toda la página (en <body>) para que ninguna
+    // tarjeta ni ventana la corte, y se coloca justo debajo del campo.
+    const reubicar = () => this.posicionar();
+    effect(onCleanup => {
+      const lista = this.lista()?.nativeElement;
+      if (!lista) return;
+      document.body.appendChild(lista);
+      this.posicionar();
+      globalThis.addEventListener('scroll', reubicar, true);
+      globalThis.addEventListener('resize', reubicar);
+      onCleanup(() => {
+        globalThis.removeEventListener('scroll', reubicar, true);
+        globalThis.removeEventListener('resize', reubicar);
+      });
+    });
+    inject(DestroyRef).onDestroy(() => this.lista()?.nativeElement.remove());
+  }
 
   readonly opciones = input<OpcionBuscable[]>([]);
   /** Valor elegido ('' = nada). Admite [(valor)]. */
   readonly valor = model<string>('');
-  readonly placeholder = input('Escribe para buscar…');
-  readonly textoSinResultados = input('No hay coincidencias.');
+  readonly placeholder = input('Buscar');
+  readonly textoSinResultados = input('Sin resultados');
   readonly inputId = input('');
   readonly etiqueta = input('');
   readonly deshabilitado = input(false);
@@ -139,14 +160,31 @@ export class SelectorBuscable {
   }
 
   alTocarFuera(evento: Event): void {
-    if (this.abierto() && !this.host.nativeElement.contains(evento.target as Node)) {
+    const objetivo = evento.target as Node;
+    if (this.abierto() && !this.host.nativeElement.contains(objetivo) &&
+        !this.lista()?.nativeElement.contains(objetivo)) {
       this.cerrar();
     }
   }
 
+  /** Debajo del campo, o encima si abajo no hay espacio. */
+  private posicionar(): void {
+    const lista = this.lista()?.nativeElement;
+    if (!lista) return;
+    const caja = this.campo().nativeElement.getBoundingClientRect();
+    const abajo = globalThis.innerHeight - caja.bottom - 12;
+    const arriba = caja.top - 12;
+    const haciaArriba = abajo < 200 && arriba > abajo;
+    lista.style.left = caja.left + 'px';
+    lista.style.width = caja.width + 'px';
+    lista.style.maxHeight = Math.max(120, Math.min(280, haciaArriba ? arriba : abajo)) + 'px';
+    lista.style.top = haciaArriba ? '' : caja.bottom + 6 + 'px';
+    lista.style.bottom = haciaArriba ? globalThis.innerHeight - caja.top + 6 + 'px' : '';
+  }
+
   private mostrarActiva(): void {
     queueMicrotask(() =>
-      this.host.nativeElement.querySelector('.activa')?.scrollIntoView({ block: 'nearest' })
+      this.lista()?.nativeElement.querySelector('.activa')?.scrollIntoView({ block: 'nearest' })
     );
   }
 }

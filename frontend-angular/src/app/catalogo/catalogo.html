@@ -319,15 +319,12 @@
             <div class="empty-state glass-panel">
               @if (sinTrabajos()) {
                 <h2>Aún no hay trabajos publicados</h2>
-                <p>Los trabajos aparecerán aquí cuando un supervisor apruebe su publicación.</p>
               } @else if (cargandoCatalogo()) {
                 <h2>Cargando el catálogo…</h2>
               } @else if (errorCarga()) {
                 <h2>No se pudo cargar el catálogo</h2>
-                <p>Verifica que la API esté iniciada y vuelve a cargar la página.</p>
               } @else {
-                <h2>No encontramos trabajos con esos criterios</h2>
-                <p>Prueba cambiando la búsqueda o quitando alguno de los filtros.</p>
+                <h2>Sin resultados</h2>
                 <button
                   type="button"
                   class="secondary-button"
@@ -437,10 +434,7 @@
       </dl>
 
       @if (work.permission === 'Solo ficha') {
-        <p class="inline-notice">
-          La difusión autorizada comprende únicamente los datos de esta ficha.
-          No hay archivos ni enlaces públicos.
-        </p>
+        <p class="inline-notice">Solo se publica la ficha.</p>
       }
 
       @if (work.permission === 'Ficha y materiales autorizados') {
@@ -480,10 +474,6 @@
         </button>
       </div>
 
-      <p class="prototype-note">
-        Prototipo visual con datos de muestra. Autenticación, almacenamiento y
-        control real de archivos requieren la API y la base de datos.
-      </p>
     </section>
   </div>
 }

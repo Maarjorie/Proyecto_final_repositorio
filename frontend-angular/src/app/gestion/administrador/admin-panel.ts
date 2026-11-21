@@ -74,7 +74,6 @@ interface CatalogDef {
   tab: CatalogKey;
   label: string;
   singular: string;
-  description: string;
   fields: CatalogField[];
 }
 
@@ -103,15 +102,15 @@ export class AdminPanel {
   readonly roles: { name: Role; description: string }[] = [
     {
       name: 'Solicitante',
-      description: 'Envía trabajos para revisión, consulta el estado de sus entregas y reenvía versiones corregidas.'
+      description: 'Envía trabajos y ve su estado.'
     },
     {
       name: 'Supervisor',
-      description: 'Revisa las entregas, registra el permiso de los autores, aprueba, pide correcciones o rechaza, y retira publicaciones.'
+      description: 'Revisa entregas y decide si se publican.'
     },
     {
       name: 'Administrador',
-      description: 'Gestiona cuentas y roles. Para aprobar o retirar publicaciones también necesita el rol de Supervisor.'
+      description: 'Gestiona cuentas, roles y catálogos.'
     }
   ];
   readonly roleNames: Role[] = this.roles.map(role => role.name);
@@ -127,7 +126,6 @@ export class AdminPanel {
   readonly catalogDefs: Record<CatalogKey, CatalogDef> = {
     materias: {
       tab: 'materias', label: 'Materias', singular: 'materia',
-      description: 'Asignaturas de los planes de estudio. Una materia puede estar en varias carreras (cada una con su ciclo) y la pueden impartir varios docentes.',
       fields: [
         { key: 'codigo', label: 'Código', required: true },
         { key: 'nombre', label: 'Nombre', required: true },
@@ -141,7 +139,6 @@ export class AdminPanel {
     },
     tematicas: {
       tab: 'tematicas', label: 'Temáticas', singular: 'temática',
-      description: 'Áreas temáticas con las que se clasifican y filtran los trabajos.',
       fields: [
         { key: 'nombre', label: 'Nombre', required: true },
         { key: 'descripcion', label: 'Descripción' }
@@ -149,7 +146,6 @@ export class AdminPanel {
     },
     carreras: {
       tab: 'carreras', label: 'Carreras', singular: 'carrera',
-      description: 'Carreras a las que pertenecen los trabajos. Cada una depende de un departamento.',
       fields: [
         { key: 'codigo', label: 'Código', required: true },
         { key: 'nombre', label: 'Nombre', required: true },
@@ -158,7 +154,6 @@ export class AdminPanel {
     },
     departamentos: {
       tab: 'departamentos', label: 'Departamentos', singular: 'departamento',
-      description: 'Departamentos académicos que agrupan las carreras.',
       fields: [
         { key: 'nombre', label: 'Nombre', required: true },
         { key: 'descripcion', label: 'Descripción' }

@@ -49,7 +49,6 @@
       <div class="panel-title">
         <div>
           <h2>Agregar {{ catalog.singular }}</h2>
-          <p>{{ catalog.description }}</p>
         </div>
       </div>
       <form class="catalog-form" (submit)="$event.preventDefault(); addCatalogRow()">
@@ -61,7 +60,7 @@
                 [opciones]="sourceOptions()[field.optionsFrom!]"
                 [valor]="draft()[field.key] ?? ''"
                 (valorChange)="setDraft(field.key, $event)"
-                [placeholder]="'Busca ' + field.label.toLowerCase() + '…'"
+                placeholder="Buscar"
               />
             } @else if (field.optionsFrom || field.options) {
               <select [name]="field.key" [ngModel]="draft()[field.key] ?? ''" (ngModelChange)="setDraft(field.key, $event)">
@@ -79,13 +78,10 @@
         <button class="primary-button" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Agregar' }}</button>
       </form>
       @if (catalog.tab === 'carreras' && optionsFor(catalog.fields[2]).length === 0) {
-        <p class="table-note">Primero crea al menos un departamento para poder asignarlo a una carrera.</p>
+        <p class="table-note">No hay departamentos registrados.</p>
       }
       @if (catalog.tab === 'materias' && docentes().length === 0) {
-        <p class="table-note">Aún no hay docentes. Regístralos en «Cuentas y accesos» para poder asignarles materias.</p>
-      }
-      @if (catalog.tab === 'materias') {
-        <p class="table-note">Se agrega con una carrera y un docente. Para sumarla a otras carreras o asignarle más docentes, usa «Carreras y docentes» en la tabla.</p>
+        <p class="table-note">No hay docentes registrados.</p>
       }
     </section>
 
@@ -137,7 +133,6 @@
     <div class="panel-title">
       <div>
         <h2>Registrar docente</h2>
-        <p>Las cuentas se crean desde «Registrarse». Aquí marcas una cuenta como docente, con el departamento al que pertenece, para poder asignarle materias.</p>
       </div>
     </div>
     <form class="add-user-form" (submit)="$event.preventDefault(); registerTeacher()">
@@ -148,7 +143,7 @@
           [opciones]="accountOptions()"
           [valor]="docenteUserId()"
           (valorChange)="docenteUserId.set($event)"
-          placeholder="Busca por nombre o correo…"
+          placeholder="Nombre o correo"
         />
       </label>
       <label>Código docente
@@ -170,7 +165,6 @@
     <div class="panel-title">
       <div>
         <h2>Usuarios y roles</h2>
-        <p>Una cuenta puede tener más de un rol. Cada cambio de permisos pide tu contraseña.</p>
       </div>
       <span class="count-tag">{{ filteredUsers().length }} de {{ users().length }}</span>
     </div>
@@ -244,7 +238,6 @@
         </tbody>
       </table>
     </div>
-    <p class="table-note">No puedes quitarte el rol de administrador ni deshabilitar tu propia cuenta. Los cambios de rol aplican cuando la persona vuelve a iniciar sesión.</p>
   </section>
   }
   </div>
@@ -260,7 +253,6 @@
         <h2 id="roles-help-title">¿Qué rol asignar?</h2>
         <button type="button" class="close-button" aria-label="Cerrar" (click)="showRolesHelp.set(false)">×</button>
       </div>
-      <p class="modal-intro">Consultar el catálogo no requiere un rol. Un administrador sin rol de Supervisor no puede aprobar ni retirar publicaciones.</p>
       <div class="role-list">
         @for (role of roles; track role.name) {
           <article class="role-card">
@@ -281,7 +273,6 @@
         <h2 id="links-title">{{ materia.nombre }} <small>({{ materia.codigo }})</small></h2>
         <button type="button" class="close-button" aria-label="Cerrar" (click)="closeLinks()">×</button>
       </div>
-      <p class="modal-intro">Debe quedar al menos en una carrera y con al menos un docente.</p>
       @if (linkNotice()) {
         <p class="link-notice" role="status">{{ linkNotice() }}</p>
       }
@@ -303,7 +294,7 @@
           [opciones]="materia.carrerasLibres"
           [valor]="linkCarrera()"
           (valorChange)="linkCarrera.set($event)"
-          placeholder="Agregar a otra carrera…"
+          placeholder="Carrera"
         />
         <select name="linkCiclo" aria-label="Ciclo" [ngModel]="linkCiclo()" (ngModelChange)="linkCiclo.set($event)">
           <option value="">Ciclo…</option>
@@ -331,7 +322,7 @@
           [opciones]="materia.docentesLibres"
           [valor]="linkDocente()"
           (valorChange)="linkDocente.set($event)"
-          placeholder="Agregar otro docente…"
+          placeholder="Docente"
         />
         <button type="submit" class="primary-button" [disabled]="saving()">Agregar</button>
       </form>

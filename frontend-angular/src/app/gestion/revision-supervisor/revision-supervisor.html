@@ -21,10 +21,6 @@
   <section class="intro">
     <p class="etiqueta">PANEL DE SUPERVISIÓN</p>
     <h1>Revisión de entregas</h1>
-    <p>
-      Revisa las entregas por orden de llegada, registra tu decisión y el permiso
-      de los autores, y administra lo que se muestra en el catálogo.
-    </p>
   </section>
 
   <div class="pestanas" role="tablist" aria-label="Secciones del panel">
@@ -122,7 +118,6 @@
                       (change)="elegirPermiso(borrador, opcion.valor)">
                     <span>
                       <strong>{{ opcion.texto }}</strong>
-                      <small>{{ opcion.ayuda }}</small>
                     </span>
                   </label>
                 }
@@ -183,7 +178,6 @@
           } @empty {
             <div class="estado-vacio">
               <h3>No hay entregas pendientes</h3>
-              <p>Los nuevos envíos aparecerán aquí y recibirás un aviso en Notificaciones.</p>
             </div>
           }
         </div>
@@ -251,7 +245,6 @@
                         (change)="elegirPermiso(permiso, opcion.valor)">
                       <span>
                         <strong>{{ opcion.texto }}</strong>
-                        <small>{{ opcion.ayuda }}</small>
                       </span>
                     </label>
                   }
@@ -333,7 +326,6 @@
           } @empty {
             <div class="estado-vacio">
               <h3>Aún no hay entregas aprobadas</h3>
-              <p>Cuando apruebes una entrega aparecerá aquí con su permiso y su estado en el catálogo.</p>
             </div>
           }
         </div>

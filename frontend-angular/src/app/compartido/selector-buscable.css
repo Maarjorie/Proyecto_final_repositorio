@@ -88,13 +88,12 @@ input:focus {
   outline: none;
 }
 
+/* Va en <body> con posición fija: la coloca el componente bajo el campo. */
 .lista {
-  position: absolute;
-  z-index: 40;
-  top: calc(100% + 6px);
-  left: 0;
-  right: 0;
+  position: fixed;
+  z-index: 2000;
   max-height: 280px;
+  font-size: 14px;
   margin: 0;
   padding: 6px;
   overflow-y: auto;
