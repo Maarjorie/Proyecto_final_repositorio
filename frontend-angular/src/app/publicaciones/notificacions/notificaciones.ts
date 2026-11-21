@@ -1,5 +1,5 @@
 import { SesionUsuarioComponent } from '../../auth/sesion-usuario';
-import { usuarioTieneRol } from '../../auth/auth.guard';
+import { esCuentaDeGestion, usuarioTieneRol } from '../../auth/auth.guard';
 import { DatePipe } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, inject, OnInit } from '@angular/core';
@@ -40,6 +40,7 @@ export class NotificacionesComponent implements OnInit {
   private readonly cdr = inject(ChangeDetectorRef);
 
   readonly esSupervisor = usuarioTieneRol('supervisor');
+  readonly esGestion = esCuentaDeGestion();
   notificaciones: Notificacion[] = [];
   cargando = true;
   mensajeError = '';

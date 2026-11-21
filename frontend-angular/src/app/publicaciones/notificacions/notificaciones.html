@@ -9,11 +9,13 @@
 
   <nav class="main-nav" aria-label="Navegación principal">
     <a routerLink="/catalogo" routerLinkActive="activo" [routerLinkActiveOptions]="{ exact: true }">Catálogo</a>
-    @if (!esSupervisor) {
+    @if (!esGestion) {
       <a routerLink="/mis-proyectos" routerLinkActive="activo">Mis proyectos</a>
       <a routerLink="/publicar" routerLinkActive="activo">Subir proyecto</a>
     }
-    <a routerLink="/notificaciones" routerLinkActive="activo">Notificaciones</a>
+    @if (!esGestion || esSupervisor) {
+      <a routerLink="/notificaciones" routerLinkActive="activo">Notificaciones</a>
+    }
     @if (esSupervisor) {
       <a routerLink="/revision-supervisor" routerLinkActive="activo">Revisión supervisor</a>
     }
@@ -41,7 +43,7 @@
         <h2>Tus notificaciones</h2>
       </div>
       <div class="encabezado-acciones">
-        <span class="contador">{{ sinLeer }} sin leer · {{ notificaciones.length }} avisos</span>
+        <span class="contador">{{ sinLeer }} sin leer · {{ notificaciones.length }} {{ notificaciones.length === 1 ? 'aviso' : 'avisos' }}</span>
         @if (sinLeer > 0) {
           <button type="button" class="boton-texto" (click)="marcarTodasLeidas()">Marcar todas como leídas</button>
         }

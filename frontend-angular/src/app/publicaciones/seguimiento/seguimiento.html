@@ -9,11 +9,13 @@
 
   <nav class="main-nav" aria-label="Navegación principal">
     <a routerLink="/catalogo" routerLinkActive="activo" [routerLinkActiveOptions]="{ exact: true }">Catálogo</a>
-    @if (!esSupervisor) {
+    @if (!esGestion) {
       <a routerLink="/mis-proyectos" routerLinkActive="activo">Mis proyectos</a>
       <a routerLink="/publicar" routerLinkActive="activo">Subir proyecto</a>
     }
-    <a routerLink="/notificaciones" routerLinkActive="activo">Notificaciones</a>
+    @if (!esGestion || esSupervisor) {
+      <a routerLink="/notificaciones" routerLinkActive="activo">Notificaciones</a>
+    }
     @if (esSupervisor) {
       <a routerLink="/revision-supervisor" routerLinkActive="activo">Revisión supervisor</a>
     }
@@ -39,7 +41,7 @@
         <p class="etiqueta">TUS ENVÍOS</p>
         <h2>Proyectos enviados</h2>
       </div>
-      <span class="contador">{{ proyectos.length }} proyectos</span>
+      <span class="contador">{{ proyectos.length }} {{ proyectos.length === 1 ? 'proyecto' : 'proyectos' }}</span>
     </div>
 
     @if (mensajeExito) {

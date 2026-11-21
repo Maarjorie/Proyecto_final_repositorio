@@ -1,5 +1,5 @@
 import { SesionUsuarioComponent } from '../../auth/sesion-usuario';
-import { usuarioTieneRol } from '../../auth/auth.guard';
+import { esCuentaDeGestion, usuarioTieneRol } from '../../auth/auth.guard';
 import { DatePipe } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, inject, OnInit } from '@angular/core';
@@ -86,6 +86,7 @@ export class SeguimientoComponent implements OnInit {
   mensajeError = '';
   mensajeExito = '';
   readonly esSupervisor = usuarioTieneRol('supervisor');
+  readonly esGestion = esCuentaDeGestion();
 
   detalle: DetalleSolicitud | null = null;
   cargandoDetalleId: number | null = null;

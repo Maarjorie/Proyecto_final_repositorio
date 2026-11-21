@@ -57,7 +57,7 @@
           <p class="etiqueta">POR ORDEN DE LLEGADA</p>
           <h2>Solicitudes por revisar</h2>
         </div>
-        <span class="contador">{{ entregas.length }} pendientes</span>
+        <span class="contador">{{ entregas.length }} {{ entregas.length === 1 ? 'pendiente' : 'pendientes' }}</span>
       </div>
 
       @if (cargando) {
@@ -180,7 +180,7 @@
           <p class="etiqueta">CATÁLOGO</p>
           <h2>Entregas aprobadas</h2>
         </div>
-        <span class="contador">{{ publicaciones.length }} proyectos</span>
+        <span class="contador">{{ publicaciones.length }} {{ publicaciones.length === 1 ? 'proyecto' : 'proyectos' }}</span>
       </div>
 
       @if (cargandoPublicaciones && !publicacionesCargadas) {

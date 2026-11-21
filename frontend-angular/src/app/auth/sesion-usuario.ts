@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, input } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { AUTH_USER_KEY } from './auth.constants';
 import { cerrarSesion, sesionActiva, usuarioTieneRol } from './auth.guard';
@@ -13,6 +13,9 @@ import { cerrarSesion, sesionActiva, usuarioTieneRol } from './auth.guard';
   imports: [RouterLink],
   template: `
     @if (activa) {
+      @if (esAdministrador && mostrarAdmin()) {
+        <a class="enlace-admin" routerLink="/admin">Administración</a>
+      }
       <span class="cuenta" [title]="correo">
         <span class="nombre">{{ nombre }}</span>
         <span class="rol">{{ rol }}</span>
@@ -75,6 +78,35 @@ import { cerrarSesion, sesionActiva, usuarioTieneRol } from './auth.guard';
       transition: transform 160ms ease, filter 160ms ease;
     }
 
+    /* Mismo aspecto que los demás enlaces del menú: el fondo oscuro queda
+       reservado para la página activa. */
+    .enlace-admin {
+      display: inline-flex;
+      align-items: center;
+      min-height: 44px;
+      padding: 13px 16px;
+      border: 1px solid transparent;
+      border-radius: 16px;
+      color: #385976;
+      font-size: 14px;
+      font-weight: 600;
+      line-height: 1.2;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: background 0.16s ease, color 0.16s ease, transform 0.16s ease;
+    }
+
+    .enlace-admin:hover {
+      color: #183653;
+      background: rgba(255, 255, 255, 0.6);
+      transform: translateY(-1px);
+    }
+
+    .enlace-admin:focus-visible {
+      outline: 3px solid #68c6dd;
+      outline-offset: 2px;
+    }
+
     .boton-sesion:hover {
       transform: translateY(-1px);
       filter: brightness(1.04);
@@ -88,6 +120,7 @@ import { cerrarSesion, sesionActiva, usuarioTieneRol } from './auth.guard';
     @media (max-width: 760px) {
       :host {
         width: 100%;
+        flex-wrap: wrap;
         justify-content: space-between;
         margin: 6px 0 0;
         padding: 10px 0 0;
@@ -95,8 +128,28 @@ import { cerrarSesion, sesionActiva, usuarioTieneRol } from './auth.guard';
         border-top: 1px solid rgba(12, 57, 111, 0.18);
       }
 
+      /* En celular el enlace de administración ocupa su propia fila y el
+         nombre se recorta antes que el botón, para no salirse de la pantalla. */
+      .enlace-admin {
+        flex: 1 0 100%;
+        justify-content: center;
+        min-height: 40px;
+        padding: 10px 12px;
+        background: rgba(255, 255, 255, 0.45);
+      }
+
       .cuenta {
+        flex: 1 1 auto;
+        min-width: 0;
         text-align: left;
+      }
+
+      .nombre {
+        max-width: 100%;
+      }
+
+      .boton-sesion {
+        flex: 0 0 auto;
       }
     }
   `
@@ -107,7 +160,13 @@ export class SesionUsuarioComponent {
   readonly activa = sesionActiva();
   readonly nombre: string;
   readonly correo: string;
-  readonly rol = usuarioTieneRol('supervisor') ? 'Supervisor' : 'Solicitante';
+  /** El panel de administración ya tiene su propio enlace, así que lo oculta. */
+  readonly mostrarAdmin = input(true);
+
+  readonly esAdministrador = usuarioTieneRol('administrador');
+  readonly rol = this.esAdministrador
+    ? 'Administrador'
+    : usuarioTieneRol('supervisor') ? 'Supervisor' : 'Solicitante';
 
   constructor() {
     let usuario: { nombres?: string; apellidos?: string; correo?: string } = {};

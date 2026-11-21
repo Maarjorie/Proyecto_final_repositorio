@@ -81,6 +81,14 @@ public sealed class ProyectosController : ControllerBase
                 new { mensaje = "Las cuentas de supervisor revisan entregas; no envían proyectos." });
         }
 
+        // El administrador gestiona cuentas y catálogos; tampoco envía proyectos.
+        if (User.IsInRole("administrador"))
+        {
+            return StatusCode(
+                StatusCodes.Status403Forbidden,
+                new { mensaje = "Las cuentas de administrador gestionan el sistema; no envían proyectos." });
+        }
+
         // En un reenvío, la entrega a corregir debe ser propia, estar observada
         // y ser la última versión del proyecto.
         TblEntrega? entregaCorregida = null;

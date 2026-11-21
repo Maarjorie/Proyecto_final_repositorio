@@ -1,5 +1,5 @@
 import { SesionUsuarioComponent } from '../auth/sesion-usuario';
-import { usuarioTieneRol } from '../auth/auth.guard';
+import { esCuentaDeGestion, usuarioTieneRol } from '../auth/auth.guard';
 import { Component, computed, input, model, OnInit, output, signal, WritableSignal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink, RouterLinkActive } from '@angular/router';
@@ -40,6 +40,7 @@ interface FichaApi {
 })
 export class Catalogo implements OnInit {
   readonly esSupervisor = usuarioTieneRol('supervisor');
+  readonly esGestion = esCuentaDeGestion();
   readonly active = input.required<boolean>();
   private readonly http = inject(HttpClient);
 

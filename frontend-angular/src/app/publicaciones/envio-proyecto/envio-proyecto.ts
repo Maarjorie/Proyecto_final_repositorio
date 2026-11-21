@@ -1,5 +1,5 @@
 import { SesionUsuarioComponent } from '../../auth/sesion-usuario';
-import { usuarioTieneRol } from '../../auth/auth.guard';
+import { esCuentaDeGestion, usuarioTieneRol } from '../../auth/auth.guard';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, inject, OnInit } from '@angular/core';
 import { ActivatedRoute, RouterLink, RouterLinkActive } from '@angular/router';
@@ -79,6 +79,7 @@ export class EnvioProyectoComponent implements OnInit {
   enviando = false;
   solicitudEnviada = false;
   readonly esSupervisor = usuarioTieneRol('supervisor');
+  readonly esGestion = esCuentaDeGestion();
 
   departamentos: DepartamentoCatalogo[] = [];
   carreras: CarreraCatalogo[] = [];

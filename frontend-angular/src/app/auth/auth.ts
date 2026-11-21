@@ -62,6 +62,11 @@ export class AuthComponent {
       }
     }
 
+    // El administrador entra a su panel; si además es supervisor, puede ir a la revisión desde el menú.
+    if (roles.includes('administrador')) {
+      return '/admin';
+    }
+
     if (roles.includes('supervisor')) {
       return '/revision-supervisor';
     }

@@ -15,7 +15,6 @@
   background:
     radial-gradient(ellipse at 12% 10%, rgba(104, 198, 221, 0.35), transparent 35%),
     linear-gradient(135deg, #174d7e, var(--ateneo-blue) 58%, #092d56);
-  font-family: Arial, Helvetica, sans-serif;
 }
 
 * {
@@ -394,6 +393,7 @@ button:disabled {
 
 .add-user-form input,
 .catalog-form input,
+.add-user-form select,
 .catalog-form select,
 .pw-field input,
 .search-box input {
@@ -413,7 +413,8 @@ button:disabled {
   font-weight: 400;
 }
 
-.catalog-form select {
+.catalog-form select,
+.add-user-form select {
   font-weight: 700;
 }
 
@@ -492,8 +493,13 @@ td {
 
 .table-note {
   margin: 14px 0 0;
-  color: var(--muted);
+  padding: 10px 12px;
+  border-radius: 12px;
+  /* Fondo propio para que se lea también donde el panel se vuelve azul. */
+  background: rgba(255, 255, 255, 0.6);
+  color: #183653;
   font-size: 12px;
+  font-weight: 600;
   line-height: 1.5;
 }
 
@@ -750,5 +756,97 @@ td {
   .overlay,
   .modal {
     animation: none;
+  }
+}
+
+/* Contraste: pestañas legibles sobre todo el ancho de la barra. */
+.admin-tabs.glass-panel {
+  background: linear-gradient(120deg, rgba(248, 253, 255, 0.95), rgba(196, 230, 238, 0.92));
+}
+
+.admin-tab {
+  color: #183653;
+  font-weight: 700;
+}
+
+/* Rol fijo de la propia cuenta: se ve activo y con candado, no apagado. */
+.role-chip.fijo {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: default;
+}
+
+/* En lugar del botón deshabilitado, una etiqueta que explica por qué. */
+.tu-cuenta {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 6px 13px;
+  border: 1px dashed rgba(12, 57, 111, 0.45);
+  border-radius: 13px;
+  color: #183653;
+  background: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+/* Celular: cada fila de las tablas se muestra como tarjeta, con la etiqueta
+   de cada dato, en lugar de obligar a desplazarse hacia los lados. */
+@media (max-width: 700px) {
+  .table-scroll {
+    overflow: visible;
+  }
+
+  .table-scroll table,
+  .table-scroll tbody,
+  .table-scroll tr,
+  .table-scroll td {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .table-scroll thead {
+    display: none;
+  }
+
+  .table-scroll tbody tr {
+    margin-bottom: 12px;
+    padding: 12px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.55);
+  }
+
+  .table-scroll tbody tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .table-scroll td {
+    padding: 6px 0;
+    border: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .table-scroll td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 4px;
+    color: #526f88;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  /* El usuario ya se identifica por su avatar y correo. */
+  .table-scroll td[data-label="Usuario"]::before {
+    display: none;
+  }
+
+  .table-scroll .empty-row {
+    text-align: center;
   }
 }

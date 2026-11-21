@@ -3,33 +3,54 @@ import { FormsModule } from '@angular/forms';
 import { Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import {
-  AUTH_API_URL,
-  AUTH_EXPIRY_KEY,
-  AUTH_TOKEN_KEY,
-  AUTH_USER_KEY
-} from '../../auth/auth.constants';
+import { AUTH_TOKEN_KEY, AUTH_USER_KEY } from '../../auth/auth.constants';
+import { cerrarSesion, usuarioTieneRol } from '../../auth/auth.guard';
+import { SesionUsuarioComponent } from '../../auth/sesion-usuario';
+
+const API_URL = 'https://localhost:7244/api';
 
 type Role = 'Solicitante' | 'Supervisor' | 'Administrador';
 
-interface DemoUser {
+/** En la base de datos el rol de solicitante se llama "usuario". */
+const ROL_API: Record<Role, string> = {
+  Solicitante: 'usuario',
+  Supervisor: 'supervisor',
+  Administrador: 'administrador'
+};
+
+interface AdminUser {
   id: number;
   username: string;
   name: string;
   roles: Role[];
   active: boolean;
+  codigoDocente: string | null;
+}
+
+interface UsuarioApi {
+  id: number;
+  correo: string;
+  nombres: string;
+  apellidos: string;
+  activo: boolean;
+  roles: string[];
+  codigoDocente: string | null;
 }
 
 type AdminTab = 'cuentas' | 'materias' | 'tematicas' | 'carreras' | 'departamentos';
 type CatalogKey = Exclude<AdminTab, 'cuentas'>;
+/** Fuente de una lista desplegable: otro catálogo o los docentes registrados. */
+type OptionSource = CatalogKey | 'docentes';
 type CatalogRow = Record<string, string> & { id: string };
 
 interface CatalogField {
   key: string;
   label: string;
   required?: boolean;
-  /** Si existe, el campo es una lista desplegable con los nombres de ese catálogo. */
-  optionsFrom?: CatalogKey;
+  /** Si existe, el campo es una lista desplegable con los registros de esa fuente. */
+  optionsFrom?: OptionSource;
+  /** Campo que se envía a la API con el id elegido en la lista. */
+  apiKey?: string;
 }
 
 interface CatalogDef {
@@ -40,6 +61,11 @@ interface CatalogDef {
   fields: CatalogField[];
 }
 
+interface Option {
+  value: string;
+  label: string;
+}
+
 type PendingChange =
   | { kind: 'role'; id: number; role: Role; enabled: boolean }
   | { kind: 'active'; id: number }
@@ -48,7 +74,7 @@ type PendingChange =
 @Component({
   selector: 'app-admin-panel',
   standalone: true,
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, SesionUsuarioComponent],
   templateUrl: './admin-panel.html',
   styleUrl: './admin-panel.css'
 })
@@ -83,11 +109,11 @@ export class AdminPanel {
   readonly catalogDefs: Record<CatalogKey, CatalogDef> = {
     materias: {
       tab: 'materias', label: 'Materias', singular: 'materia',
-      description: 'Asignaturas a las que pueden pertenecer los proyectos de curso.',
+      description: 'Asignaturas a las que pueden pertenecer los proyectos de curso. Cada una tiene un docente responsable.',
       fields: [
         { key: 'codigo', label: 'Código', required: true },
         { key: 'nombre', label: 'Nombre', required: true },
-        { key: 'docente', label: 'Docente' },
+        { key: 'docente', label: 'Docente', required: true, optionsFrom: 'docentes', apiKey: 'idDocente' },
         { key: 'descripcion', label: 'Descripción' }
       ]
     },
@@ -105,7 +131,7 @@ export class AdminPanel {
       fields: [
         { key: 'codigo', label: 'Código', required: true },
         { key: 'nombre', label: 'Nombre', required: true },
-        { key: 'departamento', label: 'Departamento', required: true, optionsFrom: 'departamentos' }
+        { key: 'departamento', label: 'Departamento', required: true, optionsFrom: 'departamentos', apiKey: 'idDepartamento' }
       ]
     },
     departamentos: {
@@ -130,8 +156,10 @@ export class AdminPanel {
   readonly catalogData = signal<Record<CatalogKey, CatalogRow[]>>({
     materias: [], tematicas: [], carreras: [], departamentos: []
   });
+  readonly docentes = signal<Option[]>([]);
   readonly draft = signal<Record<string, string>>({});
-  private nextCatalogId = 1;
+  readonly loading = signal(false);
+  readonly saving = signal(false);
 
   readonly activeCatalog = computed<CatalogDef | null>(() => {
     const tab = this.activeTab();
@@ -139,7 +167,7 @@ export class AdminPanel {
   });
 
   readonly pageTitle = computed(() =>
-    this.activeTab() === 'cuentas' ? 'Cuentas y acceso' : this.catalogDefs[this.activeTab() as CatalogKey].label
+    this.activeTab() === 'cuentas' ? 'Cuentas y accesos' : this.catalogDefs[this.activeTab() as CatalogKey].label
   );
 
   readonly filteredCatalogRows = computed(() => {
@@ -153,21 +181,27 @@ export class AdminPanel {
     );
   });
 
-  readonly newUsername = signal('');
-  readonly newUserName = signal('');
+  // Registro de docentes (necesario para crear materias).
+  readonly docenteUserId = signal('');
+  readonly docenteCode = signal('');
   readonly actionNotice = signal('');
   readonly search = signal('');
   readonly showRolesHelp = signal(false);
+  readonly esSupervisor = usuarioTieneRol('supervisor');
+  private readonly ownId = this.sessionUserId();
 
-  readonly users = signal<DemoUser[]>([
-    { id: 1, username: 'admin.demo', name: 'Cuenta de muestra', roles: ['Administrador'], active: true }
-  ]);
+  readonly users = signal<AdminUser[]>([]);
 
   readonly filteredUsers = computed(() => {
     const query = this.search().trim().toLowerCase();
     if (!query) return this.users();
-    return this.users().filter(user => user.username.toLowerCase().includes(query));
+    return this.users().filter(user =>
+      user.username.toLowerCase().includes(query) || user.name.toLowerCase().includes(query)
+    );
   });
+
+  /** Cuentas que todavía no son docentes, para el formulario de registro. */
+  readonly nonTeacherUsers = computed(() => this.users().filter(user => !user.codigoDocente));
 
   // Confirmación con contraseña del administrador
   readonly pending = signal<PendingChange | null>(null);
@@ -195,20 +229,14 @@ export class AdminPanel {
 
   readonly navegar = {
     emit: (pantalla: 'catalog' | 'admin' | 'supervisor' | 'login'): void => {
-      if (pantalla === 'supervisor') {
-        this.actionNotice.set('La pantalla de supervisión aún no tiene una ruta configurada.');
-        return;
-      }
-
       if (pantalla === 'login') {
-        sessionStorage.removeItem(AUTH_TOKEN_KEY);
-        sessionStorage.removeItem(AUTH_EXPIRY_KEY);
-        sessionStorage.removeItem(AUTH_USER_KEY);
+        cerrarSesion();
       }
 
       const rutas = {
         catalog: '/catalogo',
         admin: '/admin',
+        supervisor: '/revision-supervisor',
         login: '/iniciar-sesion'
       };
 
@@ -226,24 +254,29 @@ export class AdminPanel {
         this.search.set('');
         this.draft.set({});
         this.actionNotice.set('');
+        void this.loadTab(tab);
       });
     });
+  }
+
+  /** Esta cuenta no puede quitarse el rol de administrador ni deshabilitarse. */
+  isSelf(user: AdminUser): boolean {
+    return user.id === this.ownId;
   }
 
   setDraft(key: string, value: string): void {
     this.draft.update(current => ({ ...current, [key]: value }));
   }
 
-  optionsFor(field: CatalogField): string[] {
-    return field.optionsFrom
-      ? this.catalogData()[field.optionsFrom].map(row => row['nombre'] ?? '')
-      : [];
+  optionsFor(field: CatalogField): Option[] {
+    if (!field.optionsFrom) return [];
+    if (field.optionsFrom === 'docentes') return this.docentes();
+    return this.catalogData()[field.optionsFrom].map(row => ({ value: row.id, label: row['nombre'] ?? '' }));
   }
 
-  addCatalogRow(): void {
+  async addCatalogRow(): Promise<void> {
     const catalog = this.activeCatalog();
-    if (!catalog) return;
-    const key = catalog.tab;
+    if (!catalog || this.saving()) return;
     const draft = this.draft();
     const missing = catalog.fields.some(field => field.required && !(draft[field.key] ?? '').trim());
     if (missing) {
@@ -251,28 +284,37 @@ export class AdminPanel {
       return;
     }
 
-    const row: CatalogRow = { id: String(this.nextCatalogId++) };
-    for (const field of catalog.fields) row[field.key] = (draft[field.key] ?? '').trim();
-
-    const uniqueKey = catalog.fields[0].key;
-    const duplicated = this.catalogData()[key].some(
-      item => (item[uniqueKey] ?? '').toLowerCase() === row[uniqueKey].toLowerCase()
-    );
-    if (duplicated) {
-      this.actionNotice.set('Ya existe un registro con ese ' + catalog.fields[0].label.toLowerCase() + '.');
-      return;
+    const body: Record<string, string | number> = {};
+    for (const field of catalog.fields) {
+      const value = (draft[field.key] ?? '').trim();
+      if (!value) continue;
+      if (field.apiKey) {
+        body[field.apiKey] = Number(value);
+      } else {
+        body[field.key] = value;
+      }
     }
 
-    this.catalogData.update(data => ({ ...data, [key]: [...data[key], row] }));
-    this.draft.set({});
-    this.actionNotice.set('Registro agregado.');
+    this.saving.set(true);
+    try {
+      const respuesta = await firstValueFrom(
+        this.http.post<{ mensaje: string }>(API_URL + '/admin/catalogos/' + catalog.tab, body, this.options())
+      );
+      this.draft.set({});
+      this.actionNotice.set(respuesta.mensaje);
+      await this.loadCatalog(catalog.tab);
+    } catch (error: unknown) {
+      this.actionNotice.set(this.errorMessage(error));
+    } finally {
+      this.saving.set(false);
+    }
   }
 
   requestDelete(catalog: CatalogKey, id: string): void {
     this.openPasswordDialog({ kind: 'delete', catalog, id });
   }
 
-  initials(user: DemoUser): string {
+  initials(user: AdminUser): string {
     return user.name
       .split(' ')
       .filter(Boolean)
@@ -281,33 +323,40 @@ export class AdminPanel {
       .join('');
   }
 
-  addUser(): void {
-    const username = this.newUsername().trim();
-    const name = this.newUserName().trim();
-    if (!username || !name) {
-      this.actionNotice.set('Completa ambos campos.');
+  /** Registra una cuenta existente como docente para poder asignarle materias. */
+  async registerTeacher(): Promise<void> {
+    const idUsuario = Number(this.docenteUserId());
+    const codigo = this.docenteCode().trim();
+    if (!idUsuario || !codigo) {
+      this.actionNotice.set('Elige la cuenta y escribe su código docente.');
       return;
     }
-    if (this.users().some(user => user.username.toLowerCase() === username.toLowerCase())) {
-      this.actionNotice.set('Ese nombre de usuario ya existe.');
-      return;
+
+    this.saving.set(true);
+    try {
+      const respuesta = await firstValueFrom(
+        this.http.post<{ mensaje: string }>(API_URL + '/admin/docentes', { idUsuario, codigo }, this.options())
+      );
+      this.docenteUserId.set('');
+      this.docenteCode.set('');
+      this.actionNotice.set(respuesta.mensaje);
+      await this.loadUsers();
+    } catch (error: unknown) {
+      this.actionNotice.set(this.errorMessage(error));
+    } finally {
+      this.saving.set(false);
     }
-    const nextId = Math.max(0, ...this.users().map(user => user.id)) + 1;
-    this.users.update(users => [...users, { id: nextId, username, name, roles: [], active: true }]);
-    this.newUsername.set('');
-    this.newUserName.set('');
-    this.actionNotice.set('Cuenta de muestra agregada.');
   }
 
   /** Solicita un cambio de permisos: no se aplica hasta confirmar la contraseña. */
-  requestRoleChange(id: number, role: Role, enabled: boolean): void {
-    if (id === 1) return;
-    this.openPasswordDialog({ kind: 'role', id, role, enabled });
+  requestRoleChange(user: AdminUser, role: Role, enabled: boolean): void {
+    if (this.isSelf(user) && role === 'Administrador' && !enabled) return;
+    this.openPasswordDialog({ kind: 'role', id: user.id, role, enabled });
   }
 
-  requestActiveChange(id: number): void {
-    if (id === 1) return;
-    this.openPasswordDialog({ kind: 'active', id });
+  requestActiveChange(user: AdminUser): void {
+    if (this.isSelf(user)) return;
+    this.openPasswordDialog({ kind: 'active', id: user.id });
   }
 
   private openPasswordDialog(change: PendingChange): void {
@@ -332,24 +381,15 @@ export class AdminPanel {
       return;
     }
 
-    const correo = this.sessionEmail();
-    if (!correo) {
-      this.passwordError.set('No hay una sesión de administrador abierta. Inicia sesión para modificar permisos.');
-      return;
-    }
-
     this.verifying.set(true);
     this.passwordError.set('');
 
     try {
-      // Se vuelve a validar la contraseña de la cuenta con la sesión abierta.
-      await firstValueFrom(
-        this.http.post(AUTH_API_URL + '/login', { correo, contrasena: this.password() })
-      );
-      this.applyChange(change);
+      // La API vuelve a comprobar la contraseña de esta cuenta antes de aplicar el cambio.
+      const mensaje = await this.applyChange(change, this.password());
       this.pending.set(null);
       this.password.set('');
-      this.actionNotice.set('Cambio aplicado.');
+      this.actionNotice.set(mensaje);
     } catch (error: unknown) {
       this.passwordError.set(this.errorMessage(error));
     } finally {
@@ -357,32 +397,111 @@ export class AdminPanel {
     }
   }
 
-  private applyChange(change: PendingChange): void {
+  private async applyChange(change: PendingChange, contrasena: string): Promise<string> {
     if (change.kind === 'delete') {
-      this.catalogData.update(data => ({
-        ...data,
-        [change.catalog]: data[change.catalog].filter(row => row.id !== change.id)
-      }));
-    } else if (change.kind === 'role') {
-      this.users.update(users => users.map(user => {
-        if (user.id !== change.id || user.roles.includes(change.role) === change.enabled) return user;
-        const roles = change.enabled
-          ? [...user.roles, change.role]
-          : user.roles.filter(value => value !== change.role);
-        return { ...user, roles };
-      }));
-    } else {
-      this.users.update(users =>
-        users.map(user => (user.id === change.id ? { ...user, active: !user.active } : user))
-      );
+      const respuesta = await firstValueFrom(this.http.post<{ mensaje: string }>(
+        API_URL + '/admin/catalogos/' + change.catalog + '/' + change.id + '/eliminar',
+        { contrasena },
+        this.options()
+      ));
+      await this.loadCatalog(change.catalog);
+      return respuesta.mensaje;
+    }
+
+    const user = this.users().find(item => item.id === change.id);
+    if (change.kind === 'role') {
+      const respuesta = await firstValueFrom(this.http.put<{ mensaje: string }>(
+        API_URL + '/admin/usuarios/' + change.id + '/roles',
+        { rol: ROL_API[change.role], asignar: change.enabled, contrasena },
+        this.options()
+      ));
+      await this.loadUsers();
+      return respuesta.mensaje;
+    }
+
+    const respuesta = await firstValueFrom(this.http.put<{ mensaje: string }>(
+      API_URL + '/admin/usuarios/' + change.id + '/activo',
+      { activo: !(user?.active ?? true), contrasena },
+      this.options()
+    ));
+    await this.loadUsers();
+    return respuesta.mensaje;
+  }
+
+  // ----- Carga de datos -----
+
+  private async loadTab(tab: AdminTab): Promise<void> {
+    this.loading.set(true);
+    try {
+      if (tab === 'cuentas') {
+        await this.loadUsers();
+      } else {
+        await this.loadCatalog(tab);
+        if (tab === 'carreras') await this.loadCatalog('departamentos');
+        if (tab === 'materias') await this.loadTeachers();
+      }
+    } catch (error: unknown) {
+      this.actionNotice.set(this.errorMessage(error));
+    } finally {
+      this.loading.set(false);
     }
   }
 
-  private sessionEmail(): string | null {
+  private async loadUsers(): Promise<void> {
+    const datos = await firstValueFrom(
+      this.http.get<UsuarioApi[]>(API_URL + '/admin/usuarios', this.options())
+    );
+    this.users.set(datos.map(usuario => ({
+      id: usuario.id,
+      username: usuario.correo,
+      name: (usuario.nombres + ' ' + usuario.apellidos).trim(),
+      roles: this.roleNames.filter(role => usuario.roles.includes(ROL_API[role])),
+      active: usuario.activo,
+      codigoDocente: usuario.codigoDocente
+    })));
+  }
+
+  private async loadCatalog(catalog: CatalogKey): Promise<void> {
+    const datos = await firstValueFrom(
+      this.http.get<Record<string, string | number | null>[]>(
+        API_URL + '/admin/catalogos/' + catalog, this.options())
+    );
+    const rows: CatalogRow[] = datos.map(item => {
+      const row: CatalogRow = { id: String(item['id']) };
+      for (const [key, value] of Object.entries(item)) {
+        if (key !== 'id') row[key] = value === null ? '' : String(value);
+      }
+      return row;
+    });
+    this.catalogData.update(data => ({ ...data, [catalog]: rows }));
+  }
+
+  private async loadTeachers(): Promise<void> {
+    const datos = await firstValueFrom(
+      this.http.get<{ id: number; codigo: string; nombre: string }[]>(
+        API_URL + '/admin/catalogos/docentes', this.options())
+    );
+    this.docentes.set(datos.map(docente => ({
+      value: String(docente.id),
+      label: docente.nombre + ' (' + docente.codigo + ')'
+    })));
+  }
+
+  private options(): { headers: Record<string, string> } {
+    let token = '';
+    try {
+      token = globalThis.sessionStorage?.getItem(AUTH_TOKEN_KEY) ?? '';
+    } catch {
+      token = '';
+    }
+    return { headers: { Authorization: 'Bearer ' + token } };
+  }
+
+  private sessionUserId(): number | null {
     try {
       const raw = globalThis.sessionStorage?.getItem(AUTH_USER_KEY);
-      const correo = raw ? (JSON.parse(raw) as { correo?: unknown }).correo : null;
-      return typeof correo === 'string' && correo ? correo : null;
+      const id = raw ? (JSON.parse(raw) as { id?: unknown }).id : null;
+      return typeof id === 'number' ? id : null;
     } catch {
       return null;
     }
@@ -390,9 +509,12 @@ export class AdminPanel {
 
   private errorMessage(error: unknown): string {
     if (error instanceof HttpErrorResponse) {
-      if (error.status === 401) return 'Contraseña incorrecta.';
-      if (error.status === 0) return 'No se pudo conectar con el servidor.';
+      const mensaje = error.error && typeof error.error.mensaje === 'string' ? error.error.mensaje : null;
+      if (mensaje) return mensaje;
+      if (error.status === 0) return 'No se pudo conectar con la API. Verifica que RepositorioApi esté iniciado.';
+      if (error.status === 401) return 'Tu sesión venció. Inicia sesión de nuevo.';
+      if (error.status === 403) return 'Tu cuenta no tiene el rol de administrador.';
     }
-    return 'No se pudo verificar la contraseña. Inténtalo de nuevo.';
+    return 'No se pudo completar la acción. Inténtalo de nuevo.';
   }
 }

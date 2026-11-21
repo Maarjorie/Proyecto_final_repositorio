@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 import { AuthComponent } from './auth/auth';
-import { requireSession, requireSolicitante, requireSupervisor } from './auth/auth.guard';
+import { requireAdministrador, requireSession, requireSolicitante, requireSupervisor } from './auth/auth.guard';
 import { RevisionSupervisorComponent } from './gestion/revision-supervisor/revision-supervisor';
 import { Catalogo } from './catalogo/catalogo';
 import { EnvioProyectoComponent } from './publicaciones/envio-proyecto/envio-proyecto';
@@ -11,8 +11,9 @@ import { AdminPanel } from './gestion/administrador/admin-panel';
 export const routes: Routes = [
   { path: 'iniciar-sesion', component: AuthComponent, data: { mode: 'login' } },
   { path: 'registro', component: AuthComponent, data: { mode: 'registro' } },
+  // Panel de administración: solo el rol administrador (RNF-03).
   { path: 'admin', pathMatch: 'full', redirectTo: 'admin/cuentas' },
-  { path: 'admin/:seccion', component: AdminPanel },
+  { path: 'admin/:seccion', component: AdminPanel, canActivate: [requireAdministrador] },
   {
     path: 'catalogo',
     component: Catalogo,

@@ -2,13 +2,15 @@
   <header class="workspace-header glass-panel">
     <a class="brand" href="#inicio" (click)="$event.preventDefault(); navegar.emit('catalog')">
       <img class="ues-crest" src="ues-escudo.png" alt="Escudo UES" />
-      <span class="brand-copy"><strong>SIS | Repositorio Digital</strong><small>Panel de administración · demostración</small></span>
+      <span class="brand-copy"><strong>UES | Repositorio Digital</strong><small>Panel de administración</small></span>
     </a>
     <nav class="dashboard-nav" aria-label="Navegación principal">
       <button type="button" (click)="navegar.emit('catalog')">Catálogo</button>
       <button type="button" class="active" (click)="navegar.emit('admin')">Administración</button>
-      <button type="button" (click)="navegar.emit('supervisor')">Supervisión</button>
-      <button type="button" class="quiet-button" (click)="navegar.emit('login')">Salir</button>
+      @if (esSupervisor) {
+        <button type="button" (click)="navegar.emit('supervisor')">Supervisión</button>
+      }
+      <app-sesion-usuario [mostrarAdmin]="false" />
     </nav>
   </header>
 
@@ -49,7 +51,6 @@
           <h2>Agregar {{ catalog.singular }}</h2>
           <p>{{ catalog.description }}</p>
         </div>
-        <span class="demo-tag">DEMO</span>
       </div>
       <form class="catalog-form" (submit)="$event.preventDefault(); addCatalogRow()">
         @for (field of catalog.fields; track field.key) {
@@ -57,8 +58,8 @@
             @if (field.optionsFrom) {
               <select [name]="field.key" [ngModel]="draft()[field.key] ?? ''" (ngModelChange)="setDraft(field.key, $event)">
                 <option value="">Selecciona…</option>
-                @for (option of optionsFor(field); track option) {
-                  <option [value]="option">{{ option }}</option>
+                @for (option of optionsFor(field); track option.value) {
+                  <option [value]="option.value">{{ option.label }}</option>
                 }
               </select>
             } @else {
@@ -67,17 +68,20 @@
             }
           </label>
         }
-        <button class="primary-button" type="submit">Agregar</button>
+        <button class="primary-button" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Agregar' }}</button>
       </form>
       @if (catalog.tab === 'carreras' && optionsFor(catalog.fields[2]).length === 0) {
         <p class="table-note">Primero crea al menos un departamento para poder asignarlo a una carrera.</p>
+      }
+      @if (catalog.tab === 'materias' && docentes().length === 0) {
+        <p class="table-note">Aún no hay docentes. Regístralos en «Cuentas y accesos» para poder asignarles materias.</p>
       }
     </section>
 
     <section class="management-card glass-panel">
       <div class="panel-title">
         <div><h2>{{ catalog.label }} registradas</h2></div>
-        <span class="count-tag">{{ filteredCatalogRows().length }} registros</span>
+        <span class="count-tag">{{ filteredCatalogRows().length }} {{ filteredCatalogRows().length === 1 ? 'registro' : 'registros' }}</span>
       </div>
 
       <div class="search-box">
@@ -100,8 +104,8 @@
           <tbody>
             @for (row of filteredCatalogRows(); track row.id) {
               <tr>
-                @for (field of catalog.fields; track field.key) { <td>{{ row[field.key] || '—' }}</td> }
-                <td>
+                @for (field of catalog.fields; track field.key) { <td [attr.data-label]="field.label">{{ row[field.key] || '—' }}</td> }
+                <td data-label="Acción">
                   <button type="button" class="decision" (click)="requestDelete(catalog.tab, row.id)">Eliminar</button>
                 </td>
               </tr>
@@ -116,19 +120,23 @@
   <section class="management-card glass-panel" id="create-account">
     <div class="panel-title">
       <div>
-        <h2>Crear cuenta interna</h2>
-        <p>Agrega cuentas de muestra y asígnales roles internos más adelante.</p>
+        <h2>Registrar docente</h2>
+        <p>Las cuentas se crean desde «Registrarse». Aquí marcas una cuenta como docente para poder asignarle materias.</p>
       </div>
-      <span class="demo-tag">DEMO</span>
     </div>
-    <form class="add-user-form" (submit)="$event.preventDefault(); addUser()">
-      <label>Nombre de usuario
-        <input name="newUsername" autocomplete="off" [ngModel]="newUsername()" (ngModelChange)="newUsername.set($event)" required />
+    <form class="add-user-form" (submit)="$event.preventDefault(); registerTeacher()">
+      <label>Cuenta
+        <select name="docenteUserId" [ngModel]="docenteUserId()" (ngModelChange)="docenteUserId.set($event)" required>
+          <option value="">Selecciona…</option>
+          @for (user of nonTeacherUsers(); track user.id) {
+            <option [value]="user.id">{{ user.name }} · {{ user.username }}</option>
+          }
+        </select>
       </label>
-      <label>Nombre de la persona
-        <input name="newUserName" autocomplete="off" [ngModel]="newUserName()" (ngModelChange)="newUserName.set($event)" required />
+      <label>Código docente
+        <input name="docenteCode" autocomplete="off" maxlength="20" [ngModel]="docenteCode()" (ngModelChange)="docenteCode.set($event)" required />
       </label>
-      <button class="primary-button" type="submit">Agregar cuenta</button>
+      <button class="primary-button" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Registrar docente' }}</button>
     </form>
   </section>
 
@@ -158,44 +166,59 @@
         <tbody>
           @for (user of filteredUsers(); track user.id) {
             <tr>
-              <td>
+              <td data-label="Usuario">
                 <div class="user-cell">
                   <span class="avatar" aria-hidden="true">{{ initials(user) }}</span>
                   <span class="user-text">
                     <strong>{{ user.username }}</strong>
-                    <small>{{ user.name }}</small>
+                    <small>{{ user.name }}{{ user.codigoDocente ? ' · Docente ' + user.codigoDocente : '' }}</small>
                   </span>
                 </div>
               </td>
-              <td>
+              <td data-label="Roles">
                 <div class="role-chips">
                   @for (role of roleNames; track role) {
-                    <button type="button" class="role-chip" [class.on]="user.roles.includes(role)"
-                      [attr.aria-pressed]="user.roles.includes(role)" [disabled]="user.id === 1"
-                      (click)="requestRoleChange(user.id, role, !user.roles.includes(role))">
-                      {{ role }}
-                    </button>
+                    @if (isSelf(user) && role === 'Administrador') {
+                      <!-- Tu propio rol de administrador no se puede quitar: se muestra fijo, no como botón apagado. -->
+                      <span class="role-chip on fijo" title="No puedes quitarte tu propio rol de administrador">
+                        <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.6"
+                          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                        </svg>
+                        {{ role }}
+                      </span>
+                    } @else {
+                      <button type="button" class="role-chip" [class.on]="user.roles.includes(role)"
+                        [attr.aria-pressed]="user.roles.includes(role)"
+                        (click)="requestRoleChange(user, role, !user.roles.includes(role))">
+                        {{ role }}
+                      </button>
+                    }
                   }
                 </div>
               </td>
-              <td>
+              <td data-label="Estado">
                 <span class="status-pill" [class.status-active]="user.active" [class.status-rejected]="!user.active">
                   {{ user.active ? 'Activo' : 'Inactivo' }}
                 </span>
               </td>
-              <td>
-                <button type="button" class="decision" [disabled]="user.id === 1" (click)="requestActiveChange(user.id)">
-                  {{ user.active ? 'Deshabilitar' : 'Habilitar' }}
-                </button>
+              <td data-label="Acceso">
+                @if (isSelf(user)) {
+                  <span class="tu-cuenta">Tu cuenta</span>
+                } @else {
+                  <button type="button" class="decision" (click)="requestActiveChange(user)">
+                    {{ user.active ? 'Deshabilitar' : 'Habilitar' }}
+                  </button>
+                }
               </td>
             </tr>
           } @empty {
-            <tr><td colspan="4" class="empty-row">No hay usuarios que coincidan con «{{ search() }}».</td></tr>
+            <tr><td colspan="4" class="empty-row">{{ loading() ? 'Cargando cuentas…' : search() ? 'No hay usuarios que coincidan con «' + search() + '».' : 'Aún no hay cuentas.' }}</td></tr>
           }
         </tbody>
       </table>
     </div>
-    <p class="table-note">La cuenta principal conserva el rol de administrador y no se puede modificar desde aquí.</p>
+    <p class="table-note">No puedes quitarte el rol de administrador ni deshabilitar tu propia cuenta. Los cambios de rol aplican cuando la persona vuelve a iniciar sesión.</p>
   </section>
   }
   </div>

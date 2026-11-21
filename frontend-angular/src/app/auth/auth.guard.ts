@@ -81,9 +81,34 @@ export const requireSolicitante: CanActivateFn = (_route, state) => {
     });
   }
 
-  return usuarioTieneRol('supervisor')
-    ? router.createUrlTree(['/revision-supervisor'])
+  if (usuarioTieneRol('supervisor')) {
+    return router.createUrlTree(['/revision-supervisor']);
+  }
+
+  return usuarioTieneRol('administrador')
+    ? router.createUrlTree(['/admin'])
     : true;
+};
+
+/**
+ * Cuentas de gestión (supervisor o administrador): usan su propia interfaz y
+ * no ven las pantallas del solicitante (Mis proyectos, Subir proyecto).
+ */
+export function esCuentaDeGestion(): boolean {
+  return usuarioTieneRol('supervisor') || usuarioTieneRol('administrador');
+}
+
+/** Panel de administración: solo cuentas con el rol administrador (RNF-03). */
+export const requireAdministrador: CanActivateFn = (_route, state) => {
+  const router = inject(Router);
+
+  if (!sesionActiva()) {
+    return router.createUrlTree(['/iniciar-sesion'], {
+      queryParams: { returnUrl: state.url }
+    });
+  }
+
+  return usuarioTieneRol('administrador') ? true : router.createUrlTree(['/catalogo']);
 };
 
 export const requireSupervisor: CanActivateFn = (_route, state) => {

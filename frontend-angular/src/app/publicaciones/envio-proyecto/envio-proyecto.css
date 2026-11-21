@@ -13,7 +13,6 @@
   background:
     radial-gradient(ellipse at 12% 10%, rgba(104, 198, 221, 0.35), transparent 35%),
     linear-gradient(135deg, #174d7e, var(--ateneo-blue) 58%, #092d56);
-  font-family: Arial, Helvetica, sans-serif;
 }
 
 * {
