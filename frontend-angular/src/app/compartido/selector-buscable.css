@@ -1,0 +1,170 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.selector {
+  position: relative;
+}
+
+input {
+  width: 100%;
+  min-height: 50px;
+  padding: 12px 70px 12px 16px;
+  border: 1px solid #fff;
+  border-radius: 14px;
+  outline: none;
+  color: #183a5d;
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.84), rgba(222, 246, 250, 0.86));
+  box-shadow:
+    inset 0 2px 4px rgba(255, 255, 255, 0.95),
+    0 5px 12px rgba(24, 71, 111, 0.1);
+  font: inherit;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+input::placeholder {
+  color: #5d7790;
+}
+
+.abierto input {
+  cursor: text;
+}
+
+input:focus {
+  border-color: #368bbf;
+  box-shadow: 0 0 0 3px rgba(54, 139, 191, 0.2);
+}
+
+.deshabilitado input {
+  cursor: not-allowed;
+  color: #657b8e;
+  background: rgba(205, 226, 232, 0.8);
+  box-shadow: none;
+  opacity: 0.72;
+}
+
+/* Flecha, igual que la de las listas desplegables. */
+.flecha {
+  position: absolute;
+  top: 50%;
+  right: 18px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid #183a5d;
+  border-bottom: 2px solid #183a5d;
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+  transition: transform 160ms ease;
+}
+
+.abierto .flecha {
+  transform: translateY(-25%) rotate(-135deg);
+}
+
+.limpiar {
+  position: absolute;
+  top: 50%;
+  right: 38px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: #183a5d;
+  background: rgba(24, 58, 93, 0.1);
+  font-size: 17px;
+  line-height: 1;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.limpiar:hover,
+.limpiar:focus-visible {
+  background: rgba(24, 58, 93, 0.2);
+  outline: none;
+}
+
+.lista {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  max-height: 280px;
+  margin: 0;
+  padding: 6px;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  border-radius: 14px;
+  background: #f7fcfe;
+  box-shadow: 0 16px 36px rgba(12, 40, 66, 0.28);
+  animation: aparecer 140ms ease-out;
+}
+
+@keyframes aparecer {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+li[role='option'] {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 9px 34px 9px 12px;
+  border-radius: 10px;
+  color: #183a5d;
+  cursor: pointer;
+}
+
+li[role='option'] small {
+  color: #5d7790;
+  font-size: 12px;
+}
+
+li.activa {
+  background: rgba(54, 139, 191, 0.14);
+}
+
+li.elegida {
+  font-weight: 700;
+}
+
+li.elegida::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  color: #368bbf;
+  transform: translateY(-50%);
+}
+
+.grupo {
+  padding: 10px 12px 4px;
+  color: #5d7790;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.aviso {
+  padding: 10px 12px;
+  color: #5d7790;
+  font-size: 13px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lista,
+  .flecha {
+    animation: none;
+    transition: none;
+  }
+}

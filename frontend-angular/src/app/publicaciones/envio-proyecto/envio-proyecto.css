@@ -576,7 +576,8 @@
   align-items: center;
 }
 
-.fila-asesor select {
+.fila-asesor select,
+.fila-asesor app-selector-buscable {
   flex: 1 1 auto;
   min-width: 0;
 }

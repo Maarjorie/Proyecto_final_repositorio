@@ -1,0 +1,57 @@
+<div class="selector" [class.abierto]="abierto()" [class.deshabilitado]="deshabilitado()">
+  <input
+    #campo
+    type="text"
+    role="combobox"
+    autocomplete="off"
+    aria-autocomplete="list"
+    [id]="inputId() || null"
+    [attr.aria-label]="etiqueta() || null"
+    [attr.aria-expanded]="abierto()"
+    [attr.aria-controls]="listaId"
+    [attr.aria-required]="requerido() || null"
+    [attr.aria-activedescendant]="abierto() && visibles().length ? listaId + '-' + activa() : null"
+    [placeholder]="abierto() && seleccionada() ? seleccionada()!.label : placeholder()"
+    [value]="textoCampo()"
+    [disabled]="deshabilitado()"
+    (focus)="abrir()"
+    (click)="abrir()"
+    (input)="escribir(campo.value)"
+    (keydown)="teclado($event)"
+  />
+
+  @if (valor() && !deshabilitado()) {
+    <button type="button" class="limpiar" aria-label="Quitar la selección" (click)="limpiar(campo)">×</button>
+  }
+  <span class="flecha" aria-hidden="true"></span>
+
+  @if (abierto()) {
+    <ul class="lista" role="listbox" [id]="listaId">
+      @for (opcion of visibles(); track opcion.value; let i = $index) {
+        @if (iniciaGrupo(i)) {
+          <li class="grupo" role="presentation">{{ opcion.grupo }}</li>
+        }
+        <li
+          role="option"
+          [id]="listaId + '-' + i"
+          [class.activa]="i === activa()"
+          [class.elegida]="opcion.value === valor()"
+          [attr.aria-selected]="opcion.value === valor()"
+          (pointerdown)="$event.preventDefault()"
+          (pointerenter)="activa.set(i)"
+          (click)="elegir(opcion)"
+        >
+          <span class="texto">{{ opcion.label }}</span>
+          @if (opcion.detalle) {
+            <small>{{ opcion.detalle }}</small>
+          }
+        </li>
+      } @empty {
+        <li class="aviso" role="presentation">{{ opciones().length ? textoSinResultados() : 'No hay opciones disponibles.' }}</li>
+      }
+      @if (ocultas() > 0) {
+        <li class="aviso" role="presentation">Y {{ ocultas() }} más: escribe para afinar la búsqueda.</li>
+      }
+    </ul>
+  }
+</div>

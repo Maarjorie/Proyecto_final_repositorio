@@ -6,6 +6,7 @@ import { firstValueFrom } from 'rxjs';
 import { AUTH_TOKEN_KEY, AUTH_USER_KEY } from '../../auth/auth.constants';
 import { cerrarSesion, usuarioTieneRol } from '../../auth/auth.guard';
 import { SesionUsuarioComponent } from '../../auth/sesion-usuario';
+import { OpcionBuscable, SelectorBuscable } from '../../compartido/selector-buscable';
 
 const API_URL = 'https://localhost:7244/api';
 
@@ -80,6 +81,7 @@ interface CatalogDef {
 interface Option {
   value: string;
   label: string;
+  detalle?: string;
 }
 
 type PendingChange =
@@ -90,7 +92,7 @@ type PendingChange =
 @Component({
   selector: 'app-admin-panel',
   standalone: true,
-  imports: [FormsModule, RouterLink, SesionUsuarioComponent],
+  imports: [FormsModule, RouterLink, SesionUsuarioComponent, SelectorBuscable],
   templateUrl: './admin-panel.html',
   styleUrl: './admin-panel.css'
 })
@@ -228,8 +230,9 @@ export class AdminPanel {
       plan: links.plan,
       imparten: links.imparten,
       // Solo se ofrecen las carreras y docentes que todavía no están.
-      carrerasLibres: this.catalogData().carreras.filter(carrera =>
-        !links.plan.some(item => String(item.idCarrera) === carrera.id)),
+      carrerasLibres: this.catalogData().carreras
+        .filter(carrera => !links.plan.some(item => String(item.idCarrera) === carrera.id))
+        .map(carrera => ({ value: carrera.id, label: carrera['nombre'] ?? '', detalle: carrera['codigo'] })),
       docentesLibres: this.docentes().filter(docente =>
         !links.imparten.some(item => String(item.idDocente) === docente.value))
     };
@@ -314,6 +317,28 @@ export class AdminPanel {
   setDraft(key: string, value: string): void {
     this.draft.update(current => ({ ...current, [key]: value }));
   }
+
+  /** Listas largas que se eligen con buscador en lugar de una lista desplegable. */
+  readonly searchableSources: OptionSource[] = ['docentes', 'carreras'];
+  readonly sourceOptions = computed<Record<OptionSource, OpcionBuscable[]>>(() => {
+    const desde = (rows: CatalogRow[]) => rows.map(row => ({ value: row.id, label: row['nombre'] ?? '' }));
+    const data = this.catalogData();
+    return {
+      docentes: this.docentes(),
+      carreras: data.carreras.map(row => ({ value: row.id, label: row['nombre'] ?? '', detalle: row['codigo'] })),
+      materias: desde(data.materias),
+      tematicas: desde(data.tematicas),
+      departamentos: desde(data.departamentos)
+    };
+  });
+
+  isSearchable(field: CatalogField): boolean {
+    return !!field.optionsFrom && this.searchableSources.includes(field.optionsFrom);
+  }
+
+  /** Cuentas que se pueden registrar como docentes, con su correo para buscar. */
+  readonly accountOptions = computed<OpcionBuscable[]>(() =>
+    this.nonTeacherUsers().map(user => ({ value: String(user.id), label: user.name, detalle: user.username })));
 
   optionsFor(field: CatalogField): Option[] {
     if (field.options) return field.options;
@@ -600,7 +625,8 @@ export class AdminPanel {
     );
     this.docentes.set(datos.map(docente => ({
       value: String(docente.id),
-      label: docente.nombre + ' (' + docente.codigo + ') · ' + docente.departamento.replace(/^departamento de\s+/i, '')
+      label: docente.nombre,
+      detalle: docente.codigo + ' · ' + docente.departamento.replace(/^departamento de\s+/i, '')
     })));
   }
 

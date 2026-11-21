@@ -5,6 +5,7 @@ import { ChangeDetectorRef, Component, inject, OnInit } from '@angular/core';
 import { ActivatedRoute, RouterLink, RouterLinkActive } from '@angular/router';
 import { firstValueFrom, retry } from 'rxjs';
 import { AUTH_TOKEN_KEY } from '../../auth/auth.constants';
+import { OpcionBuscable, SelectorBuscable } from '../../compartido/selector-buscable';
 
 interface AutorFormulario {
   nombres: string;
@@ -76,7 +77,7 @@ const API_URL = 'https://localhost:7244/api';
 @Component({
   selector: 'app-envio-proyecto',
   standalone: true,
-  imports: [SesionUsuarioComponent, RouterLink, RouterLinkActive],
+  imports: [SesionUsuarioComponent, RouterLink, RouterLinkActive, SelectorBuscable],
   templateUrl: './envio-proyecto.html',
   styleUrl: './envio-proyecto.css'
 })
@@ -126,9 +127,42 @@ export class EnvioProyectoComponent implements OnInit {
       : [''];
   }
 
-  elegirAsesor(indice: number, event: Event): void {
-    const valor = (event.target as HTMLSelectElement).value;
+  elegirAsesor(indice: number, valor: string): void {
     this.asesores = this.asesores.map((actual, i) => (i === indice ? valor : actual));
+    this.limpiarMensajes();
+  }
+
+  /** Temáticas para el selector con buscador (49 o más no caben en una lista). */
+  private cacheTematicas: { origen: OpcionCatalogo[]; opciones: OpcionBuscable[] } | null = null;
+  get opcionesTematicas(): OpcionBuscable[] {
+    if (this.cacheTematicas?.origen !== this.tematicas) {
+      this.cacheTematicas = {
+        origen: this.tematicas,
+        opciones: this.tematicas.map(tematica => ({ value: String(tematica.id), label: this.formatearNombre(tematica.nombre) }))
+      };
+    }
+    return this.cacheTematicas.opciones;
+  }
+
+  /**
+   * Opciones de cada fila de asesor. Se guardan mientras no cambien los datos,
+   * para no entregar al selector una lista nueva en cada repintado.
+   */
+  private cacheAsesores = new Map<number, { clave: string; opciones: OpcionBuscable[] }>();
+  opcionesAsesor(indice: number): OpcionBuscable[] {
+    const clave = [this.docentes.length, this.departamentos.length, this.departamentoSeleccionado,
+      this.asesores.filter((id, i) => i !== indice && id).join(',')].join('|');
+    const guardadas = this.cacheAsesores.get(indice);
+    if (guardadas?.clave === clave) return guardadas.opciones;
+    const opciones = this.gruposDeAsesores(indice).flatMap(grupo =>
+      grupo.docentes.map(docente => ({
+        value: String(docente.id),
+        label: docente.nombres + ' ' + docente.apellidos,
+        detalle: docente.codigo + (grupo.titulo ? '' : ' · ' + docente.departamento.replace(/^departamento de\s+/i, '')),
+        grupo: grupo.titulo || undefined
+      })));
+    this.cacheAsesores.set(indice, { clave, opciones });
+    return opciones;
   }
 
   /** Un docente ya elegido en otra fila no se vuelve a ofrecer. */
@@ -526,6 +560,12 @@ export class EnvioProyectoComponent implements OnInit {
       return;
     }
 
+    if (!this.tematicaSeleccionada) {
+      this.mensajeError = 'Selecciona el área temática.';
+      formulario.querySelector<HTMLInputElement>('#tematica')?.focus();
+      return;
+    }
+
     if (this.totalRecursos === 0) {
       this.mensajeError =
         'Agrega al menos un PDF, un enlace o un archivo ZIP.';
@@ -573,7 +613,7 @@ export class EnvioProyectoComponent implements OnInit {
     datos.append('Anio', this.valorFormulario(formulario, 'anio'));
     datos.append('IdTipoProyecto', this.tipoProyecto);
     datos.append('IdCarrera', this.carreraSeleccionada);
-    datos.append('IdTematica', this.valorFormulario(formulario, 'tematica'));
+    datos.append('IdTematica', this.tematicaSeleccionada);
     datos.append('AutoresJson', JSON.stringify(this.autores));
     this.asesores
       .filter(id => id)

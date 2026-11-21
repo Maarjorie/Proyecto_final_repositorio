@@ -35,7 +35,7 @@
       <p class="eyebrow">REPOSITORIO ACADÉMICO</p>
       <h1 id="page-title">Proyectos y trabajos de grado</h1>
       <p class="intro-copy">
-        Consulta trabajos de Ingeniería de Sistemas Informáticos revisados y
+        Consulta trabajos de todas las carreras de la facultad, revisados y
         autorizados para su difusión.
       </p>
 
@@ -71,7 +71,8 @@
         </select>
       </form>
 
-      <div class="area-shortcuts" id="areas">
+      <!-- Sin trabajos publicados no hay áreas que explorar. -->
+      <div class="area-shortcuts" id="areas" [hidden]="areaShortcuts().length === 0">
         <strong>Explorar por<br />área</strong>
         @for (atajo of areaShortcuts(); track atajo.area) {
           <button
@@ -316,15 +317,25 @@
             </article>
           } @empty {
             <div class="empty-state glass-panel">
-              <h2>No encontramos trabajos con esos criterios</h2>
-              <p>Prueba cambiando la búsqueda o quitando alguno de los filtros.</p>
-              <button
-                type="button"
-                class="secondary-button"
-                (click)="clearFilters()"
-              >
-                Limpiar filtros
-              </button>
+              @if (sinTrabajos()) {
+                <h2>Aún no hay trabajos publicados</h2>
+                <p>Los trabajos aparecerán aquí cuando un supervisor apruebe su publicación.</p>
+              } @else if (cargandoCatalogo()) {
+                <h2>Cargando el catálogo…</h2>
+              } @else if (errorCarga()) {
+                <h2>No se pudo cargar el catálogo</h2>
+                <p>Verifica que la API esté iniciada y vuelve a cargar la página.</p>
+              } @else {
+                <h2>No encontramos trabajos con esos criterios</h2>
+                <p>Prueba cambiando la búsqueda o quitando alguno de los filtros.</p>
+                <button
+                  type="button"
+                  class="secondary-button"
+                  (click)="clearFilters()"
+                >
+                  Limpiar filtros
+                </button>
+              }
             </div>
           }
         </div>

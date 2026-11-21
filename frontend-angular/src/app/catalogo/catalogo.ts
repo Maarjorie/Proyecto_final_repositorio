@@ -59,6 +59,10 @@ export class Catalogo implements OnInit {
   readonly works = signal<Work[]>([]);
   readonly areas = signal<string[]>([]);
   readonly cargandoCatalogo = signal(true);
+  /** La API no respondió: los filtros no tienen con qué llenarse. */
+  readonly errorCarga = signal(false);
+  /** El catálogo cargó bien pero todavía no hay trabajos publicados. */
+  readonly sinTrabajos = computed(() => !this.cargandoCatalogo() && !this.errorCarga() && this.publicWorks().length === 0);
   readonly actionNotice = model('');
   readonly navigateTo = output<'requester' | 'login'>();
 
@@ -323,6 +327,7 @@ export class Catalogo implements OnInit {
       },
       error: (error: unknown) => {
         this.cargandoCatalogo.set(false);
+        this.errorCarga.set(true);
         this.actionNotice.set(
           error instanceof HttpErrorResponse && error.status === 0
             ? 'No se pudo conectar con la API. Verifica que RepositorioApi esté iniciado.'

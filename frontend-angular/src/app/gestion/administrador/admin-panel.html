@@ -55,7 +55,15 @@
       <form class="catalog-form" (submit)="$event.preventDefault(); addCatalogRow()">
         @for (field of formFields(); track field.key) {
           <label>{{ field.label }}{{ field.required ? ' *' : '' }}
-            @if (field.optionsFrom || field.options) {
+            @if (isSearchable(field)) {
+              <app-selector-buscable
+                [etiqueta]="field.label"
+                [opciones]="sourceOptions()[field.optionsFrom!]"
+                [valor]="draft()[field.key] ?? ''"
+                (valorChange)="setDraft(field.key, $event)"
+                [placeholder]="'Busca ' + field.label.toLowerCase() + '…'"
+              />
+            } @else if (field.optionsFrom || field.options) {
               <select [name]="field.key" [ngModel]="draft()[field.key] ?? ''" (ngModelChange)="setDraft(field.key, $event)">
                 <option value="">Selecciona…</option>
                 @for (option of optionsFor(field); track option.value) {
@@ -134,12 +142,14 @@
     </div>
     <form class="add-user-form" (submit)="$event.preventDefault(); registerTeacher()">
       <label>Cuenta
-        <select name="docenteUserId" [ngModel]="docenteUserId()" (ngModelChange)="docenteUserId.set($event)" required>
-          <option value="">Selecciona…</option>
-          @for (user of nonTeacherUsers(); track user.id) {
-            <option [value]="user.id">{{ user.name }} · {{ user.username }}</option>
-          }
-        </select>
+        <!-- Con buscador por nombre o correo: puede haber miles de cuentas. -->
+        <app-selector-buscable
+          etiqueta="Cuenta"
+          [opciones]="accountOptions()"
+          [valor]="docenteUserId()"
+          (valorChange)="docenteUserId.set($event)"
+          placeholder="Busca por nombre o correo…"
+        />
       </label>
       <label>Código docente
         <input name="docenteCode" autocomplete="off" maxlength="20" [ngModel]="docenteCode()" (ngModelChange)="docenteCode.set($event)" required />
@@ -287,12 +297,14 @@
         }
       </ul>
       <form class="link-form" (submit)="$event.preventDefault(); addLink('carrera')">
-        <select name="linkCarrera" aria-label="Carrera" [ngModel]="linkCarrera()" (ngModelChange)="linkCarrera.set($event)">
-          <option value="">Agregar a otra carrera…</option>
-          @for (carrera of materia.carrerasLibres; track carrera.id) {
-            <option [value]="carrera.id">{{ carrera['nombre'] }}</option>
-          }
-        </select>
+        <app-selector-buscable
+          class="link-carrera"
+          etiqueta="Carrera"
+          [opciones]="materia.carrerasLibres"
+          [valor]="linkCarrera()"
+          (valorChange)="linkCarrera.set($event)"
+          placeholder="Agregar a otra carrera…"
+        />
         <select name="linkCiclo" aria-label="Ciclo" [ngModel]="linkCiclo()" (ngModelChange)="linkCiclo.set($event)">
           <option value="">Ciclo…</option>
           @for (ciclo of cicloOptions; track ciclo.value) {
@@ -313,12 +325,14 @@
         }
       </ul>
       <form class="link-form" (submit)="$event.preventDefault(); addLink('docente')">
-        <select name="linkDocente" aria-label="Docente" [ngModel]="linkDocente()" (ngModelChange)="linkDocente.set($event)">
-          <option value="">Agregar otro docente…</option>
-          @for (docente of materia.docentesLibres; track docente.value) {
-            <option [value]="docente.value">{{ docente.label }}</option>
-          }
-        </select>
+        <app-selector-buscable
+          class="link-docente"
+          etiqueta="Docente"
+          [opciones]="materia.docentesLibres"
+          [valor]="linkDocente()"
+          (valorChange)="linkDocente.set($event)"
+          placeholder="Agregar otro docente…"
+        />
         <button type="submit" class="primary-button" [disabled]="saving()">Agregar</button>
       </form>
     </div>

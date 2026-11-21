@@ -94,6 +94,28 @@ public sealed class AdminController : ControllerBase
         if (request.Asignar && !loTiene)
         {
             usuario.IdRols.Add(rol);
+
+            // Un supervisor nuevo también recibe el aviso de las entregas que ya
+            // estaban esperando revisión (salvo las que envió él mismo).
+            if (rolNombre == "supervisor")
+            {
+                var pendientes = await _db.TblEntregas
+                    .Where(entrega => entrega.EstadoEntrega == "pendiente" &&
+                                      entrega.IdUsuarioEnvia != usuario.IdUsuario &&
+                                      !entrega.TblNotificacions.Any(aviso => aviso.IdUsuarioDestino == usuario.IdUsuario))
+                    .Select(entrega => new { entrega.IdEntrega, entrega.IdProyectoNavigation.Titulo })
+                    .ToListAsync(cancellationToken);
+
+                foreach (var pendiente in pendientes)
+                {
+                    _db.TblNotificacions.Add(new TblNotificacion
+                    {
+                        IdEntrega = pendiente.IdEntrega,
+                        IdUsuarioDestino = usuario.IdUsuario,
+                        Mensaje = "Nueva entrega recibida para revisión: " + pendiente.Titulo + "."
+                    });
+                }
+            }
         }
         else if (!request.Asignar && loTiene)
         {
