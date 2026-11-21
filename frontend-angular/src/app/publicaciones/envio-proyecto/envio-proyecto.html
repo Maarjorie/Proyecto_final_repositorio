@@ -233,10 +233,21 @@
 
       <div class="campo" [hidden]="!esProyectoCurso">
         <label for="materia">Asignatura (opcional)</label>
-        <select id="materia" name="materia" (change)="actualizarCampo('materiaSeleccionada', $event)">
-          <option value="">Selecciona una asignatura si aplica</option>
-          @for (materia of materias; track materia.id) {
-            <option [value]="materia.id" [selected]="materia.id === +materiaSeleccionada">{{ materia.nombre }}</option>
+        <select id="materia" name="materia" (change)="actualizarCampo('materiaSeleccionada', $event)"
+          [disabled]="!carreraSeleccionada || materias.length === 0">
+          <option value="" [selected]="!materiaSeleccionada">
+            {{ !carreraSeleccionada ? 'Primero selecciona la carrera'
+              : cargandoMaterias ? 'Cargando asignaturas…'
+              : materias.length ? 'Selecciona una asignatura si aplica'
+              : 'Esta carrera aún no tiene asignaturas registradas' }}
+          </option>
+          <!-- Solo las asignaturas del plan de la carrera, por ciclo. -->
+          @for (grupo of materiasPorCiclo; track grupo.titulo) {
+            <optgroup [label]="grupo.titulo">
+              @for (materia of grupo.materias; track materia.id) {
+                <option [value]="materia.id" [selected]="materia.id === +materiaSeleccionada">{{ materia.nombre }} ({{ materia.codigo }})</option>
+              }
+            </optgroup>
           }
         </select>
       </div>
@@ -249,10 +260,22 @@
           <div class="fila-asesor">
             <select [id]="'asesor-' + i" [attr.aria-label]="'Docente asesor ' + (i + 1)" (change)="elegirAsesor(i, $event)">
               <option value="" [selected]="!asesor">{{ docentes.length ? 'Selecciona un docente' : 'No hay docentes registrados' }}</option>
-              @for (docente of docentesDisponibles(i); track docente.id) {
-                <option [value]="docente.id" [selected]="asesor === '' + docente.id">
-                  {{ docente.nombres }} {{ docente.apellidos }} · {{ docente.codigo }}
-                </option>
+              @for (grupo of gruposDeAsesores(i); track grupo.titulo) {
+                @if (grupo.titulo) {
+                  <optgroup [label]="grupo.titulo">
+                    @for (docente of grupo.docentes; track docente.id) {
+                      <option [value]="docente.id" [selected]="asesor === '' + docente.id">
+                        {{ docente.nombres }} {{ docente.apellidos }} · {{ docente.codigo }}
+                      </option>
+                    }
+                  </optgroup>
+                } @else {
+                  @for (docente of grupo.docentes; track docente.id) {
+                    <option [value]="docente.id" [selected]="asesor === '' + docente.id">
+                      {{ docente.nombres }} {{ docente.apellidos }} · {{ docente.codigo }}
+                    </option>
+                  }
+                }
               }
             </select>
             @if (asesores.length > 1 || asesor) {

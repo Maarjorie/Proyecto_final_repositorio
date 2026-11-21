@@ -11,11 +11,13 @@ public partial class TblMaterium
 
     public string Nombre { get; set; } = null!;
 
-    public int IdDocente { get; set; }
-
     public string? Descripcion { get; set; }
 
-    public virtual TblDocente IdDocenteNavigation { get; set; } = null!;
+    /// <summary>Docentes que imparten la materia (tbl_materia_docente).</summary>
+    public virtual ICollection<TblDocente> IdDocentes { get; set; } = new List<TblDocente>();
+
+    /// <summary>Carreras cuyo plan incluye la materia, con su ciclo.</summary>
+    public virtual ICollection<TblCarreraMaterium> TblCarreraMateria { get; set; } = new List<TblCarreraMaterium>();
 
     public virtual ICollection<TblProyecto> TblProyectos { get; set; } = new List<TblProyecto>();
 }

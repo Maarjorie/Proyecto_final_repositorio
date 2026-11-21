@@ -22,6 +22,8 @@ export interface Work {
   authors: string[];
   year: number;
   career: string;
+  /** Departamento al que pertenece la carrera (filtro Departamento → Carrera). */
+  department?: string;
   area: string;
   type: string;
   subject: string;

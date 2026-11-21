@@ -121,11 +121,34 @@ public class CatalogosController : ControllerBase
                 id = docente.IdDocente,
                 codigo = docente.CodigoDocente,
                 nombres = docente.IdUsuarioNavigation.Nombres,
-                apellidos = docente.IdUsuarioNavigation.Apellidos
+                apellidos = docente.IdUsuarioNavigation.Apellidos,
+                idDepartamento = docente.IdDepartamento,
+                departamento = docente.IdDepartamentoNavigation.Nombre
             })
             .ToListAsync();
 
         return Ok(docentes);
+    }
+
+    /// <summary>Materias del plan de una carrera, ordenadas por ciclo.</summary>
+    [HttpGet("materias")]
+    public async Task<IActionResult> GetMaterias([FromQuery] int carreraId)
+    {
+        var materias = await _db.TblCarreraMateria
+            .AsNoTracking()
+            .Where(plan => plan.IdCarrera == carreraId)
+            .OrderBy(plan => plan.Ciclo)
+            .ThenBy(plan => plan.IdMateriaNavigation.Nombre)
+            .Select(plan => new
+            {
+                id = plan.IdMateria,
+                codigo = plan.IdMateriaNavigation.Codigo,
+                nombre = plan.IdMateriaNavigation.Nombre,
+                ciclo = plan.Ciclo
+            })
+            .ToListAsync();
+
+        return Ok(materias);
     }
 
 

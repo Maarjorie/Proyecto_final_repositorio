@@ -1,6 +1,6 @@
 import { SesionUsuarioComponent } from '../auth/sesion-usuario';
 import { esCuentaDeGestion, usuarioTieneRol } from '../auth/auth.guard';
-import { Component, computed, effect, input, model, OnInit, output, signal, WritableSignal } from '@angular/core';
+import { Component, computed, effect, input, model, OnInit, output, signal, untracked, WritableSignal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import type { Work } from '../app';
@@ -10,7 +10,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 const API_URL = 'https://localhost:7244/api';
 
 /** Grupos de filtros del catálogo. */
-type FilterGroup = 'area' | 'year' | 'type' | 'career' | 'subject' | 'author';
+type FilterGroup = 'area' | 'year' | 'type' | 'department' | 'career' | 'subject';
 
 /** Pasa a minúsculas y quita tildes: "Informática" y "informatica" coinciden. */
 function normalizar(texto: string): string {
@@ -29,6 +29,7 @@ interface FichaApi {
   autores: string[];
   anio: number;
   carrera: string;
+  departamento?: string;
   tematica: string;
   tipoTrabajo: string;
   materia: string | null;
@@ -66,9 +67,9 @@ export class Catalogo implements OnInit {
   readonly selectedAreas = signal<string[]>([]);
   readonly selectedYears = signal<number[]>([]);
   readonly selectedTypes = signal<string[]>([]);
+  readonly selectedDepartments = signal<string[]>([]);
   readonly selectedCareers = signal<string[]>([]);
   readonly selectedSubjects = signal<string[]>([]);
-  readonly selectedAuthors = signal<string[]>([]);
   readonly sortOrder = signal('recent');
   readonly page = signal(1);
   readonly pageSize = 10;
@@ -77,9 +78,19 @@ export class Catalogo implements OnInit {
   readonly selectedWork = signal<Work | null>(null);
 
   readonly years = computed(() => [...new Set(this.publicWorks().map((work) => work.year))].sort((a, b) => b - a));
-  readonly authors = computed(() => [...new Set(this.publicWorks().flatMap((work) => work.authors))].sort((a, b) => a.localeCompare(b, 'es')));
   readonly types = computed(() => [...new Set(this.publicWorks().map((work) => work.type))].sort((a, b) => a.localeCompare(b, 'es')));
-  readonly careers = computed(() => [...new Set(this.publicWorks().map((work) => work.career))].sort((a, b) => a.localeCompare(b, 'es')));
+  readonly departments = computed(() => [...new Set(this.publicWorks().map((work) => work.department ?? '').filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es')));
+  /**
+   * Carreras que dependen del departamento: solo aparecen las de los
+   * departamentos marcados. Sin departamento marcado, el grupo no se muestra.
+   */
+  readonly careers = computed(() => {
+    const departamentos = this.selectedDepartments();
+    if (!departamentos.length) return [];
+    return [...new Set(this.publicWorks()
+      .filter((work) => departamentos.includes(work.department ?? ''))
+      .map((work) => work.career))].sort((a, b) => a.localeCompare(b, 'es'));
+  });
   readonly subjects = computed(() => [...new Set(this.publicWorks().map((work) => work.subject).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es')));
 
   /**
@@ -98,10 +109,11 @@ export class Catalogo implements OnInit {
       { key: 'area', title: 'Área temática', values: this.areas(), selection: this.selectedAreas as WritableSignal<(string | number)[]> },
       { key: 'year', title: 'Año', values: this.years(), selection: this.selectedYears as WritableSignal<(string | number)[]> },
       { key: 'type', title: 'Tipo de trabajo', values: this.types(), selection: this.selectedTypes as WritableSignal<(string | number)[]> },
+      { key: 'department', title: 'Departamento', values: this.departments(), selection: this.selectedDepartments as WritableSignal<(string | number)[]> },
       { key: 'career', title: 'Carrera', values: this.careers(), selection: this.selectedCareers as WritableSignal<(string | number)[]> },
-      { key: 'subject', title: 'Asignatura', values: this.subjects(), selection: this.selectedSubjects as WritableSignal<(string | number)[]> },
-      { key: 'author', title: 'Autor', values: this.authors(), selection: this.selectedAuthors as WritableSignal<(string | number)[]> }
+      { key: 'subject', title: 'Asignatura', values: this.subjects(), selection: this.selectedSubjects as WritableSignal<(string | number)[]> }
     ];
+    // Los autores no van en los filtros: se buscan desde la barra de búsqueda.
     const expandidos = this.expandedGroups();
     const busquedas = this.groupQueries();
 
@@ -136,7 +148,9 @@ export class Catalogo implements OnInit {
           expanded: expandido,
           canExpand: !termino && coincidentes.length > limite,
           hiddenCount: coincidentes.length - visibles.length,
-          options: visibles
+          options: visibles,
+          // Pista bajo Departamento mientras no se ha elegido ninguno.
+          hint: grupo.key === 'department' && !seleccion.length ? 'Marca un departamento para ver sus carreras.' : ''
         };
       })
       .filter((grupo) => grupo.total > 0);
@@ -233,9 +247,9 @@ export class Catalogo implements OnInit {
       area: contar('area', (work) => [work.area]),
       year: contar('year', (work) => [work.year]),
       type: contar('type', (work) => [work.type]),
+      department: contar('department', (work) => (work.department ? [work.department] : [])),
       career: contar('career', (work) => [work.career]),
-      subject: contar('subject', (work) => (work.subject ? [work.subject] : [])),
-      author: contar('author', (work) => work.authors)
+      subject: contar('subject', (work) => (work.subject ? [work.subject] : []))
     };
   });
 
@@ -253,9 +267,9 @@ export class Catalogo implements OnInit {
     add(this.selectedAreas, 'Área');
     add(this.selectedYears, 'Año');
     add(this.selectedTypes, 'Tipo');
+    add(this.selectedDepartments, 'Departamento');
     add(this.selectedCareers, 'Carrera');
     add(this.selectedSubjects, 'Asignatura');
-    add(this.selectedAuthors, 'Autor');
     if (this.favoritesOnly()) {
       chips.push({ label: 'Solo favoritos', remove: () => { this.favoritesOnly.set(false); this.page.set(1); } });
     }
@@ -284,9 +298,9 @@ export class Catalogo implements OnInit {
       pasa('area', this.selectedAreas(), work.area) &&
       pasa('year', this.selectedYears(), work.year) &&
       pasa('type', this.selectedTypes(), work.type) &&
+      pasa('department', this.selectedDepartments(), work.department ?? '') &&
       pasa('career', this.selectedCareers(), work.career) &&
       pasa('subject', this.selectedSubjects(), work.subject) &&
-      pasa('author', this.selectedAuthors(), work.authors) &&
       (!this.favoritesOnly() || this.favoriteIds().includes(work.id))
     );
   }
@@ -345,6 +359,8 @@ export class Catalogo implements OnInit {
       authors: ficha.autores,
       year: ficha.anio,
       career: ficha.carrera,
+      // El grupo ya se llama «Departamento»: se muestra «Ingeniería y Arquitectura».
+      department: ficha.departamento ? this.capitalizar(ficha.departamento.replace(/^departamento de\s+/i, '')) : '',
       area: this.capitalizar(ficha.tematica),
       type: this.capitalizar(ficha.tipoTrabajo),
       subject: ficha.materia ?? '',
@@ -377,6 +393,14 @@ export class Catalogo implements OnInit {
     // al botón "atrás" y se pueden compartir como enlace.
     this.leerFiltrosDeUrl();
     effect(() => this.escribirFiltrosEnUrl());
+    // Al desmarcar un departamento se sueltan también sus carreras.
+    effect(() => {
+      if (this.cargandoCatalogo()) return;
+      const validas = this.careers();
+      const marcadas = untracked(() => this.selectedCareers());
+      const quedan = marcadas.filter((carrera) => validas.includes(carrera));
+      if (quedan.length !== marcadas.length) untracked(() => this.selectedCareers.set(quedan));
+    });
   }
 
   private leerFiltrosDeUrl(): void {
@@ -394,9 +418,9 @@ export class Catalogo implements OnInit {
     this.selectedAreas.set(params.getAll('area'));
     this.selectedYears.set(params.getAll('anio').map(Number).filter(Number.isFinite));
     this.selectedTypes.set(params.getAll('tipo'));
+    this.selectedDepartments.set(params.getAll('departamento'));
     this.selectedCareers.set(params.getAll('carrera'));
     this.selectedSubjects.set(params.getAll('materia'));
-    this.selectedAuthors.set(params.getAll('autor'));
     this.favoritesOnly.set(params.get('favoritos') === '1');
     const pagina = Number(params.get('pagina'));
     this.page.set(Number.isInteger(pagina) && pagina > 0 ? pagina : 1);
@@ -410,9 +434,9 @@ export class Catalogo implements OnInit {
     this.selectedAreas().forEach((value) => params.append('area', value));
     this.selectedYears().forEach((value) => params.append('anio', String(value)));
     this.selectedTypes().forEach((value) => params.append('tipo', value));
+    this.selectedDepartments().forEach((value) => params.append('departamento', value));
     this.selectedCareers().forEach((value) => params.append('carrera', value));
     this.selectedSubjects().forEach((value) => params.append('materia', value));
-    this.selectedAuthors().forEach((value) => params.append('autor', value));
     if (this.favoritesOnly()) params.set('favoritos', '1');
     if (this.sortOrder() !== 'recent') params.set('orden', this.sortOrder());
     if (this.page() > 1) params.set('pagina', String(this.page()));
@@ -462,7 +486,7 @@ export class Catalogo implements OnInit {
     this.selectedTypes.set([]);
     this.selectedCareers.set([]);
     this.selectedSubjects.set([]);
-    this.selectedAuthors.set([]);
+    this.selectedDepartments.set([]);
     this.groupQueries.set({});
     this.expandedGroups.set([]);
     this.favoritesOnly.set(false);

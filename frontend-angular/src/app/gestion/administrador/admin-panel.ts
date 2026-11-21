@@ -51,7 +51,23 @@ interface CatalogField {
   optionsFrom?: OptionSource;
   /** Campo que se envía a la API con el id elegido en la lista. */
   apiKey?: string;
+  /** Opciones fijas de la lista (por ejemplo, los ciclos 1 a 12). */
+  options?: Option[];
+  /** Solo se pide al agregar; no es una columna de la tabla. */
+  formOnly?: boolean;
+  /** Solo es una columna de la tabla; no se pide en el formulario. */
+  tableOnly?: boolean;
 }
+
+/** Carreras (con ciclo) y docentes de una materia. */
+interface MateriaLinks {
+  plan: { idCarrera: number; carrera: string; ciclo: number }[];
+  imparten: { idDocente: number; nombre: string }[];
+}
+
+const ROMANOS = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+const CICLOS: { value: string; label: string }[] =
+  ROMANOS.slice(1).map((romano, i) => ({ value: String(i + 1), label: 'Ciclo ' + romano }));
 
 interface CatalogDef {
   tab: CatalogKey;
@@ -109,11 +125,15 @@ export class AdminPanel {
   readonly catalogDefs: Record<CatalogKey, CatalogDef> = {
     materias: {
       tab: 'materias', label: 'Materias', singular: 'materia',
-      description: 'Asignaturas a las que pueden pertenecer los proyectos de curso. Cada una tiene un docente responsable.',
+      description: 'Asignaturas de los planes de estudio. Una materia puede estar en varias carreras (cada una con su ciclo) y la pueden impartir varios docentes.',
       fields: [
         { key: 'codigo', label: 'Código', required: true },
         { key: 'nombre', label: 'Nombre', required: true },
-        { key: 'docente', label: 'Docente', required: true, optionsFrom: 'docentes', apiKey: 'idDocente' },
+        { key: 'carrera', label: 'Carrera', required: true, optionsFrom: 'carreras', apiKey: 'idCarrera', formOnly: true },
+        { key: 'ciclo', label: 'Ciclo', required: true, options: CICLOS, apiKey: 'ciclo', formOnly: true },
+        { key: 'docente', label: 'Docente', required: true, optionsFrom: 'docentes', apiKey: 'idDocente', formOnly: true },
+        { key: 'carreras', label: 'Carreras (ciclo)', tableOnly: true },
+        { key: 'docentes', label: 'Docentes', tableOnly: true },
         { key: 'descripcion', label: 'Descripción' }
       ]
     },
@@ -150,13 +170,12 @@ export class AdminPanel {
     const value = this.seccion();
     return this.tabs.find(item => item.tab === value)?.tab ?? 'cuentas';
   });
-  /** Giro de entrada: gira desde el lado hacia el que se avanza en las pestañas. */
-  readonly flipFrom = signal('rotateY(-70deg)');
-  private lastTabIndex = 0;
   readonly catalogData = signal<Record<CatalogKey, CatalogRow[]>>({
     materias: [], tematicas: [], carreras: [], departamentos: []
   });
   readonly docentes = signal<Option[]>([]);
+  /** Vínculos de cada materia (id → carreras y docentes). */
+  readonly materiaLinks = signal<Record<string, MateriaLinks>>({});
   readonly draft = signal<Record<string, string>>({});
   readonly loading = signal(false);
   readonly saving = signal(false);
@@ -169,6 +188,9 @@ export class AdminPanel {
   readonly pageTitle = computed(() =>
     this.activeTab() === 'cuentas' ? 'Cuentas y accesos' : this.catalogDefs[this.activeTab() as CatalogKey].label
   );
+
+  readonly formFields = computed(() => this.activeCatalog()?.fields.filter(field => !field.tableOnly) ?? []);
+  readonly tableFields = computed(() => this.activeCatalog()?.fields.filter(field => !field.formOnly) ?? []);
 
   readonly filteredCatalogRows = computed(() => {
     const catalog = this.activeCatalog();
@@ -184,6 +206,34 @@ export class AdminPanel {
   // Registro de docentes (necesario para crear materias).
   readonly docenteUserId = signal('');
   readonly docenteCode = signal('');
+  readonly docenteDepto = signal('');
+
+  // Carreras y docentes de una materia (ventana «Carreras y docentes»).
+  readonly cicloOptions = CICLOS;
+  readonly managingId = signal<string | null>(null);
+  readonly linkCarrera = signal('');
+  readonly linkCiclo = signal('');
+  readonly linkDocente = signal('');
+  readonly linkNotice = signal('');
+  readonly managedMateria = computed(() => {
+    const id = this.managingId();
+    if (!id) return null;
+    const row = this.catalogData().materias.find(item => item.id === id);
+    if (!row) return null;
+    const links = this.materiaLinks()[id] ?? { plan: [], imparten: [] };
+    return {
+      id,
+      nombre: row['nombre'] ?? '',
+      codigo: row['codigo'] ?? '',
+      plan: links.plan,
+      imparten: links.imparten,
+      // Solo se ofrecen las carreras y docentes que todavía no están.
+      carrerasLibres: this.catalogData().carreras.filter(carrera =>
+        !links.plan.some(item => String(item.idCarrera) === carrera.id)),
+      docentesLibres: this.docentes().filter(docente =>
+        !links.imparten.some(item => String(item.idDocente) === docente.value))
+    };
+  });
   readonly actionNotice = signal('');
   readonly search = signal('');
   readonly showRolesHelp = signal(false);
@@ -247,10 +297,7 @@ export class AdminPanel {
   constructor() {
     effect(() => {
       const tab = this.activeTab();
-      const index = this.tabs.findIndex(item => item.tab === tab);
       untracked(() => {
-        this.flipFrom.set(index >= this.lastTabIndex ? 'rotateY(-70deg)' : 'rotateY(70deg)');
-        this.lastTabIndex = index;
         this.search.set('');
         this.draft.set({});
         this.actionNotice.set('');
@@ -269,6 +316,7 @@ export class AdminPanel {
   }
 
   optionsFor(field: CatalogField): Option[] {
+    if (field.options) return field.options;
     if (!field.optionsFrom) return [];
     if (field.optionsFrom === 'docentes') return this.docentes();
     return this.catalogData()[field.optionsFrom].map(row => ({ value: row.id, label: row['nombre'] ?? '' }));
@@ -310,6 +358,61 @@ export class AdminPanel {
     }
   }
 
+  romano(ciclo: number): string {
+    return ROMANOS[ciclo] ?? String(ciclo);
+  }
+
+  openLinks(id: string): void {
+    this.linkCarrera.set('');
+    this.linkCiclo.set('');
+    this.linkDocente.set('');
+    this.linkNotice.set('');
+    this.managingId.set(id);
+  }
+
+  closeLinks(): void {
+    if (this.saving()) return;
+    this.managingId.set(null);
+  }
+
+  /** Agrega la materia al plan de otra carrera o le agrega otro docente. */
+  async addLink(kind: 'carrera' | 'docente'): Promise<void> {
+    const id = this.managingId();
+    if (!id || this.saving()) return;
+    const body = kind === 'carrera'
+      ? { idCarrera: Number(this.linkCarrera()), ciclo: Number(this.linkCiclo()) }
+      : { idDocente: Number(this.linkDocente()) };
+    if (kind === 'carrera' ? !body.idCarrera || !body.ciclo : !body.idDocente) {
+      this.linkNotice.set(kind === 'carrera' ? 'Elige la carrera y el ciclo.' : 'Elige el docente.');
+      return;
+    }
+    await this.saveLink(() => firstValueFrom(this.http.post<{ mensaje: string }>(
+      API_URL + '/admin/materias/' + id + (kind === 'carrera' ? '/carreras' : '/docentes'), body, this.options())));
+    this.linkCarrera.set('');
+    this.linkCiclo.set('');
+    this.linkDocente.set('');
+  }
+
+  async removeLink(kind: 'carrera' | 'docente', linkId: number): Promise<void> {
+    const id = this.managingId();
+    if (!id || this.saving()) return;
+    await this.saveLink(() => firstValueFrom(this.http.delete<{ mensaje: string }>(
+      API_URL + '/admin/materias/' + id + (kind === 'carrera' ? '/carreras/' : '/docentes/') + linkId, this.options())));
+  }
+
+  private async saveLink(request: () => Promise<{ mensaje: string }>): Promise<void> {
+    this.saving.set(true);
+    try {
+      const respuesta = await request();
+      this.linkNotice.set(respuesta.mensaje);
+      await this.loadCatalog('materias');
+    } catch (error: unknown) {
+      this.linkNotice.set(this.errorMessage(error));
+    } finally {
+      this.saving.set(false);
+    }
+  }
+
   requestDelete(catalog: CatalogKey, id: string): void {
     this.openPasswordDialog({ kind: 'delete', catalog, id });
   }
@@ -327,18 +430,20 @@ export class AdminPanel {
   async registerTeacher(): Promise<void> {
     const idUsuario = Number(this.docenteUserId());
     const codigo = this.docenteCode().trim();
-    if (!idUsuario || !codigo) {
-      this.actionNotice.set('Elige la cuenta y escribe su código docente.');
+    const idDepartamento = Number(this.docenteDepto());
+    if (!idUsuario || !codigo || !idDepartamento) {
+      this.actionNotice.set('Elige la cuenta, escribe su código docente y elige su departamento.');
       return;
     }
 
     this.saving.set(true);
     try {
       const respuesta = await firstValueFrom(
-        this.http.post<{ mensaje: string }>(API_URL + '/admin/docentes', { idUsuario, codigo }, this.options())
+        this.http.post<{ mensaje: string }>(API_URL + '/admin/docentes', { idUsuario, codigo, idDepartamento }, this.options())
       );
       this.docenteUserId.set('');
       this.docenteCode.set('');
+      this.docenteDepto.set('');
       this.actionNotice.set(respuesta.mensaje);
       await this.loadUsers();
     } catch (error: unknown) {
@@ -435,10 +540,15 @@ export class AdminPanel {
     try {
       if (tab === 'cuentas') {
         await this.loadUsers();
+        // El docente se registra con su departamento.
+        await this.loadCatalog('departamentos');
       } else {
         await this.loadCatalog(tab);
         if (tab === 'carreras') await this.loadCatalog('departamentos');
-        if (tab === 'materias') await this.loadTeachers();
+        if (tab === 'materias') {
+          await this.loadCatalog('carreras');
+          await this.loadTeachers();
+        }
       }
     } catch (error: unknown) {
       this.actionNotice.set(this.errorMessage(error));
@@ -463,27 +573,34 @@ export class AdminPanel {
 
   private async loadCatalog(catalog: CatalogKey): Promise<void> {
     const datos = await firstValueFrom(
-      this.http.get<Record<string, string | number | null>[]>(
+      this.http.get<Record<string, unknown>[]>(
         API_URL + '/admin/catalogos/' + catalog, this.options())
     );
     const rows: CatalogRow[] = datos.map(item => {
       const row: CatalogRow = { id: String(item['id']) };
       for (const [key, value] of Object.entries(item)) {
-        if (key !== 'id') row[key] = value === null ? '' : String(value);
+        // Las listas (vínculos de una materia) se guardan aparte.
+        if (key !== 'id' && !Array.isArray(value)) row[key] = value === null || value === undefined ? '' : String(value);
       }
       return row;
     });
     this.catalogData.update(data => ({ ...data, [catalog]: rows }));
+    if (catalog === 'materias') {
+      this.materiaLinks.set(Object.fromEntries(datos.map(item => [
+        String(item['id']),
+        { plan: (item['plan'] ?? []) as MateriaLinks['plan'], imparten: (item['imparten'] ?? []) as MateriaLinks['imparten'] }
+      ])));
+    }
   }
 
   private async loadTeachers(): Promise<void> {
     const datos = await firstValueFrom(
-      this.http.get<{ id: number; codigo: string; nombre: string }[]>(
+      this.http.get<{ id: number; codigo: string; nombre: string; departamento: string }[]>(
         API_URL + '/admin/catalogos/docentes', this.options())
     );
     this.docentes.set(datos.map(docente => ({
       value: String(docente.id),
-      label: docente.nombre + ' (' + docente.codigo + ')'
+      label: docente.nombre + ' (' + docente.codigo + ') · ' + docente.departamento.replace(/^departamento de\s+/i, '')
     })));
   }
 

@@ -131,7 +131,8 @@
                buscador en grupos grandes y oculta las que darían 0 resultados. -->
           @for (grupo of facetGroups(); track grupo.key) {
             <details class="filter-group" [id]="'filtro-' + grupo.key"
-              [open]="grupo.key === 'area' || grupo.key === 'year' || grupo.selectedCount > 0 || grupo.expanded">
+              [class.filter-group-dependiente]="grupo.key === 'career'"
+              [open]="grupo.key === 'area' || grupo.key === 'year' || grupo.key === 'career' || grupo.selectedCount > 0 || grupo.expanded">
               <summary>
                 {{ grupo.title }}
                 @if (grupo.selectedCount > 0) {
@@ -165,6 +166,10 @@
                     <p class="filter-empty">Ninguna opción coincide.</p>
                   }
                 </div>
+
+                @if (grupo.hint) {
+                  <p class="filter-hint">{{ grupo.hint }}</p>
+                }
 
                 @if (grupo.canExpand) {
                   <button type="button" class="ver-mas" (click)="toggleGroupExpanded(grupo.key)"

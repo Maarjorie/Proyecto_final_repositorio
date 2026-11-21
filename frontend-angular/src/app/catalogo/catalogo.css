@@ -1295,6 +1295,22 @@ td select {
   font-size: 12px;
 }
 
+.filter-hint {
+  margin: 6px 0 0;
+  color: #526f88;
+  font-size: 12px;
+  font-style: italic;
+}
+
+/* Carrera depende del departamento: aparece debajo, con sangría y una línea
+   que la une a su grupo padre. */
+.filter-group-dependiente {
+  margin-left: 4px;
+  padding-left: 8px;
+  border-left: 3px solid #68c6dd;
+  animation: ues-aparecer 360ms var(--ues-ease) backwards;
+}
+
 /* Filtros activos sobre los resultados. */
 .active-filters {
   display: flex;

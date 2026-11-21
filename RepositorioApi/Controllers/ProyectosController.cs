@@ -248,14 +248,20 @@ public sealed class ProyectosController : ControllerBase
             .AnyAsync(item => item.IdCarrera == request.IdCarrera, cancellationToken);
         var tematicaExiste = await _db.TblTematicas
             .AnyAsync(item => item.IdTematica == request.IdTematica, cancellationToken);
+        // La asignatura tiene que estar en el plan de la carrera (fk_proyecto_carrera_materia).
         var materiaExiste = request.IdMateria is null ||
-            await _db.TblMateria.AnyAsync(
-                item => item.IdMateria == request.IdMateria,
+            await _db.TblCarreraMateria.AnyAsync(
+                item => item.IdMateria == request.IdMateria && item.IdCarrera == request.IdCarrera,
                 cancellationToken);
 
-        if (tipo is null || !carreraExiste || !tematicaExiste || !materiaExiste)
+        if (tipo is null || !carreraExiste || !tematicaExiste)
         {
-            return BadRequest(new { mensaje = "Selecciona un tipo, carrera, temática y asignatura válidos." });
+            return BadRequest(new { mensaje = "Selecciona un tipo, carrera y temática válidos." });
+        }
+
+        if (!materiaExiste)
+        {
+            return BadRequest(new { mensaje = "La asignatura elegida no pertenece al plan de la carrera seleccionada." });
         }
 
         var requierePdf = tipo.Nombre.Contains("tesis", StringComparison.OrdinalIgnoreCase) ||

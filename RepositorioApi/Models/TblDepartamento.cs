@@ -12,4 +12,6 @@ public partial class TblDepartamento
     public string? Descripcion { get; set; }
 
     public virtual ICollection<TblCarrera> TblCarreras { get; set; } = new List<TblCarrera>();
+
+    public virtual ICollection<TblDocente> TblDocentes { get; set; } = new List<TblDocente>();
 }

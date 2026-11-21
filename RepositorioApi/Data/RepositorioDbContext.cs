@@ -30,6 +30,8 @@ public partial class RepositorioDbContext : DbContext
 
     public virtual DbSet<TblMaterium> TblMateria { get; set; }
 
+    public virtual DbSet<TblCarreraMaterium> TblCarreraMateria { get; set; }
+
     public virtual DbSet<TblNotificacion> TblNotificacions { get; set; }
 
     public virtual DbSet<TblProyecto> TblProyectos { get; set; }
@@ -131,6 +133,12 @@ public partial class RepositorioDbContext : DbContext
                 .HasMaxLength(20)
                 .HasColumnName("codigo_docente");
             entity.Property(e => e.IdUsuario).HasColumnName("id_usuario");
+            entity.Property(e => e.IdDepartamento).HasColumnName("id_departamento");
+
+            entity.HasOne(d => d.IdDepartamentoNavigation).WithMany(p => p.TblDocentes)
+                .HasForeignKey(d => d.IdDepartamento)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_docente_departamento");
 
             entity.HasOne(d => d.IdUsuarioNavigation).WithOne(p => p.TblDocente)
                 .HasForeignKey<TblDocente>(d => d.IdUsuario)
@@ -256,15 +264,51 @@ public partial class RepositorioDbContext : DbContext
                 .HasMaxLength(20)
                 .HasColumnName("codigo");
             entity.Property(e => e.Descripcion).HasColumnName("descripcion");
-            entity.Property(e => e.IdDocente).HasColumnName("id_docente");
             entity.Property(e => e.Nombre)
                 .HasMaxLength(150)
                 .HasColumnName("nombre");
 
-            entity.HasOne(d => d.IdDocenteNavigation).WithMany(p => p.TblMateria)
-                .HasForeignKey(d => d.IdDocente)
+            // Docentes que imparten la materia (004_relaciones_materia.sql).
+            entity.HasMany(d => d.IdDocentes).WithMany(p => p.IdMateria)
+                .UsingEntity<Dictionary<string, object>>(
+                    "TblMateriaDocente",
+                    r => r.HasOne<TblDocente>().WithMany()
+                        .HasForeignKey("IdDocente")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_materia_docente_docente"),
+                    l => l.HasOne<TblMaterium>().WithMany()
+                        .HasForeignKey("IdMateria")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_materia_docente_materia"),
+                    j =>
+                    {
+                        j.HasKey("IdMateria", "IdDocente").HasName("pk_materia_docente");
+                        j.ToTable("tbl_materia_docente");
+                        j.IndexerProperty<int>("IdMateria").HasColumnName("id_materia");
+                        j.IndexerProperty<int>("IdDocente").HasColumnName("id_docente");
+                    });
+        });
+
+        // Plan de estudios: materia dentro de una carrera, con su ciclo.
+        modelBuilder.Entity<TblCarreraMaterium>(entity =>
+        {
+            entity.HasKey(e => new { e.IdCarrera, e.IdMateria }).HasName("pk_carrera_materia");
+
+            entity.ToTable("tbl_carrera_materia");
+
+            entity.Property(e => e.IdCarrera).HasColumnName("id_carrera");
+            entity.Property(e => e.IdMateria).HasColumnName("id_materia");
+            entity.Property(e => e.Ciclo).HasColumnName("ciclo");
+
+            entity.HasOne(d => d.IdCarreraNavigation).WithMany(p => p.TblCarreraMateria)
+                .HasForeignKey(d => d.IdCarrera)
                 .OnDelete(DeleteBehavior.Restrict)
-                .HasConstraintName("fk_materia_docente");
+                .HasConstraintName("fk_carrera_materia_carrera");
+
+            entity.HasOne(d => d.IdMateriaNavigation).WithMany(p => p.TblCarreraMateria)
+                .HasForeignKey(d => d.IdMateria)
+                .OnDelete(DeleteBehavior.Restrict)
+                .HasConstraintName("fk_carrera_materia_materia");
         });
 
         modelBuilder.Entity<TblNotificacion>(entity =>

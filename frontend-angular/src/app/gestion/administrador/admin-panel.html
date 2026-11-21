@@ -25,7 +25,7 @@
 
   <div class="flip-stage">
   @for (screen of [activeTab()]; track screen) {
-  <div class="screen-flip" [style.--flip-from]="flipFrom()">
+  <div class="screen-flip">
   <section class="dashboard-heading">
     <div>
       <h1>{{ pageTitle() }}</h1>
@@ -53,9 +53,9 @@
         </div>
       </div>
       <form class="catalog-form" (submit)="$event.preventDefault(); addCatalogRow()">
-        @for (field of catalog.fields; track field.key) {
+        @for (field of formFields(); track field.key) {
           <label>{{ field.label }}{{ field.required ? ' *' : '' }}
-            @if (field.optionsFrom) {
+            @if (field.optionsFrom || field.options) {
               <select [name]="field.key" [ngModel]="draft()[field.key] ?? ''" (ngModelChange)="setDraft(field.key, $event)">
                 <option value="">Selecciona…</option>
                 @for (option of optionsFor(field); track option.value) {
@@ -75,6 +75,9 @@
       }
       @if (catalog.tab === 'materias' && docentes().length === 0) {
         <p class="table-note">Aún no hay docentes. Regístralos en «Cuentas y accesos» para poder asignarles materias.</p>
+      }
+      @if (catalog.tab === 'materias') {
+        <p class="table-note">Se agrega con una carrera y un docente. Para sumarla a otras carreras o asignarle más docentes, usa «Carreras y docentes» en la tabla.</p>
       }
     </section>
 
@@ -97,20 +100,25 @@
         <table>
           <thead>
             <tr>
-              @for (field of catalog.fields; track field.key) { <th>{{ field.label }}</th> }
+              @for (field of tableFields(); track field.key) { <th>{{ field.label }}</th> }
               <th>Acción</th>
             </tr>
           </thead>
           <tbody>
             @for (row of filteredCatalogRows(); track row.id) {
               <tr>
-                @for (field of catalog.fields; track field.key) { <td [attr.data-label]="field.label">{{ row[field.key] || '—' }}</td> }
+                @for (field of tableFields(); track field.key) { <td [attr.data-label]="field.label">{{ row[field.key] || '—' }}</td> }
                 <td data-label="Acción">
-                  <button type="button" class="decision" (click)="requestDelete(catalog.tab, row.id)">Eliminar</button>
+                  <div class="row-actions">
+                    @if (catalog.tab === 'materias') {
+                      <button type="button" class="decision" (click)="openLinks(row.id)">Carreras y docentes</button>
+                    }
+                    <button type="button" class="decision" (click)="requestDelete(catalog.tab, row.id)">Eliminar</button>
+                  </div>
                 </td>
               </tr>
             } @empty {
-              <tr><td [attr.colspan]="catalog.fields.length + 1" class="empty-row">Aún no hay registros.</td></tr>
+              <tr><td [attr.colspan]="tableFields().length + 1" class="empty-row">Aún no hay registros.</td></tr>
             }
           </tbody>
         </table>
@@ -121,7 +129,7 @@
     <div class="panel-title">
       <div>
         <h2>Registrar docente</h2>
-        <p>Las cuentas se crean desde «Registrarse». Aquí marcas una cuenta como docente para poder asignarle materias.</p>
+        <p>Las cuentas se crean desde «Registrarse». Aquí marcas una cuenta como docente, con el departamento al que pertenece, para poder asignarle materias.</p>
       </div>
     </div>
     <form class="add-user-form" (submit)="$event.preventDefault(); registerTeacher()">
@@ -135,6 +143,14 @@
       </label>
       <label>Código docente
         <input name="docenteCode" autocomplete="off" maxlength="20" [ngModel]="docenteCode()" (ngModelChange)="docenteCode.set($event)" required />
+      </label>
+      <label>Departamento
+        <select name="docenteDepto" [ngModel]="docenteDepto()" (ngModelChange)="docenteDepto.set($event)" required>
+          <option value="">Selecciona…</option>
+          @for (depto of catalogData().departamentos; track depto.id) {
+            <option [value]="depto.id">{{ depto['nombre'] }}</option>
+          }
+        </select>
       </label>
       <button class="primary-button" type="submit" [disabled]="saving()">{{ saving() ? 'Guardando…' : 'Registrar docente' }}</button>
     </form>
@@ -243,6 +259,68 @@
           </article>
         }
       </div>
+    </div>
+  </div>
+}
+
+@if (managedMateria(); as materia) {
+  <div class="overlay" (click)="closeLinks()" (keydown.escape)="closeLinks()">
+    <div class="modal modal-links" role="dialog" aria-modal="true" aria-labelledby="links-title"
+      tabindex="-1" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <h2 id="links-title">{{ materia.nombre }} <small>({{ materia.codigo }})</small></h2>
+        <button type="button" class="close-button" aria-label="Cerrar" (click)="closeLinks()">×</button>
+      </div>
+      <p class="modal-intro">Debe quedar al menos en una carrera y con al menos un docente.</p>
+      @if (linkNotice()) {
+        <p class="link-notice" role="status">{{ linkNotice() }}</p>
+      }
+
+      <h3 class="links-subtitle">Carreras (plan de estudios)</h3>
+      <ul class="link-list">
+        @for (item of materia.plan; track item.idCarrera) {
+          <li>
+            <span>{{ item.carrera }} <small>· Ciclo {{ romano(item.ciclo) }}</small></span>
+            <button type="button" class="decision" [disabled]="saving() || materia.plan.length === 1"
+              (click)="removeLink('carrera', item.idCarrera)">Quitar</button>
+          </li>
+        }
+      </ul>
+      <form class="link-form" (submit)="$event.preventDefault(); addLink('carrera')">
+        <select name="linkCarrera" aria-label="Carrera" [ngModel]="linkCarrera()" (ngModelChange)="linkCarrera.set($event)">
+          <option value="">Agregar a otra carrera…</option>
+          @for (carrera of materia.carrerasLibres; track carrera.id) {
+            <option [value]="carrera.id">{{ carrera['nombre'] }}</option>
+          }
+        </select>
+        <select name="linkCiclo" aria-label="Ciclo" [ngModel]="linkCiclo()" (ngModelChange)="linkCiclo.set($event)">
+          <option value="">Ciclo…</option>
+          @for (ciclo of cicloOptions; track ciclo.value) {
+            <option [value]="ciclo.value">{{ ciclo.label }}</option>
+          }
+        </select>
+        <button type="submit" class="primary-button" [disabled]="saving()">Agregar</button>
+      </form>
+
+      <h3 class="links-subtitle">Docentes que la imparten</h3>
+      <ul class="link-list">
+        @for (item of materia.imparten; track item.idDocente) {
+          <li>
+            <span>{{ item.nombre }}</span>
+            <button type="button" class="decision" [disabled]="saving() || materia.imparten.length === 1"
+              (click)="removeLink('docente', item.idDocente)">Quitar</button>
+          </li>
+        }
+      </ul>
+      <form class="link-form" (submit)="$event.preventDefault(); addLink('docente')">
+        <select name="linkDocente" aria-label="Docente" [ngModel]="linkDocente()" (ngModelChange)="linkDocente.set($event)">
+          <option value="">Agregar otro docente…</option>
+          @for (docente of materia.docentesLibres; track docente.value) {
+            <option [value]="docente.value">{{ docente.label }}</option>
+          }
+        </select>
+        <button type="submit" class="primary-button" [disabled]="saving()">Agregar</button>
+      </form>
     </div>
   </div>
 }

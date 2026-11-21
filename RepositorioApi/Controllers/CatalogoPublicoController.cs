@@ -31,6 +31,7 @@ public sealed class CatalogoPublicoController : ControllerBase
                                proyecto.EstadoAutorizacion == "autorizado")
             .Include(proyecto => proyecto.IdTipoProyectoNavigation)
             .Include(proyecto => proyecto.IdCarreraNavigation)
+                .ThenInclude(carrera => carrera.IdDepartamentoNavigation)
             .Include(proyecto => proyecto.IdTematicaNavigation)
             .Include(proyecto => proyecto.IdMateriaNavigation)
             .Include(proyecto => proyecto.IdEtiqueta)
@@ -76,6 +77,7 @@ public sealed class CatalogoPublicoController : ControllerBase
                     .ToList(),
                 anio = proyecto.Anio,
                 carrera = proyecto.IdCarreraNavigation.Nombre,
+                departamento = proyecto.IdCarreraNavigation.IdDepartamentoNavigation.Nombre,
                 tematica = proyecto.IdTematicaNavigation.Nombre,
                 tipoTrabajo = proyecto.IdTipoProyectoNavigation.Nombre,
                 materia = proyecto.IdMateriaNavigation?.Nombre,

@@ -51,7 +51,19 @@ interface DocenteCatalogo {
   codigo: string;
   nombres: string;
   apellidos: string;
+  idDepartamento: number;
+  departamento: string;
 }
+
+/** Materia del plan de la carrera elegida (GET /api/catalogos/materias?carreraId=). */
+interface MateriaCatalogo {
+  id: number;
+  codigo: string;
+  nombre: string;
+  ciclo: number;
+}
+
+const ROMANOS = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
 
 type DepartamentoCatalogo = OpcionCatalogo;
 
@@ -94,7 +106,9 @@ export class EnvioProyectoComponent implements OnInit {
   carreras: CarreraCatalogo[] = [];
   tiposProyecto: OpcionCatalogo[] = [];
   tematicas: OpcionCatalogo[] = [];
-  materias: OpcionCatalogo[] = [];
+  /** Solo las materias del plan de la carrera elegida. */
+  materias: MateriaCatalogo[] = [];
+  cargandoMaterias = false;
   docentes: DocenteCatalogo[] = [];
 
   /** RF-16: ids de los docentes asesores elegidos ('' = sin elegir). Hasta 3. */
@@ -121,6 +135,61 @@ export class EnvioProyectoComponent implements OnInit {
   docentesDisponibles(indice: number): DocenteCatalogo[] {
     const elegidos = this.asesores.filter((id, i) => i !== indice && id);
     return this.docentes.filter(docente => !elegidos.includes(String(docente.id)));
+  }
+
+  /**
+   * Con un departamento elegido, primero se ofrecen sus docentes y después
+   * los de otros departamentos (un asesor puede ser de otro departamento).
+   */
+  gruposDeAsesores(indice: number): { titulo: string; docentes: DocenteCatalogo[] }[] {
+    const disponibles = this.docentesDisponibles(indice);
+    const idDepartamento = Number(this.departamentoSeleccionado);
+    if (!idDepartamento) {
+      return [{ titulo: '', docentes: disponibles }];
+    }
+    const propios = disponibles.filter(docente => docente.idDepartamento === idDepartamento);
+    const otros = disponibles.filter(docente => docente.idDepartamento !== idDepartamento);
+    const nombre = this.departamentos.find(item => item.id === idDepartamento)?.nombre ?? 'este departamento';
+    return [
+      { titulo: nombre, docentes: propios },
+      { titulo: 'Otros departamentos', docentes: otros }
+    ].filter(grupo => grupo.docentes.length > 0);
+  }
+
+  /** Materias de la carrera agrupadas por ciclo del plan. */
+  get materiasPorCiclo(): { titulo: string; materias: MateriaCatalogo[] }[] {
+    const ciclos = [...new Set(this.materias.map(materia => materia.ciclo))].sort((a, b) => a - b);
+    return ciclos.map(ciclo => ({
+      titulo: 'Ciclo ' + (ROMANOS[ciclo] ?? ciclo),
+      materias: this.materias.filter(materia => materia.ciclo === ciclo)
+    }));
+  }
+
+  /** Pide a la API las materias del plan de la carrera. */
+  private cargarMaterias(idCarrera: number): void {
+    this.materias = [];
+    if (!idCarrera) {
+      return;
+    }
+    this.cargandoMaterias = true;
+    this.http
+      .get<MateriaCatalogo[]>(API_URL + '/catalogos/materias', { params: { carreraId: idCarrera } })
+      .subscribe({
+        next: datos => {
+          this.cargandoMaterias = false;
+          this.materias = datos;
+          // Si la asignatura elegida no es de esta carrera, se deja sin elegir.
+          if (!datos.some(materia => String(materia.id) === this.materiaSeleccionada)) {
+            this.materiaSeleccionada = '';
+          }
+          this.cdr.markForCheck();
+        },
+        error: () => {
+          this.cargandoMaterias = false;
+          this.materias = [];
+          this.cdr.markForCheck();
+        }
+      });
   }
 
   departamentoSeleccionado = '';
@@ -251,6 +320,7 @@ export class EnvioProyectoComponent implements OnInit {
           this.carreraSeleccionada = String(datos.idCarrera);
           this.tematicaSeleccionada = String(datos.idTematica);
           this.materiaSeleccionada = datos.idMateria ? String(datos.idMateria) : '';
+          this.cargarMaterias(datos.idCarrera);
           this.autores = datos.autores.length > 0
             ? datos.autores.map(autor => ({
                 nombres: autor.nombres,
@@ -358,12 +428,17 @@ export class EnvioProyectoComponent implements OnInit {
     this.departamentoSeleccionado =
       (event.target as HTMLSelectElement).value;
     this.carreraSeleccionada = '';
+    this.materiaSeleccionada = '';
+    this.materias = [];
     this.limpiarMensajes();
   }
 
   actualizarCarrera(event: Event): void {
     this.carreraSeleccionada =
       (event.target as HTMLSelectElement).value;
+    // La asignatura depende de la carrera: se vuelve a elegir.
+    this.materiaSeleccionada = '';
+    this.cargarMaterias(Number(this.carreraSeleccionada));
     this.limpiarMensajes();
   }
 
