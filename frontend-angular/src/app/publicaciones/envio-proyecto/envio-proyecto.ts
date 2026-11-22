@@ -190,13 +190,23 @@ export class EnvioProyectoComponent implements OnInit {
     ].filter(grupo => grupo.docentes.length > 0);
   }
 
-  /** Materias de la carrera agrupadas por ciclo del plan. */
-  get materiasPorCiclo(): { titulo: string; materias: MateriaCatalogo[] }[] {
-    const ciclos = [...new Set(this.materias.map(materia => materia.ciclo))].sort((a, b) => a - b);
-    return ciclos.map(ciclo => ({
-      titulo: 'Ciclo ' + (ROMANOS[ciclo] ?? ciclo),
-      materias: this.materias.filter(materia => materia.ciclo === ciclo)
-    }));
+  /** Asignaturas para el selector con buscador, agrupadas por ciclo. */
+  private cacheMaterias: { origen: MateriaCatalogo[]; opciones: OpcionBuscable[] } | null = null;
+  get opcionesMaterias(): OpcionBuscable[] {
+    if (this.cacheMaterias?.origen !== this.materias) {
+      this.cacheMaterias = {
+        origen: this.materias,
+        opciones: [...this.materias]
+          .sort((a, b) => a.ciclo - b.ciclo || a.nombre.localeCompare(b.nombre, 'es'))
+          .map(materia => ({
+            value: String(materia.id),
+            label: materia.nombre,
+            detalle: materia.codigo,
+            grupo: 'Ciclo ' + (ROMANOS[materia.ciclo] ?? materia.ciclo)
+          }))
+      };
+    }
+    return this.cacheMaterias.opciones;
   }
 
   /** Pide a la API las materias del plan de la carrera. */

@@ -226,23 +226,16 @@
 
       <div class="campo" [hidden]="!esProyectoCurso">
         <label for="materia">Asignatura (opcional)</label>
-        <select id="materia" name="materia" (change)="actualizarCampo('materiaSeleccionada', $event)"
-          [disabled]="!carreraSeleccionada || materias.length === 0">
-          <option value="" [selected]="!materiaSeleccionada">
-            {{ !carreraSeleccionada ? 'Primero selecciona la carrera'
-              : cargandoMaterias ? 'Cargando asignaturas…'
-              : materias.length ? 'Sin asignatura'
-              : 'Sin asignaturas registradas' }}
-          </option>
-          <!-- Solo las asignaturas del plan de la carrera, por ciclo. -->
-          @for (grupo of materiasPorCiclo; track grupo.titulo) {
-            <optgroup [label]="grupo.titulo">
-              @for (materia of grupo.materias; track materia.id) {
-                <option [value]="materia.id" [selected]="materia.id === +materiaSeleccionada">{{ materia.nombre }} ({{ materia.codigo }})</option>
-              }
-            </optgroup>
-          }
-        </select>
+        <app-selector-buscable
+          inputId="materia"
+          [opciones]="opcionesMaterias"
+          [(valor)]="materiaSeleccionada"
+          [deshabilitado]="!carreraSeleccionada || materias.length === 0"
+          [placeholder]="!carreraSeleccionada ? 'Primero selecciona la carrera'
+            : cargandoMaterias ? 'Cargando asignaturas…'
+            : materias.length ? 'Buscar asignatura'
+            : 'Sin asignaturas registradas'"
+        />
       </div>
 
       <!-- RF-16: docentes que asesoraron el trabajo. Su nombre se muestra en
