@@ -348,9 +348,22 @@
             ← Anterior
           </button>
 
-          <span class="page-status">
-            Página {{ currentPage() }} de {{ pageCount() }} · hasta 10 trabajos
-          </span>
+          @for (numero of pageNumbers(); track $index) {
+            @if (numero === 0) {
+              <span class="page-gap" aria-hidden="true">…</span>
+            } @else {
+              <button
+                type="button"
+                class="page-number"
+                [class.current]="numero === currentPage()"
+                [attr.aria-current]="numero === currentPage() ? 'page' : null"
+                [attr.aria-label]="'Página ' + numero"
+                (click)="goToPage(numero)"
+              >
+                {{ numero }}
+              </button>
+            }
+          }
 
           <button
             type="button"

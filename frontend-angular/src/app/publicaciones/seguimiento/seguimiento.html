@@ -38,7 +38,9 @@
         <p class="etiqueta">TUS ENVÍOS</p>
         <h2>Proyectos enviados</h2>
       </div>
-      <span class="contador">{{ proyectos.length }} {{ proyectos.length === 1 ? 'proyecto' : 'proyectos' }}</span>
+      @if (!cargando) {
+        <span class="contador">{{ proyectos.length }} {{ proyectos.length === 1 ? 'proyecto' : 'proyectos' }}</span>
+      }
     </div>
 
     @if (mensajeExito) {
@@ -79,6 +81,38 @@
                 <strong>Observación del supervisor</strong>
                 <p>{{ proyecto.observacion }}</p>
               </div>
+            }
+
+            @if (versionesAnteriores(proyecto); as anteriores) {
+              @if (anteriores.length > 0) {
+                <div class="historial-versiones">
+                  <button type="button" class="boton-historial"
+                    [attr.aria-expanded]="historialAbierto === proyecto.idProyecto"
+                    (click)="alternarHistorial(proyecto.idProyecto)">
+                    {{ historialAbierto === proyecto.idProyecto ? 'Ocultar versiones anteriores' : 'Versiones anteriores (' + anteriores.length + ')' }}
+                  </button>
+                  @if (historialAbierto === proyecto.idProyecto) {
+                    <ol class="lista-versiones">
+                      @for (anterior of anteriores; track anterior.id) {
+                        <li>
+                          <div class="version-linea">
+                            <strong>Versión {{ anterior.version }}</strong>
+                            <span class="estado estado-mini"
+                              [class.pendiente]="anterior.estado === 'Pendiente'"
+                              [class.correcciones]="anterior.estado === 'Con correcciones'"
+                              [class.aprobada]="anterior.estado === 'Aprobada'"
+                              [class.rechazada]="anterior.estado === 'Rechazada'">{{ textoEstado(anterior.estado) }}</span>
+                            <span>{{ fechaLocal(anterior.fechaEnvio) | date:'dd/MM/yyyy' }}</span>
+                          </div>
+                          @if (anterior.observacion) {
+                            <p>{{ anterior.observacion }}</p>
+                          }
+                        </li>
+                      }
+                    </ol>
+                  }
+                </div>
+              }
             }
 
             @if (confirmandoEliminarId === proyecto.id && !detalle) {

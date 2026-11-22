@@ -16,3 +16,6 @@ node_modules/
 
 # Adjuntos de proyectos cargados en desarrollo
 /RepositorioApi/App_Data/entregas/
+
+# Scripts y respaldos de la base: los comparte el equipo, no van en el repositorio.
+/RepositorioApi/Database/

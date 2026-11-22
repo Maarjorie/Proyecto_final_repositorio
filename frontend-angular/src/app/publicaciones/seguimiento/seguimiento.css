@@ -782,3 +782,56 @@ button:focus-visible {
     flex: 1 1 140px;
   }
 }
+
+/* Versiones anteriores de un proyecto, dentro de su tarjeta. */
+.historial-versiones {
+  margin-top: 14px;
+}
+
+.boton-historial {
+  padding: 0;
+  border: 0;
+  color: #1c4a6b;
+  background: none;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 800;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.lista-versiones {
+  display: grid;
+  gap: 10px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lista-versiones li {
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  border-radius: 14px;
+  background: rgba(248, 252, 255, 0.5);
+}
+
+.lista-versiones p {
+  margin: 8px 0 0;
+  color: #34506a;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.version-linea {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  color: #183a5d;
+  font-size: 0.88rem;
+}
+
+.estado.estado-mini {
+  padding: 4px 9px;
+  font-size: 0.72rem;
+}

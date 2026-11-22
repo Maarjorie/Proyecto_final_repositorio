@@ -16,6 +16,8 @@ export type EstadoSolicitud =
 
 export interface ProyectoEnSeguimiento {
   id: number;
+  idProyecto: number;
+  esUltimaVersion: boolean;
   titulo: string;
   tipoTrabajo: string;
   fechaEnvio: string;
@@ -87,7 +89,11 @@ export class SeguimientoComponent implements OnInit {
   // La app es zoneless: tras cada respuesta HTTP hay que pedir que se repinte.
   private readonly cdr = inject(ChangeDetectorRef);
 
+  /** Una tarjeta por proyecto: su versión más reciente. */
   proyectos: ProyectoEnSeguimiento[] = [];
+  /** Todas las versiones enviadas (las anteriores van en el historial de cada tarjeta). */
+  private envios: ProyectoEnSeguimiento[] = [];
+  historialAbierto: number | null = null;
   cargando = true;
   mensajeError = '';
   mensajeExito = '';
@@ -119,6 +125,22 @@ export class SeguimientoComponent implements OnInit {
     return nombre.length === 0
       ? nombre
       : nombre.charAt(0).toLocaleUpperCase('es-SV') + nombre.slice(1);
+  }
+
+  private aplicarEnvios(datos: ProyectoEnSeguimiento[]): void {
+    this.envios = datos;
+    this.proyectos = datos.filter(envio => envio.esUltimaVersion);
+  }
+
+  /** Versiones anteriores del mismo proyecto, de la más reciente a la más antigua. */
+  versionesAnteriores(proyecto: ProyectoEnSeguimiento): ProyectoEnSeguimiento[] {
+    return this.envios
+      .filter(envio => envio.idProyecto === proyecto.idProyecto && envio.id !== proyecto.id)
+      .sort((a, b) => b.version - a.version);
+  }
+
+  alternarHistorial(idProyecto: number): void {
+    this.historialAbierto = this.historialAbierto === idProyecto ? null : idProyecto;
   }
 
   textoEstado(estado: EstadoSolicitud): string {
@@ -223,8 +245,9 @@ export class SeguimientoComponent implements OnInit {
       })
       .subscribe({
         next: respuesta => {
-          this.proyectos = this.proyectos.filter(proyecto => proyecto.id !== id);
           this.mensajeExito = respuesta.mensaje;
+          // Si era una versión nueva, la anterior vuelve a ser la vigente: se recarga la lista.
+          this.cargarProyectos();
           this.eliminandoId = null;
           this.confirmandoEliminarId = null;
           if (this.detalle?.id === id) {
@@ -267,7 +290,7 @@ export class SeguimientoComponent implements OnInit {
       })
       .subscribe({
         next: datos => {
-          this.proyectos = datos;
+          this.aplicarEnvios(datos);
           this.cargando = false;
           this.cdr.markForCheck();
         },

@@ -111,6 +111,8 @@ export class Catalogo implements OnInit {
   readonly facetLimit = 6;
   /** A partir de cuántas opciones el grupo muestra su propio buscador. */
   readonly facetSearchFrom = 8;
+  /** Grupos con pocas opciones (ocho años, cuatro tipos, ocho departamentos). */
+  readonly shortGroups: FilterGroup[] = ['year', 'type', 'department'];
   readonly expandedGroups = signal<FilterGroup[]>([]);
   readonly groupQueries = signal<Partial<Record<FilterGroup, string>>>({});
 
@@ -144,8 +146,12 @@ export class Catalogo implements OnInit {
         const termino = normalizar((busquedas[grupo.key] ?? '').trim());
         const coincidentes = termino ? disponibles.filter((option) => normalizar(option.label).includes(termino)) : disponibles;
         const expandido = expandidos.includes(grupo.key) || termino.length > 0;
+        // Año, tipo y departamento son pocos: se muestran completos y sin buscador.
+        const corto = this.shortGroups.includes(grupo.key);
         // Las marcadas nunca se esconden detrás de "Ver todas".
-        const limite = Math.max(this.facetLimit, coincidentes.filter((option) => option.selected).length);
+        const limite = corto
+          ? coincidentes.length
+          : Math.max(this.facetLimit, coincidentes.filter((option) => option.selected).length);
         const visibles = expandido ? coincidentes : coincidentes.slice(0, limite);
 
         return {
@@ -154,7 +160,7 @@ export class Catalogo implements OnInit {
           selection: grupo.selection,
           total: disponibles.length,
           selectedCount: seleccion.length,
-          searchable: disponibles.length >= this.facetSearchFrom,
+          searchable: !corto && disponibles.length >= this.facetSearchFrom,
           query: busquedas[grupo.key] ?? '',
           expanded: expandido,
           canExpand: !termino && coincidentes.length > limite,
@@ -571,9 +577,22 @@ export class Catalogo implements OnInit {
   }
 
   movePage(direction: number): void {
-    this.page.set(Math.min(this.pageCount(), Math.max(1, this.currentPage() + direction)));
+    this.goToPage(this.currentPage() + direction);
+  }
+
+  goToPage(pagina: number): void {
+    this.page.set(Math.min(this.pageCount(), Math.max(1, pagina)));
     document.getElementById('catalogo')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
+
+  /** Números de página: la primera, la última y las vecinas de la actual (0 = "…"). */
+  readonly pageNumbers = computed(() => {
+    const total = this.pageCount(), actual = this.currentPage();
+    const paginas = [...new Set([1, actual - 1, actual, actual + 1, total])]
+      .filter((p) => p >= 1 && p <= total)
+      .sort((a, b) => a - b);
+    return paginas.flatMap((p, i) => (i > 0 && p - paginas[i - 1] > 1 ? [0, p] : [p]));
+  });
 
   permissionAllowsResource(work: Work, resourceId: number): boolean {
     return work.permission === 'Ficha y materiales autorizados' && work.approvedResourceIds.includes(resourceId);
