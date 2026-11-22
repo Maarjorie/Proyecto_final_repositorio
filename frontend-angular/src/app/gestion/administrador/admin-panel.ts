@@ -66,7 +66,7 @@ interface MateriaLinks {
   imparten: { idDocente: number; nombre: string }[];
 }
 
-const ROMANOS = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+const ROMANOS = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV'];
 const CICLOS: { value: string; label: string }[] =
   ROMANOS.slice(1).map((romano, i) => ({ value: String(i + 1), label: 'Ciclo ' + romano }));
 

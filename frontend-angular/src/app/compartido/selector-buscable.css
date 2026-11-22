@@ -146,12 +146,22 @@ li.elegida::after {
 }
 
 .grupo {
-  padding: 10px 12px 4px;
-  color: #5d7790;
+  position: sticky;
+  top: -6px;
+  z-index: 1;
+  margin: 6px 0 2px;
+  padding: 7px 12px;
+  border-radius: 8px;
+  color: #fff;
+  background: linear-gradient(145deg, #2f6f93, #1c4a6b);
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.grupo:first-child {
+  margin-top: 0;
 }
 
 .aviso {

@@ -30,6 +30,8 @@ interface RespuestaEnvio {
 interface SolicitudACorregir {
   id: number;
   puedeReenviar: boolean;
+  /** RF-08: la versión publicada vigente se puede actualizar. */
+  puedeActualizar: boolean;
   version: number;
   titulo: string;
   resumen: string;
@@ -64,7 +66,7 @@ interface MateriaCatalogo {
   ciclo: number;
 }
 
-const ROMANOS = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
+const ROMANOS = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV'];
 
 type DepartamentoCatalogo = OpcionCatalogo;
 
@@ -255,6 +257,9 @@ export class EnvioProyectoComponent implements OnInit {
   errorCorreccion = '';
   conservarRecursos: number[] = [];
 
+  /** RF-08: se actualiza un trabajo publicado en lugar de corregir una entrega observada. */
+  actualizando = false;
+
   get corrigiendo(): boolean {
     return this.correccion !== null;
   }
@@ -322,7 +327,11 @@ export class EnvioProyectoComponent implements OnInit {
     );
 
     const corregir = Number(this.route.snapshot.queryParamMap.get('corregir'));
-    if (corregir > 0) {
+    const actualizar = Number(this.route.snapshot.queryParamMap.get('actualizar'));
+    if (actualizar > 0) {
+      this.actualizando = true;
+      this.cargarCorreccion(actualizar);
+    } else if (corregir > 0) {
       this.cargarCorreccion(corregir);
     }
   }
@@ -348,9 +357,10 @@ export class EnvioProyectoComponent implements OnInit {
       .subscribe({
         next: datos => {
           this.cargandoCorreccion = false;
-          if (!datos.puedeReenviar) {
-            this.errorCorreccion =
-              'Esta solicitud no admite correcciones: el supervisor no las pidió o ya existe una versión más reciente.';
+          if (this.actualizando ? !datos.puedeActualizar : !datos.puedeReenviar) {
+            this.errorCorreccion = this.actualizando
+              ? 'Este trabajo no se puede actualizar: no está publicado o ya tiene una versión más reciente.'
+              : 'Esta solicitud no admite correcciones: el supervisor no las pidió o ya existe una versión más reciente.';
             this.cdr.markForCheck();
             return;
           }
@@ -655,8 +665,9 @@ export class EnvioProyectoComponent implements OnInit {
     this.limpiarMensajes();
 
     // RF-20: la corrección se registra como otra entrega del mismo proyecto.
+    // RF-08: la actualización de un trabajo publicado también es otra entrega.
     const url = this.correccion
-      ? API_URL + '/proyectos/mis-proyectos/' + this.correccion.id + '/reenvio'
+      ? API_URL + '/proyectos/mis-proyectos/' + this.correccion.id + (this.actualizando ? '/actualizacion' : '/reenvio')
       : API_URL + '/proyectos';
 
     try {

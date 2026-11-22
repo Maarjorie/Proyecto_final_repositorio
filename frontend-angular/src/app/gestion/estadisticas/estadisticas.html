@@ -1,0 +1,109 @@
+<header class="site-header">
+  <a class="brand" routerLink="/catalogo" aria-label="UES Repositorio Digital, inicio">
+    <img src="/ues-escudo.png" alt="Escudo de la Universidad de El Salvador">
+    <span>
+      <strong>UES | Repositorio Digital</strong>
+      <small>Universidad de El Salvador</small>
+    </span>
+  </a>
+
+  <nav class="main-nav" aria-label="Navegación principal">
+    <a routerLink="/catalogo" routerLinkActive="activo" [routerLinkActiveOptions]="{ exact: true }">Catálogo</a>
+    <a routerLink="/notificaciones" routerLinkActive="activo">Notificaciones</a>
+    <a routerLink="/revision-supervisor" routerLinkActive="activo">Revisión supervisor</a>
+    <a routerLink="/estadisticas" routerLinkActive="activo">Estadísticas</a>
+    <app-sesion-usuario />
+  </nav>
+</header>
+
+<main class="pagina-seguimiento pagina-revision">
+  <p class="breadcrumb">Repositorio / Gestión / Estadísticas</p>
+
+  <section class="intro">
+    <p class="etiqueta">PANEL DE SUPERVISIÓN</p>
+    <h1>Estadísticas</h1>
+  </section>
+
+  @if (mensajeError) {
+    <p class="mensaje-error" role="alert">{{ mensajeError }}</p>
+  }
+
+  <!-- RF-12: proyectos registrados por año y área. Cada proyecto cuenta una vez. -->
+  <section class="seccion-proyectos" aria-label="Proyectos por año y área">
+    <div class="encabezado-seccion">
+      <div>
+        <p class="etiqueta">PRODUCCIÓN</p>
+        <h2>Proyectos por año y área</h2>
+      </div>
+      <span class="contador">{{ vista.total }} {{ vista.total === 1 ? 'proyecto' : 'proyectos' }}</span>
+    </div>
+
+    @if (cargando && !estadisticas) {
+      <div class="estado-vacio" role="status">Cargando...</div>
+    } @else if (estadisticas) {
+      @if (estadisticas.anios.length === 0) {
+        <div class="estado-vacio"><h3>Aún no hay proyectos registrados</h3></div>
+      } @else {
+        <div class="filtros-conteo">
+          <label class="filtro-conteo">
+            <span>Año</span>
+            <select [value]="filtroAnio" (change)="elegirAnio($event)">
+              <option value="">Todos</option>
+              @for (anio of estadisticas.anios; track anio) {
+                <option [value]="anio" [selected]="filtroAnio === '' + anio">{{ anio }}</option>
+              }
+            </select>
+          </label>
+          <div class="filtro-conteo filtro-area">
+            <span>Área</span>
+            <app-selector-buscable
+              etiqueta="Área"
+              [opciones]="opcionesAreas"
+              [(valor)]="filtroArea"
+              placeholder="Todas"
+            />
+          </div>
+          @if (filtroAnio || filtroArea) {
+            <button type="button" class="boton-limpiar-conteo" (click)="limpiarFiltros()">Limpiar</button>
+          }
+        </div>
+
+        @if (vista.filas.length === 0) {
+          <div class="estado-vacio"><h3>Sin proyectos en {{ filtroAnio }}</h3></div>
+        } @else {
+          <div class="tabla-desplazable">
+            <table class="tabla-conteo">
+              <thead>
+                <tr>
+                  <th scope="col">Área</th>
+                  @for (anio of vista.anios; track anio) { <th scope="col">{{ anio }}</th> }
+                  @if (vista.anios.length > 1) { <th scope="col">Total</th> }
+                </tr>
+              </thead>
+              <tbody>
+                @for (fila of vista.filas; track fila.id) {
+                  <tr>
+                    <th scope="row">{{ formatearArea(fila.nombre) }}</th>
+                    @for (valor of fila.valores; track $index) {
+                      <td [class.cero]="valor === 0">{{ valor }}</td>
+                    }
+                    @if (vista.anios.length > 1) { <td class="total">{{ fila.total }}</td> }
+                  </tr>
+                }
+              </tbody>
+              @if (vista.filas.length > 1) {
+                <tfoot>
+                  <tr>
+                    <th scope="row">Total</th>
+                    @for (valor of vista.totales; track $index) { <td>{{ valor }}</td> }
+                    @if (vista.anios.length > 1) { <td class="total">{{ vista.total }}</td> }
+                  </tr>
+                </tfoot>
+              }
+            </table>
+          </div>
+        }
+      }
+    }
+  </section>
+</main>

@@ -630,10 +630,16 @@ main {
 }
 
 .summary {
+  display: -webkit-box;
   margin: 14px 0;
+  overflow: hidden;
   color: #173b50;
   font-size: 13px;
   line-height: 1.55;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
 }
 
 .keywords-row {
@@ -761,6 +767,7 @@ main {
 .work-dialog > p {
   color: var(--muted);
   line-height: 1.6;
+  overflow-wrap: anywhere;
 }
 
 .dialog-details {

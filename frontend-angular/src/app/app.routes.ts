@@ -7,6 +7,7 @@ import { EnvioProyectoComponent } from './publicaciones/envio-proyecto/envio-pro
 import { NotificacionesComponent } from './publicaciones/notificacions/notificaciones';
 import { SeguimientoComponent } from './publicaciones/seguimiento/seguimiento';
 import { AdminPanel } from './gestion/administrador/admin-panel';
+import { EstadisticasComponent } from './gestion/estadisticas/estadisticas';
 
 export const routes: Routes = [
   { path: 'iniciar-sesion', component: AuthComponent, data: { mode: 'login' } },
@@ -25,6 +26,8 @@ export const routes: Routes = [
   { path: 'mis-proyectos', component: SeguimientoComponent, canActivate: [requireSolicitante] },
   { path: 'notificaciones', component: NotificacionesComponent, canActivate: [requireSession] },
   { path: 'revision-supervisor', component: RevisionSupervisorComponent, canActivate: [requireSupervisor] },
+  // RF-12: conteo de proyectos por año y área.
+  { path: 'estadisticas', component: EstadisticasComponent, canActivate: [requireSupervisor] },
   { path: '', pathMatch: 'full', redirectTo: 'catalogo' },
   { path: '**', redirectTo: 'catalogo' }
 ];

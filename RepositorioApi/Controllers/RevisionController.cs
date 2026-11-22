@@ -6,6 +6,8 @@ using Microsoft.EntityFrameworkCore;
 using RepositorioApi.Data;
 using RepositorioApi.Models;
 
+using RepositorioApi.Services;
+
 namespace RepositorioApi.Controllers;
 
 /// <summary>
@@ -67,38 +69,55 @@ public sealed class RevisionController : ControllerBase
             .Select(entrega => new { entrega.IdProyecto, entrega.IdEntrega, entrega.FechaEnvio })
             .ToListAsync(cancellationToken);
 
-        return Ok(entregas.Select(entrega => new
+        var resultado = new List<object>();
+        foreach (var entrega in entregas)
         {
-            id = entrega.IdEntrega,
-            idProyecto = entrega.IdProyecto,
-            titulo = entrega.IdProyectoNavigation.Titulo,
-            tipoTrabajo = entrega.IdProyectoNavigation.IdTipoProyectoNavigation.Nombre,
-            anio = entrega.IdProyectoNavigation.Anio,
-            departamento = entrega.IdProyectoNavigation.IdCarreraNavigation.IdDepartamentoNavigation.Nombre,
-            carrera = entrega.IdProyectoNavigation.IdCarreraNavigation.Nombre,
-            tematica = entrega.IdProyectoNavigation.IdTematicaNavigation.Nombre,
-            resumen = entrega.IdProyectoNavigation.Resumen,
-            palabrasClave = entrega.IdProyectoNavigation.IdEtiqueta
-                .Select(etiqueta => etiqueta.Nombre)
-                .OrderBy(nombre => nombre)
-                .ToList(),
-            fechaEnvio = entrega.FechaEnvio,
-            version = entregasPorProyecto.Count(item =>
-                item.IdProyecto == entrega.IdProyecto && item.FechaEnvio <= entrega.FechaEnvio),
-            solicitante = entrega.IdUsuarioEnviaNavigation.Nombres + " " +
-                          entrega.IdUsuarioEnviaNavigation.Apellidos,
-            autores = entrega.IdProyectoNavigation.TblProyectoAutors
-                .OrderBy(relacion => relacion.OrdenAutoria)
-                .Select(relacion =>
-                    relacion.IdAutorNavigation.Nombres + " " +
-                    relacion.IdAutorNavigation.Apellidos)
-                .ToList(),
-            asesores = MapearAsesores(entrega.IdProyectoNavigation),
-            recursos = entrega.TblRecursos
-                .OrderBy(recurso => recurso.IdRecurso)
-                .Select(recurso => MapearRecurso(recurso))
-                .ToList()
-        }));
+            var proyecto = entrega.IdProyectoNavigation;
+            // RF-08: una actualización se revisa con los datos propuestos.
+            var propuesta = DatosProyecto.Leer(entrega.DatosPropuestos);
+            var vista = propuesta is null ? null : await propuesta.DescribirAsync(_db, cancellationToken);
+
+            resultado.Add(new
+            {
+                id = entrega.IdEntrega,
+                idProyecto = entrega.IdProyecto,
+                esActualizacion = propuesta is not null,
+                titulo = propuesta?.Titulo ?? proyecto.Titulo,
+                tipoTrabajo = vista?.TipoTrabajo ?? proyecto.IdTipoProyectoNavigation.Nombre,
+                anio = propuesta?.Anio ?? proyecto.Anio,
+                departamento = vista?.Departamento ?? proyecto.IdCarreraNavigation.IdDepartamentoNavigation.Nombre,
+                carrera = vista?.Carrera ?? proyecto.IdCarreraNavigation.Nombre,
+                tematica = vista?.Tematica ?? proyecto.IdTematicaNavigation.Nombre,
+                resumen = propuesta?.Resumen ?? proyecto.Resumen,
+                palabrasClave = propuesta?.PalabrasClave.OrderBy(nombre => nombre).ToList()
+                    ?? proyecto.IdEtiqueta.Select(etiqueta => etiqueta.Nombre).OrderBy(nombre => nombre).ToList(),
+                fechaEnvio = entrega.FechaEnvio,
+                version = entregasPorProyecto.Count(item =>
+                    item.IdProyecto == entrega.IdProyecto && item.FechaEnvio <= entrega.FechaEnvio),
+                solicitante = entrega.IdUsuarioEnviaNavigation.Nombres + " " +
+                              entrega.IdUsuarioEnviaNavigation.Apellidos,
+                autores = propuesta?.Autores.Select(autor => autor.Nombres.Trim() + " " + autor.Apellidos.Trim()).ToList()
+                    ?? proyecto.TblProyectoAutors
+                        .OrderBy(relacion => relacion.OrdenAutoria)
+                        .Select(relacion => relacion.IdAutorNavigation.Nombres + " " + relacion.IdAutorNavigation.Apellidos)
+                        .ToList(),
+                // Los asesores que siguen en la actualización muestran su permiso actual.
+                asesores = vista is null
+                    ? MapearAsesores(proyecto)
+                    : vista.Asesores.Select(asesor => new
+                    {
+                        idDocente = asesor.IdDocente,
+                        nombre = asesor.Nombre,
+                        autorizado = proyecto.TblProyectoDocentes.Any(item => item.IdDocente == asesor.IdDocente && item.NombreAutorizado)
+                    }).ToList(),
+                recursos = entrega.TblRecursos
+                    .OrderBy(recurso => recurso.IdRecurso)
+                    .Select(recurso => MapearRecurso(recurso))
+                    .ToList()
+            });
+        }
+
+        return Ok(resultado);
     }
 
     /// <summary>
@@ -196,8 +215,21 @@ public sealed class RevisionController : ControllerBase
             detalle += " " + observacion;
         }
 
+        var propuesta = DatosProyecto.Leer(entrega.DatosPropuestos);
+        var autoresAnteriores = new List<int>();
+
         if (decision == "aprobada")
         {
+            // RF-08: la actualización de un trabajo publicado reemplaza a la
+            // versión visible solo si se aprueba con permiso de difusión.
+            if (propuesta is not null && permiso is not (PermisoSoloFicha or PermisoFichaYMateriales))
+            {
+                return BadRequest(new
+                {
+                    mensaje = "Esta entrega actualiza un trabajo publicado: para aprobarla registra el permiso de difusión (solo la ficha o ficha y materiales)."
+                });
+            }
+
             // Aprobar una nueva versión es una nueva decisión: puede volver a
             // publicarse aunque una versión anterior se hubiera retirado.
             if (proyecto.EstadoPublicacion == "retirado")
@@ -209,6 +241,12 @@ public sealed class RevisionController : ControllerBase
             if (error is not null)
             {
                 return BadRequest(new { mensaje = error });
+            }
+
+            if (propuesta is not null)
+            {
+                autoresAnteriores = await propuesta.AplicarAsync(_db, proyecto, reemplazar: true, cancellationToken);
+                await _db.SaveChangesAsync(cancellationToken);
             }
 
             await AplicarPermisoAsesoresAsync(proyecto.IdProyecto, request.AsesoresAutorizados, cancellationToken);
@@ -234,6 +272,7 @@ public sealed class RevisionController : ControllerBase
         });
 
         await _db.SaveChangesAsync(cancellationToken);
+        await DatosProyecto.LimpiarAutoresAsync(_db, autoresAnteriores, cancellationToken);
 
         return Ok(new
         {
@@ -248,6 +287,43 @@ public sealed class RevisionController : ControllerBase
     /// Proyectos con una entrega aprobada: su permiso, su estado de publicación,
     /// si son destacados y el motivo del retiro (RF-07, RF-09, RF-10, RF-12).
     /// </summary>
+    /// <summary>
+    /// RF-12: cuántos proyectos se registraron por año y área temática. Cada
+    /// proyecto cuenta una vez: un reenvío o una actualización no suma. Las
+    /// combinaciones sin proyectos valen cero.
+    /// </summary>
+    [HttpGet("estadisticas")]
+    public async Task<IActionResult> ObtenerEstadisticas(CancellationToken cancellationToken)
+    {
+        var conteos = await _db.TblProyectos
+            .AsNoTracking()
+            .GroupBy(proyecto => new { proyecto.Anio, proyecto.IdTematica })
+            .Select(grupo => new { grupo.Key.Anio, grupo.Key.IdTematica, Total = grupo.Count() })
+            .ToListAsync(cancellationToken);
+        var areas = await _db.TblTematicas
+            .AsNoTracking()
+            .OrderBy(tematica => tematica.Nombre)
+            .Select(tematica => new { tematica.IdTematica, tematica.Nombre })
+            .ToListAsync(cancellationToken);
+        var anios = conteos.Select(item => item.Anio).Distinct().OrderByDescending(anio => anio).ToList();
+
+        return Ok(new
+        {
+            anios,
+            total = conteos.Sum(item => item.Total),
+            totalesPorAnio = anios.Select(anio => conteos.Where(item => item.Anio == anio).Sum(item => item.Total)).ToList(),
+            areas = areas.Select(area => new
+            {
+                id = area.IdTematica,
+                nombre = area.Nombre,
+                porAnio = anios
+                    .Select(anio => conteos.Where(item => item.Anio == anio && item.IdTematica == area.IdTematica).Sum(item => item.Total))
+                    .ToList(),
+                total = conteos.Where(item => item.IdTematica == area.IdTematica).Sum(item => item.Total)
+            })
+        });
+    }
+
     [HttpGet("publicaciones")]
     public async Task<IActionResult> ObtenerPublicaciones(CancellationToken cancellationToken)
     {

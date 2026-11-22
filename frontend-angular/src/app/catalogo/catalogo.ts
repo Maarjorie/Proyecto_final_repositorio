@@ -1,5 +1,6 @@
 import { SesionUsuarioComponent } from '../auth/sesion-usuario';
-import { esCuentaDeGestion, usuarioTieneRol } from '../auth/auth.guard';
+import { esCuentaDeGestion, sesionActiva, usuarioTieneRol } from '../auth/auth.guard';
+import { AUTH_TOKEN_KEY } from '../auth/auth.constants';
 import { Component, computed, effect, input, model, OnInit, output, signal, untracked, WritableSignal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink, RouterLinkActive } from '@angular/router';
@@ -10,7 +11,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 const API_URL = 'https://localhost:7244/api';
 
 /** Grupos de filtros del catálogo. */
-type FilterGroup = 'area' | 'year' | 'type' | 'department' | 'career' | 'subject';
+type FilterGroup = 'area' | 'year' | 'type' | 'department' | 'career' | 'subject' | 'author';
 
 /** Pasa a minúsculas y quita tildes: "Informática" y "informatica" coinciden. */
 function normalizar(texto: string): string {
@@ -74,13 +75,18 @@ export class Catalogo implements OnInit {
   readonly selectedDepartments = signal<string[]>([]);
   readonly selectedCareers = signal<string[]>([]);
   readonly selectedSubjects = signal<string[]>([]);
+  /** RF-03: filtro por autor (además de buscarlo en la barra). */
+  readonly selectedAuthors = signal<string[]>([]);
   readonly sortOrder = signal('recent');
   readonly page = signal(1);
   readonly pageSize = 10;
-  readonly favoriteIds = signal<number[]>(this.readFavorites());
+  /** RF-14: los favoritos son de la cuenta y se guardan en la base. */
+  readonly conSesion = sesionActiva();
+  readonly favoriteIds = signal<number[]>([]);
   readonly favoritesOnly = signal(false);
   readonly selectedWork = signal<Work | null>(null);
 
+  readonly authors = computed(() => [...new Set(this.publicWorks().flatMap((work) => work.authors))].sort((a, b) => a.localeCompare(b, 'es')));
   readonly years = computed(() => [...new Set(this.publicWorks().map((work) => work.year))].sort((a, b) => b - a));
   readonly types = computed(() => [...new Set(this.publicWorks().map((work) => work.type))].sort((a, b) => a.localeCompare(b, 'es')));
   readonly departments = computed(() => [...new Set(this.publicWorks().map((work) => work.department ?? '').filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es')));
@@ -115,9 +121,10 @@ export class Catalogo implements OnInit {
       { key: 'type', title: 'Tipo de trabajo', values: this.types(), selection: this.selectedTypes as WritableSignal<(string | number)[]> },
       { key: 'department', title: 'Departamento', values: this.departments(), selection: this.selectedDepartments as WritableSignal<(string | number)[]> },
       { key: 'career', title: 'Carrera', values: this.careers(), selection: this.selectedCareers as WritableSignal<(string | number)[]> },
-      { key: 'subject', title: 'Asignatura', values: this.subjects(), selection: this.selectedSubjects as WritableSignal<(string | number)[]> }
+      { key: 'subject', title: 'Asignatura', values: this.subjects(), selection: this.selectedSubjects as WritableSignal<(string | number)[]> },
+      // RF-03: con muchos autores el grupo muestra los más frecuentes y su buscador.
+      { key: 'author', title: 'Autor', values: this.authors(), selection: this.selectedAuthors as WritableSignal<(string | number)[]> }
     ];
-    // Los autores no van en los filtros: se buscan desde la barra de búsqueda.
     const expandidos = this.expandedGroups();
     const busquedas = this.groupQueries();
 
@@ -253,7 +260,8 @@ export class Catalogo implements OnInit {
       type: contar('type', (work) => [work.type]),
       department: contar('department', (work) => (work.department ? [work.department] : [])),
       career: contar('career', (work) => [work.career]),
-      subject: contar('subject', (work) => (work.subject ? [work.subject] : []))
+      subject: contar('subject', (work) => (work.subject ? [work.subject] : [])),
+      author: contar('author', (work) => work.authors)
     };
   });
 
@@ -274,6 +282,7 @@ export class Catalogo implements OnInit {
     add(this.selectedDepartments, 'Departamento');
     add(this.selectedCareers, 'Carrera');
     add(this.selectedSubjects, 'Asignatura');
+    add(this.selectedAuthors, 'Autor');
     if (this.favoritesOnly()) {
       chips.push({ label: 'Solo favoritos', remove: () => { this.favoritesOnly.set(false); this.page.set(1); } });
     }
@@ -305,6 +314,7 @@ export class Catalogo implements OnInit {
       pasa('department', this.selectedDepartments(), work.department ?? '') &&
       pasa('career', this.selectedCareers(), work.career) &&
       pasa('subject', this.selectedSubjects(), work.subject) &&
+      pasa('author', this.selectedAuthors(), work.authors) &&
       (!this.favoritesOnly() || this.favoriteIds().includes(work.id))
     );
   }
@@ -318,6 +328,8 @@ export class Catalogo implements OnInit {
       next: (tematicas) => this.areas.set(tematicas.map((tematica) => this.capitalizar(tematica.nombre))),
       error: () => this.areas.set([])
     });
+
+    this.cargarFavoritos();
 
     this.http.get<FichaApi[]>(API_URL + '/catalogo').subscribe({
       next: (fichas) => {
@@ -426,7 +438,8 @@ export class Catalogo implements OnInit {
     this.selectedDepartments.set(params.getAll('departamento'));
     this.selectedCareers.set(params.getAll('carrera'));
     this.selectedSubjects.set(params.getAll('materia'));
-    this.favoritesOnly.set(params.get('favoritos') === '1');
+    this.selectedAuthors.set(params.getAll('autor'));
+    this.favoritesOnly.set(this.conSesion && params.get('favoritos') === '1');
     const pagina = Number(params.get('pagina'));
     this.page.set(Number.isInteger(pagina) && pagina > 0 ? pagina : 1);
   }
@@ -442,6 +455,7 @@ export class Catalogo implements OnInit {
     this.selectedDepartments().forEach((value) => params.append('departamento', value));
     this.selectedCareers().forEach((value) => params.append('carrera', value));
     this.selectedSubjects().forEach((value) => params.append('materia', value));
+    this.selectedAuthors().forEach((value) => params.append('autor', value));
     if (this.favoritesOnly()) params.set('favoritos', '1');
     if (this.sortOrder() !== 'recent') params.set('orden', this.sortOrder());
     if (this.page() > 1) params.set('pagina', String(this.page()));
@@ -457,21 +471,33 @@ export class Catalogo implements OnInit {
     }
   }
 
-  private readFavorites(): number[] {
+  private authHeaders(): { Authorization: string } {
+    let token = '';
     try {
-      const saved = globalThis.localStorage?.getItem('ues-repository-demo-favorites');
-      return saved ? JSON.parse(saved) as number[] : [];
+      token = globalThis.sessionStorage?.getItem(AUTH_TOKEN_KEY) ?? '';
     } catch {
-      return [];
+      token = '';
     }
+    return { Authorization: 'Bearer ' + token };
   }
 
-  private persistFavorites(): void {
-    try {
-      globalThis.localStorage?.setItem('ues-repository-demo-favorites', JSON.stringify(this.favoriteIds()));
-    } catch {
-      this.actionNotice.set('El navegador no permitió guardar los favoritos de demostración.');
+  /** RF-14: favoritos de la cuenta (solo trabajos publicados). */
+  private cargarFavoritos(): void {
+    if (!this.conSesion) return;
+    this.http.get<number[]>(API_URL + '/favoritos', { headers: this.authHeaders() }).subscribe({
+      next: (ids) => this.favoriteIds.set(ids),
+      error: () => this.favoriteIds.set([])
+    });
+  }
+
+  /** "Ver mis favoritos" solo tiene sentido con una cuenta. */
+  toggleFavoritesOnly(): void {
+    if (!this.conSesion) {
+      this.actionNotice.set('Inicia sesión para guardar y ver tus favoritos.');
+      return;
     }
+    this.favoritesOnly.set(!this.favoritesOnly());
+    this.page.set(1);
   }
 
   isSelected<T extends string | number>(selection: WritableSignal<T[]>, value: T): boolean {
@@ -492,6 +518,7 @@ export class Catalogo implements OnInit {
     this.selectedCareers.set([]);
     this.selectedSubjects.set([]);
     this.selectedDepartments.set([]);
+    this.selectedAuthors.set([]);
     this.groupQueries.set({});
     this.expandedGroups.set([]);
     this.favoritesOnly.set(false);
@@ -502,9 +529,24 @@ export class Catalogo implements OnInit {
   readonly hasActiveFilters = computed(() => this.activeFilters().length > 0);
 
   toggleFavorite(id: number): void {
-    const current = this.favoriteIds();
-    this.favoriteIds.set(current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
-    this.persistFavorites();
+    if (!this.conSesion) {
+      this.actionNotice.set('Inicia sesión para guardar y ver tus favoritos.');
+      return;
+    }
+    const anterior = this.favoriteIds();
+    const guardado = anterior.includes(id);
+    // Se marca al instante y se deshace si la API no lo guarda.
+    this.favoriteIds.set(guardado ? anterior.filter((item) => item !== id) : [...anterior, id]);
+    const url = API_URL + '/favoritos/' + id;
+    const peticion = guardado
+      ? this.http.delete(url, { headers: this.authHeaders() })
+      : this.http.put(url, null, { headers: this.authHeaders() });
+    peticion.subscribe({
+      error: () => {
+        this.favoriteIds.set(anterior);
+        this.actionNotice.set('No se pudo actualizar tus favoritos. Inténtalo de nuevo.');
+      }
+    });
   }
 
   openWork(work: Work): void {

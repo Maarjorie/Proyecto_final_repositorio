@@ -375,9 +375,9 @@ public sealed class AdminController : ControllerBase
                 {
                     return BadRequest(new { mensaje = "Selecciona la carrera a la que pertenece la materia." });
                 }
-                if (request.Ciclo is null or < 1 or > 12)
+                if (request.Ciclo is null or < 1 or > 14)
                 {
-                    return BadRequest(new { mensaje = "Indica el ciclo de la materia en esa carrera (1 a 12)." });
+                    return BadRequest(new { mensaje = "Indica el ciclo de la materia en esa carrera (1 a 14)." });
                 }
                 var docente = request.IdDocente is null
                     ? null
@@ -386,9 +386,9 @@ public sealed class AdminController : ControllerBase
                 {
                     return BadRequest(new { mensaje = "Selecciona el docente que imparte la materia." });
                 }
-                if (await _db.TblMateria.AnyAsync(item => item.Codigo == codigo, cancellationToken))
+                if (await _db.TblMateria.AnyAsync(item => item.Codigo == codigo && item.Nombre == nombre, cancellationToken))
                 {
-                    return Conflict(new { mensaje = "Ya existe una materia con ese código. Para usarla en otra carrera, agrégala desde «Carreras y docentes»." });
+                    return Conflict(new { mensaje = "Esa materia ya existe. Para usarla en otra carrera, agrégala desde «Carreras y docentes»." });
                 }
                 var materia = new TblMaterium
                 {
@@ -488,9 +488,9 @@ public sealed class AdminController : ControllerBase
         [FromBody] PlanRequest request,
         CancellationToken cancellationToken)
     {
-        if (request.Ciclo is < 1 or > 12)
+        if (request.Ciclo is < 1 or > 14)
         {
-            return BadRequest(new { mensaje = "El ciclo debe estar entre 1 y 12." });
+            return BadRequest(new { mensaje = "El ciclo debe estar entre 1 y 14." });
         }
         if (!await _db.TblMateria.AnyAsync(item => item.IdMateria == idMateria, cancellationToken) ||
             !await _db.TblCarreras.AnyAsync(item => item.IdCarrera == request.IdCarrera, cancellationToken))

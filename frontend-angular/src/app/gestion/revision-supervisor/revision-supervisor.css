@@ -5,30 +5,33 @@
 }
 
 /* Pestañas */
+/* Misma barra que la del panel del administrador: ocupa todo el ancho. */
 .pestanas {
-  display: inline-flex;
+  display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 22px;
-  padding: 6px;
+  gap: 8px;
+  margin-bottom: 26px;
+  padding: 8px;
   border: 1px solid rgba(255, 255, 255, 0.85);
-  border-radius: 18px;
-  background: linear-gradient(145deg, rgba(235, 249, 252, 0.94), rgba(182, 223, 231, 0.86));
+  border-radius: 20px;
+  background: linear-gradient(120deg, rgba(248, 253, 255, 0.95), rgba(196, 230, 238, 0.92));
   box-shadow: 0 10px 24px rgba(5, 27, 54, 0.22), inset 0 1px 4px #fff;
 }
 
 .pestana {
+  flex: 1 1 auto;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  min-height: 42px;
-  padding: 10px 16px;
+  min-height: 44px;
+  padding: 13px 16px;
   border: 1px solid transparent;
-  border-radius: 13px;
+  border-radius: 16px;
   background: transparent;
-  color: #294967;
+  color: #183653;
   font: inherit;
-  font-size: 0.9rem;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   transition: background 160ms ease, transform 160ms ease;
@@ -325,4 +328,230 @@ fieldset.bloque-revision > legend {
 /* RF-16: casillas de los asesores, separadas visualmente de los materiales. */
 .asesores-autorizados {
   background: rgba(190, 232, 205, 0.32);
+}
+
+/* Aprobadas y publicaciones: buscador, filtros y tarjetas compactas. */
+.barra-publicaciones {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 18px;
+  background: linear-gradient(120deg, rgba(248, 253, 255, 0.95), rgba(196, 230, 238, 0.92));
+  box-shadow: 0 10px 24px rgba(5, 27, 54, 0.22);
+}
+
+.buscar-publicacion {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 16px;
+  border: 1px solid #fff;
+  border-radius: 14px;
+  color: #183a5d;
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.9), rgba(222, 246, 250, 0.9));
+  font: inherit;
+}
+
+.filtros-publicacion {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.filtro-publicacion {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 6px 14px;
+  border: 1px solid rgba(24, 58, 93, 0.12);
+  border-radius: 999px;
+  color: #183653;
+  background: rgba(255, 255, 255, 0.7);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.filtro-publicacion.activa {
+  border-color: transparent;
+  color: #fff;
+  background: linear-gradient(145deg, #263a46, #0d1c26);
+}
+
+.filtro-publicacion.activa .insignia {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.lista-publicaciones {
+  gap: 12px;
+}
+
+.tarjeta-publicacion {
+  padding: 18px 22px;
+}
+
+.tarjeta-publicacion .proyecto-cabecera h3 {
+  margin-bottom: 4px;
+}
+
+.fila-resumen {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.fila-resumen .dato-secundario {
+  margin: 0;
+}
+
+.boton-gestionar {
+  flex: 0 0 auto;
+}
+
+.tarjeta-publicacion.abierta {
+  box-shadow: 0 0 0 3px rgba(104, 198, 221, 0.55), 0 16px 32px rgba(5, 24, 38, 0.3);
+}
+
+.paginacion-publicaciones {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 16px;
+  color: #eaf6fb;
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .fila-resumen {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* Filtro por fecha de aprobación, a la izquierda de la lista. */
+.disposicion-publicaciones {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  align-items: start;
+  gap: 18px;
+}
+
+.disposicion-publicaciones.sin-panel {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.columna-publicaciones {
+  min-width: 0;
+}
+
+.panel-fechas {
+  position: sticky;
+  top: 16px;
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 18px;
+  color: #183653;
+  background: linear-gradient(160deg, rgba(248, 253, 255, 0.96), rgba(196, 230, 238, 0.93));
+  box-shadow: 0 10px 24px rgba(5, 27, 54, 0.22);
+}
+
+.panel-fechas h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.modos-fecha {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.modo-fecha {
+  min-height: 36px;
+  border: 1px solid rgba(24, 58, 93, 0.12);
+  border-radius: 12px;
+  color: #183653;
+  background: rgba(255, 255, 255, 0.75);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.modo-fecha.activa {
+  border-color: transparent;
+  color: #fff;
+  background: linear-gradient(145deg, #263a46, #0d1c26);
+}
+
+.campo-fecha {
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.campo-fecha input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #fff;
+  border-radius: 12px;
+  color: #183a5d;
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.9), rgba(222, 246, 250, 0.9));
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.acciones-fecha {
+  display: grid;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(24, 58, 93, 0.12);
+}
+
+.boton-hoy {
+  min-height: 44px;
+  border: 0;
+  border-radius: 12px;
+  color: #fff;
+  background: linear-gradient(145deg, #2f6f93, #1c4a6b);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.boton-hoy.activa {
+  background: linear-gradient(145deg, #263a46, #0d1c26);
+  box-shadow: 0 0 0 3px rgba(104, 198, 221, 0.55);
+}
+
+.boton-quitar-fecha {
+  min-height: 38px;
+  border: 1px solid rgba(24, 58, 93, 0.15);
+  border-radius: 12px;
+  color: #183653;
+  background: rgba(255, 255, 255, 0.75);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@media (max-width: 900px) {
+  .disposicion-publicaciones {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .panel-fechas {
+    position: static;
+  }
 }

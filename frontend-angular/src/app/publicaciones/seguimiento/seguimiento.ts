@@ -24,6 +24,9 @@ export interface ProyectoEnSeguimiento {
   estado: EstadoSolicitud;
   puedeEliminar: boolean;
   puedeReenviar: boolean;
+  /** RF-08: versión publicada vigente que se puede actualizar. */
+  puedeActualizar: boolean;
+  esActualizacion: boolean;
   observacion: string | null;
 }
 
@@ -63,6 +66,8 @@ export interface DetalleSolicitud {
   estado: EstadoSolicitud;
   puedeEliminar: boolean;
   puedeReenviar: boolean;
+  puedeActualizar: boolean;
+  esActualizacion: boolean;
   autores: AutorDetalle[];
   palabrasClave: string[];
   asesores: { idDocente: number; nombre: string; autorizado: boolean }[];

@@ -11,6 +11,7 @@
     <a routerLink="/catalogo" routerLinkActive="activo" [routerLinkActiveOptions]="{ exact: true }">Catálogo</a>
     <a routerLink="/notificaciones" routerLinkActive="activo">Notificaciones</a>
     <a routerLink="/revision-supervisor" routerLinkActive="activo">Revisión supervisor</a>
+    <a routerLink="/estadisticas" routerLinkActive="activo">Estadísticas</a>
     <app-sesion-usuario />
   </nav>
 </header>
@@ -73,7 +74,7 @@
               <div class="datos-proyecto">
                 <span>Solicitante: <strong>{{ entrega.solicitante }}</strong></span>
                 <span>Recibido: <strong>{{ fechaLocal(entrega.fechaEnvio) | date:'dd/MM/yyyy, h:mm a' }}</strong></span>
-                <span>Versión: <strong>{{ entrega.version }}</strong></span>
+                <span>Versión: <strong>{{ entrega.version }}</strong>{{ entrega.esActualizacion ? ' · actualización de un trabajo publicado' : '' }}</span>
               </div>
 
               <dl class="ficha-revision">
@@ -136,7 +137,7 @@
                 }
                 @if (entrega.asesores.length > 0) {
                   <div class="materiales-autorizados asesores-autorizados">
-                    <span class="dato-secundario">Docentes asesores: marca los que autorizaron mostrar su nombre en la ficha (RF-16).</span>
+                    <span class="dato-secundario">Mostrar en la ficha:</span>
                     @for (asesor of entrega.asesores; track asesor.idDocente) {
                       <label class="opcion-material">
                         <input type="checkbox"
@@ -196,9 +197,68 @@
       @if (cargandoPublicaciones && !publicacionesCargadas) {
         <div class="estado-vacio" role="status">Cargando publicaciones...</div>
       } @else {
-        <div class="lista-revision">
-          @for (publicacion of publicaciones; track publicacion.idProyecto) {
-            <article class="tarjeta-proyecto tarjeta-revision">
+        <div class="disposicion-publicaciones" [class.sin-panel]="publicaciones.length === 0">
+        @if (publicaciones.length > 0) {
+          <aside class="panel-fechas" aria-label="Filtrar por fecha de aprobación">
+            <h3>Fecha de aprobación</h3>
+            <div class="modos-fecha" role="group" aria-label="Tipo de fecha">
+              @for (modo of modosFecha; track modo.valor) {
+                <button type="button" class="modo-fecha" [class.activa]="modoFecha === modo.valor"
+                  [attr.aria-pressed]="modoFecha === modo.valor" (click)="elegirModoFecha(modo.valor)">
+                  {{ modo.texto }}
+                </button>
+              }
+            </div>
+
+            @if (modoFecha === 'dia') {
+              <label class="campo-fecha">
+                Día
+                <input type="date" [value]="fechaDia" [max]="hoy" (change)="cambiarFecha('fechaDia', $event)">
+              </label>
+            } @else if (modoFecha === 'semana') {
+              <label class="campo-fecha">
+                Semana
+                <input type="week" [value]="fechaSemana" (change)="cambiarFecha('fechaSemana', $event)">
+              </label>
+            } @else if (modoFecha === 'rango') {
+              <label class="campo-fecha">
+                Desde
+                <input type="date" [value]="fechaDesde" [max]="fechaHasta || hoy" (change)="cambiarFecha('fechaDesde', $event)">
+              </label>
+              <label class="campo-fecha">
+                Hasta
+                <input type="date" [value]="fechaHasta" [min]="fechaDesde" [max]="hoy" (change)="cambiarFecha('fechaHasta', $event)">
+              </label>
+            }
+
+            <div class="acciones-fecha">
+              <button type="button" class="boton-hoy" [class.activa]="modoFecha === 'dia' && fechaDia === hoy"
+                (click)="filtrarHoy()">Hoy</button>
+              @if (modoFecha !== 'todas') {
+                <button type="button" class="boton-quitar-fecha" (click)="quitarFiltroFecha()">Quitar fecha</button>
+              }
+            </div>
+          </aside>
+        }
+        <div class="columna-publicaciones">
+        @if (publicaciones.length > 0) {
+          <div class="barra-publicaciones">
+            <input type="search" class="buscar-publicacion" placeholder="Buscar por título, autor o carrera"
+              aria-label="Buscar publicaciones" [value]="busquedaPublicacion" (input)="buscarPublicacion($event)">
+            <div class="filtros-publicacion" role="group" aria-label="Filtrar por estado">
+              @for (filtro of filtrosPublicacion; track filtro.valor) {
+                <button type="button" class="filtro-publicacion" [class.activa]="filtroPublicacion === filtro.valor"
+                  [attr.aria-pressed]="filtroPublicacion === filtro.valor" (click)="elegirFiltroPublicacion(filtro.valor)">
+                  {{ filtro.texto }} <span class="insignia">{{ cuentaFiltro(filtro.valor) }}</span>
+                </button>
+              }
+            </div>
+          </div>
+        }
+        <div class="lista-revision lista-publicaciones">
+          @for (publicacion of publicacionesPagina; track publicacion.idProyecto) {
+            <article class="tarjeta-proyecto tarjeta-revision tarjeta-publicacion"
+              [class.abierta]="abiertaId === publicacion.idProyecto">
               <div class="proyecto-cabecera">
                 <div>
                   <span class="tipo-trabajo">{{ formatearNombre(publicacion.tipoTrabajo) }} · {{ publicacion.anio }}</span>
@@ -224,9 +284,17 @@
                 }
                 <span>Permiso: <strong>{{ textoPermiso(publicacion.permiso) }}</strong></span>
               </div>
-              <p class="dato-secundario">{{ publicacion.autores.join(', ') }} · {{ publicacion.carrera }}</p>
+              <div class="fila-resumen">
+                <p class="dato-secundario">{{ publicacion.autores.join(', ') }} · {{ publicacion.carrera }}</p>
+                <button type="button" class="boton-secundario boton-gestionar"
+                  [attr.aria-expanded]="abiertaId === publicacion.idProyecto"
+                  (click)="alternarAbierta(publicacion.idProyecto)">
+                  {{ abiertaId === publicacion.idProyecto ? 'Cerrar' : 'Gestionar' }}
+                </button>
+              </div>
 
-              @if (publicacion.estadoPublicacion === 'retirado') {
+              @if (abiertaId !== publicacion.idProyecto) {
+              } @else if (publicacion.estadoPublicacion === 'retirado') {
                 <div class="observacion">
                   <strong>Motivo del retiro</strong>
                   @if (publicacion.fechaRetiro) {
@@ -267,7 +335,7 @@
                   }
                   @if (publicacion.asesores.length > 0) {
                     <div class="materiales-autorizados asesores-autorizados">
-                      <span class="dato-secundario">Docentes asesores que autorizaron mostrar su nombre (RF-16):</span>
+                      <span class="dato-secundario">Mostrar en la ficha:</span>
                       @for (asesor of publicacion.asesores; track asesor.idDocente) {
                         <label class="opcion-material">
                           <input type="checkbox"
@@ -325,9 +393,21 @@
             </article>
           } @empty {
             <div class="estado-vacio">
-              <h3>Aún no hay entregas aprobadas</h3>
+              <h3>{{ publicaciones.length ? 'Sin resultados' : 'Aún no hay entregas aprobadas' }}</h3>
             </div>
           }
+        </div>
+
+        @if (totalPaginasPublicaciones > 1) {
+          <nav class="paginacion-publicaciones" aria-label="Páginas de publicaciones">
+            <button type="button" class="boton-secundario" [disabled]="paginaPublicaciones <= 1"
+              (click)="irAPaginaPublicaciones(paginaPublicaciones - 1)">← Anterior</button>
+            <span>Página {{ paginaPublicaciones }} de {{ totalPaginasPublicaciones }}</span>
+            <button type="button" class="boton-secundario" [disabled]="paginaPublicaciones >= totalPaginasPublicaciones"
+              (click)="irAPaginaPublicaciones(paginaPublicaciones + 1)">Siguiente →</button>
+          </nav>
+        }
+        </div>
         </div>
       }
     </section>

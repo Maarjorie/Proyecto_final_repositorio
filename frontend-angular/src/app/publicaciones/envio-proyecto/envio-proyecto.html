@@ -22,6 +22,7 @@
     }
     @if (esSupervisor) {
       <a routerLink="/revision-supervisor" routerLinkActive="activo">Revisión supervisor</a>
+      <a routerLink="/estadisticas" routerLinkActive="activo">Estadísticas</a>
     }
     <app-sesion-usuario />
   </nav>
@@ -29,15 +30,15 @@
 
 <main class="pagina-publicacion" id="subir-proyecto">
   <section class="encabezado-pagina">
-    <p class="miga">Repositorio / {{ corrigiendo ? 'Enviar corrección' : 'Solicitar publicación' }}</p>
+    <p class="miga">Repositorio / {{ actualizando ? 'Actualizar trabajo' : corrigiendo ? 'Enviar corrección' : 'Solicitar publicación' }}</p>
     <p class="etiqueta">REPOSITORIO ACADÉMICO · UNIVERSIDAD DE EL SALVADOR</p>
-    <h1>{{ corrigiendo ? 'Enviar versión corregida' : 'Solicitar publicación de proyecto' }}</h1>
+    <h1>{{ actualizando ? 'Actualizar trabajo publicado' : corrigiendo ? 'Enviar versión corregida' : 'Solicitar publicación de proyecto' }}</h1>
   </section>
 
   <section class="tarjeta-publicacion">
     <div class="encabezado-formulario">
       <div>
-        <p class="etiqueta">{{ corrigiendo ? 'REENVÍO DE CORRECCIONES' : 'FORMULARIO DE ENVÍO' }}</p>
+        <p class="etiqueta">{{ actualizando ? 'ACTUALIZACIÓN' : corrigiendo ? 'REENVÍO DE CORRECCIONES' : 'FORMULARIO DE ENVÍO' }}</p>
         <h2>Datos del proyecto</h2>
       </div>
       <span class="paso">
@@ -50,7 +51,7 @@
     </div>
 
     @if (cargandoCorreccion) {
-      <p class="aviso-correccion" role="status">Cargando la solicitud a corregir...</p>
+      <p class="aviso-correccion" role="status">Cargando...</p>
     }
     @if (errorCorreccion) {
       <p class="mensaje-error" role="alert">
@@ -60,9 +61,14 @@
     }
     @if (correccion) {
       <aside class="aviso-correccion">
-        <strong>Corrigiendo la versión {{ correccion.version }}</strong>
-        @for (observacion of correccion.observaciones; track $index) {
-          <p>{{ observacion.mensaje }}</p>
+        @if (actualizando) {
+          <strong>Actualizando la versión publicada ({{ correccion.version }})</strong>
+          <p>El catálogo sigue mostrando la versión publicada hasta que el supervisor apruebe esta.</p>
+        } @else {
+          <strong>Corrigiendo la versión {{ correccion.version }}</strong>
+          @for (observacion of correccion.observaciones; track $index) {
+            <p>{{ observacion.mensaje }}</p>
+          }
         }
       </aside>
     }
@@ -373,7 +379,9 @@
       }
 
       <button class="boton-enviar" type="submit" [disabled]="enviando || solicitudEnviada">
-        @if (corrigiendo) {
+        @if (actualizando) {
+          {{ enviando ? 'Enviando actualización...' : solicitudEnviada ? 'Actualización enviada' : 'Enviar actualización' }}
+        } @else if (corrigiendo) {
           {{ enviando ? 'Enviando corrección...' : solicitudEnviada ? 'Corrección enviada' : 'Enviar versión corregida' }}
         } @else {
           {{ enviando ? 'Enviando solicitud...' : solicitudEnviada ? 'Solicitud enviada' : 'Enviar solicitud para revisión' }}

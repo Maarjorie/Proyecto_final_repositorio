@@ -23,6 +23,7 @@
       }
       @if (esSupervisor) {
         <a class="nav-link" routerLink="/revision-supervisor" routerLinkActive="active">Revisión supervisor</a>
+        <a class="nav-link" routerLink="/estadisticas" routerLinkActive="active">Estadísticas</a>
       }
       <app-sesion-usuario />
     </nav>
@@ -186,7 +187,7 @@
             class="secondary-button favorite-filter"
             [class.is-favorite]="favoritesOnly()"
             [attr.aria-pressed]="favoritesOnly()"
-            (click)="favoritesOnly.set(!favoritesOnly()); page.set(1)"
+            (click)="toggleFavoritesOnly()"
           >
             {{ favoritesOnly() ? 'Ver todo el catálogo' : 'Ver mis favoritos' }}
           </button>

@@ -7,6 +7,8 @@ using Microsoft.EntityFrameworkCore;
 using RepositorioApi.Data;
 using RepositorioApi.Models;
 
+using RepositorioApi.Services;
+
 namespace RepositorioApi.Controllers;
 
 [ApiController]
@@ -38,7 +40,7 @@ public sealed class ProyectosController : ControllerBase
     public Task<IActionResult> Crear(
         [FromForm] CrearProyectoRequest request,
         CancellationToken cancellationToken) =>
-        RegistrarEntregaAsync(request, idEntregaCorregida: null, cancellationToken);
+        RegistrarEntregaAsync(request, idEntregaBase: null, esActualizacion: false, cancellationToken);
 
     /// <summary>
     /// RF-20: reenviar una versión corregida de una entrega observada. Se
@@ -53,16 +55,33 @@ public sealed class ProyectosController : ControllerBase
         int idEntrega,
         [FromForm] CrearProyectoRequest request,
         CancellationToken cancellationToken) =>
-        RegistrarEntregaAsync(request, idEntrega, cancellationToken);
+        RegistrarEntregaAsync(request, idEntrega, esActualizacion: false, cancellationToken);
 
     /// <summary>
-    /// Valida y guarda una entrega. Con <paramref name="idEntregaCorregida"/>
-    /// es un reenvío: actualiza los datos del proyecto y crea otra versión.
-    /// Las reglas de materiales son las mismas para el envío y el reenvío.
+    /// RF-08: actualizar un trabajo publicado. Los cambios se envían como otra
+    /// entrega del mismo proyecto; mientras se revisa, o si se rechaza, el
+    /// catálogo sigue mostrando la versión publicada.
+    /// </summary>
+    [HttpPost("mis-proyectos/{idEntrega:int}/actualizacion")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(MaximoSolicitudBytes)]
+    public Task<IActionResult> Actualizar(
+        int idEntrega,
+        [FromForm] CrearProyectoRequest request,
+        CancellationToken cancellationToken) =>
+        RegistrarEntregaAsync(request, idEntrega, esActualizacion: true, cancellationToken);
+
+    /// <summary>
+    /// Valida y guarda una entrega. Con <paramref name="idEntregaBase"/> es otra
+    /// versión de un proyecto: un reenvío corregido (RF-20) o la actualización
+    /// de un trabajo publicado (RF-08). Si el proyecto está publicado, los datos
+    /// nuevos se guardan en la entrega y se aplican al aprobarse.
+    /// Las reglas de materiales son las mismas en todos los casos.
     /// </summary>
     private async Task<IActionResult> RegistrarEntregaAsync(
         CrearProyectoRequest request,
-        int? idEntregaCorregida,
+        int? idEntregaBase,
+        bool esActualizacion,
         CancellationToken cancellationToken)
     {
         if (!int.TryParse(
@@ -89,17 +108,18 @@ public sealed class ProyectosController : ControllerBase
                 new { mensaje = "Las cuentas de administrador gestionan el sistema; no envían proyectos." });
         }
 
-        // En un reenvío, la entrega a corregir debe ser propia, estar observada
-        // y ser la última versión del proyecto.
+        // La entrega de la que parte la nueva versión debe ser propia y la
+        // última del proyecto. Un reenvío parte de una entrega observada (RF-20);
+        // una actualización, de la versión aprobada de un trabajo publicado (RF-08).
         TblEntrega? entregaCorregida = null;
-        if (idEntregaCorregida is not null)
+        if (idEntregaBase is not null)
         {
             entregaCorregida = await _db.TblEntregas
                 .Include(item => item.IdProyectoNavigation)
                 .Include(item => item.TblRecursos)
                     .ThenInclude(recurso => recurso.IdTipoRecursoNavigation)
                 .FirstOrDefaultAsync(
-                    item => item.IdEntrega == idEntregaCorregida && item.IdUsuarioEnvia == idUsuario,
+                    item => item.IdEntrega == idEntregaBase && item.IdUsuarioEnvia == idUsuario,
                     cancellationToken);
 
             if (entregaCorregida is null)
@@ -107,7 +127,15 @@ public sealed class ProyectosController : ControllerBase
                 return NotFound(new { mensaje = "No se encontró la solicitud." });
             }
 
-            if (entregaCorregida.EstadoEntrega != "con_correcciones")
+            if (esActualizacion)
+            {
+                if (entregaCorregida.EstadoEntrega != "aprobada" ||
+                    entregaCorregida.IdProyectoNavigation.EstadoPublicacion != "publicado")
+                {
+                    return Conflict(new { mensaje = "Solo puedes actualizar un trabajo publicado." });
+                }
+            }
+            else if (entregaCorregida.EstadoEntrega != "con_correcciones")
             {
                 return Conflict(new { mensaje = "Solo puedes reenviar una solicitud a la que el supervisor pidió correcciones." });
             }
@@ -120,13 +148,6 @@ public sealed class ProyectosController : ControllerBase
             if (hayVersionPosterior)
             {
                 return Conflict(new { mensaje = "Este proyecto ya tiene una versión más reciente." });
-            }
-
-            // RF-08: actualizar un trabajo ya publicado sin alterar lo visible
-            // requiere guardar los datos por versión, que el esquema aún no tiene.
-            if (entregaCorregida.IdProyectoNavigation.EstadoPublicacion == "publicado")
-            {
-                return Conflict(new { mensaje = "Este trabajo ya está publicado; su actualización todavía no está disponible." });
             }
         }
 
@@ -213,7 +234,7 @@ public sealed class ProyectosController : ControllerBase
 
             if (conservados.Count != idsConservar.Count)
             {
-                return BadRequest(new { mensaje = "Los materiales que conservas deben ser de la versión observada." });
+                return BadRequest(new { mensaje = "Los materiales que conservas deben ser de la versión anterior." });
             }
         }
 
@@ -325,19 +346,30 @@ public sealed class ProyectosController : ControllerBase
             EsDestacado = false
         };
 
-        proyecto.Titulo = request.Titulo.Trim();
-        proyecto.Resumen = request.Resumen.Trim();
-        proyecto.Anio = request.Anio;
-        proyecto.IdTipoProyecto = request.IdTipoProyecto;
-        proyecto.IdCarrera = request.IdCarrera;
-        proyecto.IdTematica = request.IdTematica;
-        proyecto.IdMateria = request.IdMateria;
+        var datos = new DatosProyecto
+        {
+            Titulo = request.Titulo.Trim(),
+            Resumen = request.Resumen.Trim(),
+            Anio = request.Anio,
+            IdTipoProyecto = request.IdTipoProyecto,
+            IdCarrera = request.IdCarrera,
+            IdTematica = request.IdTematica,
+            IdMateria = request.IdMateria,
+            Autores = autores,
+            PalabrasClave = palabrasClave,
+            IdDocentesAsesores = idsAsesores
+        };
+
+        // RF-08: si el trabajo está publicado, lo publicado no cambia hasta que
+        // se apruebe esta versión; sus datos se guardan en la entrega.
+        var esPropuesta = esReenvio && proyecto.EstadoPublicacion == "publicado";
 
         var entrega = new TblEntrega
         {
             IdProyectoNavigation = proyecto,
             IdUsuarioEnvia = idUsuario,
-            EstadoEntrega = "pendiente"
+            EstadoEntrega = "pendiente",
+            DatosPropuestos = esPropuesta ? datos.Serializar() : null
         };
 
         var archivosGuardados = new List<string>();
@@ -346,96 +378,25 @@ public sealed class ProyectosController : ControllerBase
         await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
         try
         {
-            if (esReenvio)
+            if (!esReenvio)
             {
-                proyecto.FechaActualizacion = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
-
-                // Los autores y las palabras clave se reemplazan por los corregidos.
-                idsAutoresAnteriores = await _db.TblProyectoAutors
-                    .Where(item => item.IdProyecto == proyecto.IdProyecto)
-                    .Select(item => item.IdAutor)
-                    .ToListAsync(cancellationToken);
-                await _db.TblProyectoAutors
-                    .Where(item => item.IdProyecto == proyecto.IdProyecto)
-                    .ExecuteDeleteAsync(cancellationToken);
-                await _db.Entry(proyecto).Collection(item => item.IdEtiqueta).LoadAsync(cancellationToken);
-                proyecto.IdEtiqueta.Clear();
-            }
-            else
-            {
+                // El proyecto nuevo necesita su id antes de ligarle autores.
+                datos.AplicarEscalares(proyecto);
                 _db.TblProyectos.Add(proyecto);
             }
 
             _db.TblEntregas.Add(entrega);
             await _db.SaveChangesAsync(cancellationToken);
 
-            for (var indice = 0; indice < autores.Count; indice++)
+            if (!esPropuesta)
             {
-                var autorRequest = autores[indice];
-                var carnet = string.IsNullOrWhiteSpace(autorRequest.Carnet)
-                    ? null
-                    : autorRequest.Carnet.Trim().ToUpperInvariant();
-
-                var autor = carnet is null
-                    ? null
-                    : await _db.TblAutors.FirstOrDefaultAsync(
-                        item => item.Carnet == carnet,
-                        cancellationToken);
-
-                if (autor is null)
+                if (esReenvio)
                 {
-                    autor = new TblAutor
-                    {
-                        Nombres = autorRequest.Nombres.Trim(),
-                        Apellidos = autorRequest.Apellidos.Trim(),
-                        Carnet = carnet
-                    };
-                    _db.TblAutors.Add(autor);
-                    await _db.SaveChangesAsync(cancellationToken);
+                    proyecto.FechaActualizacion = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
                 }
 
-                _db.TblProyectoAutors.Add(new TblProyectoAutor
-                {
-                    IdProyecto = proyecto.IdProyecto,
-                    IdAutor = autor.IdAutor,
-                    OrdenAutoria = indice + 1
-                });
-            }
-
-            foreach (var palabra in palabrasClave)
-            {
-                var etiqueta = await _db.TblEtiquetas.FirstOrDefaultAsync(
-                    item => item.Nombre == palabra,
-                    cancellationToken);
-
-                if (etiqueta is null)
-                {
-                    etiqueta = new TblEtiqueta { Nombre = palabra };
-                    _db.TblEtiquetas.Add(etiqueta);
-                }
-
-                proyecto.IdEtiqueta.Add(etiqueta);
-            }
-
-            // RF-16: asesores. En un reenvío se reemplazan por los corregidos y
-            // cada asesor que se mantiene conserva el permiso ya registrado.
-            var asesoresActuales = esReenvio
-                ? await _db.TblProyectoDocentes
-                    .Where(item => item.IdProyecto == proyecto.IdProyecto)
-                    .ToListAsync(cancellationToken)
-                : [];
-
-            _db.TblProyectoDocentes.RemoveRange(
-                asesoresActuales.Where(item => !idsAsesores.Contains(item.IdDocente)));
-
-            foreach (var idDocente in idsAsesores.Where(id => asesoresActuales.All(item => item.IdDocente != id)))
-            {
-                _db.TblProyectoDocentes.Add(new TblProyectoDocente
-                {
-                    IdProyecto = proyecto.IdProyecto,
-                    IdDocente = idDocente,
-                    NombreAutorizado = false
-                });
+                // Los autores, palabras clave y asesores se reemplazan por los enviados.
+                idsAutoresAnteriores = await datos.AplicarAsync(_db, proyecto, reemplazar: esReenvio, cancellationToken);
             }
 
             var carpetaEntrega = Path.Combine(
@@ -508,10 +469,12 @@ public sealed class ProyectosController : ControllerBase
                 IdUsuario = idUsuario,
                 IdProyecto = proyecto.IdProyecto,
                 // ck_historial_accion exige la acción en minúsculas.
-                Accion = esReenvio ? "reenvío" : "envío",
-                Detalle = esReenvio
-                    ? "Versión corregida registrada y pendiente de revisión del supervisor."
-                    : "Solicitud registrada y pendiente de revisión del supervisor."
+                Accion = esActualizacion ? "actualización" : esReenvio ? "reenvío" : "envío",
+                Detalle = esActualizacion
+                    ? "Actualización del trabajo publicado pendiente de revisión del supervisor."
+                    : esReenvio
+                        ? "Versión corregida registrada y pendiente de revisión del supervisor."
+                        : "Solicitud registrada y pendiente de revisión del supervisor."
             });
 
             // RF-17 / proceso: el sistema avisa al supervisor al recibir una entrega.
@@ -527,23 +490,18 @@ public sealed class ProyectosController : ControllerBase
                 {
                     IdEntrega = entrega.IdEntrega,
                     IdUsuarioDestino = idSupervisor,
-                    Mensaje = (esReenvio
-                        ? "Nueva entrega recibida (versión corregida) para revisión: "
-                        : "Nueva entrega recibida para revisión: ") + proyecto.Titulo + "."
+                    Mensaje = (esActualizacion
+                        ? "Nueva entrega recibida (actualización de un trabajo publicado) para revisión: "
+                        : esReenvio
+                            ? "Nueva entrega recibida (versión corregida) para revisión: "
+                            : "Nueva entrega recibida para revisión: ") + datos.Titulo + "."
                 });
             }
 
             await _db.SaveChangesAsync(cancellationToken);
 
             // Autores que dejaron de figurar en el proyecto y no tienen cuenta ni otros proyectos.
-            if (idsAutoresAnteriores.Count > 0)
-            {
-                await _db.TblAutors
-                    .Where(autor => idsAutoresAnteriores.Contains(autor.IdAutor) &&
-                                    autor.IdUsuario == null &&
-                                    !autor.TblProyectoAutors.Any())
-                    .ExecuteDeleteAsync(cancellationToken);
-            }
+            await DatosProyecto.LimpiarAutoresAsync(_db, idsAutoresAnteriores, cancellationToken);
 
             await transaction.CommitAsync(cancellationToken);
 
@@ -553,9 +511,11 @@ public sealed class ProyectosController : ControllerBase
                 idEntrega = entrega.IdEntrega,
                 estado = "Pendiente",
                 publicado = false,
-                mensaje = esReenvio
-                    ? "La versión corregida se envió y quedó pendiente de revisión del supervisor."
-                    : "El proyecto se envió y quedó pendiente de revisión del supervisor."
+                mensaje = esActualizacion
+                    ? "La actualización se envió. Mientras el supervisor la revisa, el catálogo muestra la versión publicada."
+                    : esReenvio
+                        ? "La versión corregida se envió y quedó pendiente de revisión del supervisor."
+                        : "El proyecto se envió y quedó pendiente de revisión del supervisor."
             });
         }
         catch (Exception exception)
@@ -616,8 +576,9 @@ public sealed class ProyectosController : ControllerBase
         {
             id = entrega.IdEntrega,
             idProyecto = entrega.IdProyecto,
-            titulo = entrega.IdProyectoNavigation.Titulo,
+            titulo = DatosProyecto.Leer(entrega.DatosPropuestos)?.Titulo ?? entrega.IdProyectoNavigation.Titulo,
             tipoTrabajo = entrega.IdProyectoNavigation.IdTipoProyectoNavigation.Nombre,
+            esActualizacion = entrega.DatosPropuestos != null,
             fechaEnvio = entrega.FechaEnvio,
             // RF-19: última actualización = fecha de la decisión, o la recepción si sigue pendiente.
             ultimaActualizacion = entrega.FechaRevision ?? entrega.FechaEnvio,
@@ -626,6 +587,8 @@ public sealed class ProyectosController : ControllerBase
             puedeEliminar = entrega.EstadoEntrega == "pendiente",
             // RF-20: pedir correcciones habilita reenviar la última versión.
             puedeReenviar = PuedeReenviar(entrega, ultimasPorProyecto.Contains(entrega.IdEntrega)),
+            // RF-08: la versión publicada vigente se puede actualizar.
+            puedeActualizar = PuedeActualizar(entrega, ultimasPorProyecto.Contains(entrega.IdEntrega)),
             esUltimaVersion = ultimasPorProyecto.Contains(entrega.IdEntrega),
             observacion = entrega.TblNotificacions
                 .OrderByDescending(notificacion => notificacion.FechaEnvio)
@@ -697,26 +660,32 @@ public sealed class ProyectosController : ControllerBase
                         item.FechaEnvio > entrega.FechaEnvio,
                 cancellationToken);
 
+        // RF-08: una actualización muestra los datos propuestos, no los publicados.
+        var propuesta = DatosProyecto.Leer(entrega.DatosPropuestos);
+        var vista = propuesta is null ? null : await propuesta.DescribirAsync(_db, cancellationToken);
+
         return Ok(new
         {
             id = entrega.IdEntrega,
             idProyecto = entrega.IdProyecto,
             // Identificadores para precargar el formulario de corrección (RF-20).
-            idTipoProyecto = proyecto.IdTipoProyecto,
-            idDepartamento = proyecto.IdCarreraNavigation.IdDepartamento,
-            idCarrera = proyecto.IdCarrera,
-            idTematica = proyecto.IdTematica,
-            idMateria = proyecto.IdMateria,
+            idTipoProyecto = propuesta?.IdTipoProyecto ?? proyecto.IdTipoProyecto,
+            idDepartamento = vista?.IdDepartamento ?? proyecto.IdCarreraNavigation.IdDepartamento,
+            idCarrera = propuesta?.IdCarrera ?? proyecto.IdCarrera,
+            idTematica = propuesta?.IdTematica ?? proyecto.IdTematica,
+            idMateria = propuesta is null ? proyecto.IdMateria : propuesta.IdMateria,
             esUltimaVersion,
+            esActualizacion = propuesta is not null,
             puedeReenviar = PuedeReenviar(entrega, esUltimaVersion),
-            titulo = proyecto.Titulo,
-            resumen = proyecto.Resumen,
-            anio = proyecto.Anio,
-            tipoTrabajo = proyecto.IdTipoProyectoNavigation.Nombre,
-            departamento = proyecto.IdCarreraNavigation.IdDepartamentoNavigation.Nombre,
-            carrera = proyecto.IdCarreraNavigation.Nombre,
-            tematica = proyecto.IdTematicaNavigation.Nombre,
-            materia = proyecto.IdMateriaNavigation?.Nombre,
+            puedeActualizar = PuedeActualizar(entrega, esUltimaVersion),
+            titulo = propuesta?.Titulo ?? proyecto.Titulo,
+            resumen = propuesta?.Resumen ?? proyecto.Resumen,
+            anio = propuesta?.Anio ?? proyecto.Anio,
+            tipoTrabajo = vista?.TipoTrabajo ?? proyecto.IdTipoProyectoNavigation.Nombre,
+            departamento = vista?.Departamento ?? proyecto.IdCarreraNavigation.IdDepartamentoNavigation.Nombre,
+            carrera = vista?.Carrera ?? proyecto.IdCarreraNavigation.Nombre,
+            tematica = vista?.Tematica ?? proyecto.IdTematicaNavigation.Nombre,
+            materia = vista is null ? proyecto.IdMateriaNavigation?.Nombre : vista.Materia,
             fechaEnvio = entrega.FechaEnvio,
             fechaRevision = entrega.FechaRevision,
             // RF-19: recepción y última actualización; RF-18: revisor visible.
@@ -728,27 +697,45 @@ public sealed class ProyectosController : ControllerBase
             version,
             estado = TraducirEstado(entrega.EstadoEntrega),
             puedeEliminar = entrega.EstadoEntrega == "pendiente",
-            autores = proyecto.TblProyectoAutors
-                .OrderBy(relacion => relacion.OrdenAutoria)
-                .Select(relacion => new
+            autores = propuesta is not null
+                ? propuesta.Autores.Select(autor => new
                 {
-                    nombres = relacion.IdAutorNavigation.Nombres,
-                    apellidos = relacion.IdAutorNavigation.Apellidos,
-                    carnet = relacion.IdAutorNavigation.Carnet
-                }),
+                    nombres = autor.Nombres.Trim(),
+                    apellidos = autor.Apellidos.Trim(),
+                    carnet = string.IsNullOrWhiteSpace(autor.Carnet) ? null : autor.Carnet.Trim().ToUpperInvariant()
+                }).ToList()
+                : proyecto.TblProyectoAutors
+                    .OrderBy(relacion => relacion.OrdenAutoria)
+                    .Select(relacion => new
+                    {
+                        nombres = relacion.IdAutorNavigation.Nombres,
+                        apellidos = relacion.IdAutorNavigation.Apellidos,
+                        carnet = relacion.IdAutorNavigation.Carnet
+                    }).ToList(),
             // RF-16: asesores registrados y si se autorizó mostrar su nombre.
-            asesores = proyecto.TblProyectoDocentes
-                .Select(asesor => new
+            asesores = vista is not null
+                ? vista.Asesores.Select(asesor => new
                 {
                     idDocente = asesor.IdDocente,
-                    nombre = asesor.IdDocenteNavigation.IdUsuarioNavigation.Nombres + " " +
-                             asesor.IdDocenteNavigation.IdUsuarioNavigation.Apellidos,
-                    autorizado = asesor.NombreAutorizado
-                })
-                .OrderBy(asesor => asesor.nombre),
-            palabrasClave = proyecto.IdEtiqueta
-                .Select(etiqueta => etiqueta.Nombre)
-                .OrderBy(nombre => nombre),
+                    nombre = asesor.Nombre,
+                    autorizado = false
+                }).ToList()
+                : proyecto.TblProyectoDocentes
+                    .Select(asesor => new
+                    {
+                        idDocente = asesor.IdDocente,
+                        nombre = asesor.IdDocenteNavigation.IdUsuarioNavigation.Nombres + " " +
+                                 asesor.IdDocenteNavigation.IdUsuarioNavigation.Apellidos,
+                        autorizado = asesor.NombreAutorizado
+                    })
+                    .OrderBy(asesor => asesor.nombre)
+                    .ToList(),
+            palabrasClave = propuesta is not null
+                ? propuesta.PalabrasClave.OrderBy(nombre => nombre).ToList()
+                : proyecto.IdEtiqueta
+                    .Select(etiqueta => etiqueta.Nombre)
+                    .OrderBy(nombre => nombre)
+                    .ToList(),
             recursos = entrega.TblRecursos
                 .OrderBy(recurso => recurso.IdRecurso)
                 .Select(recurso => new
@@ -989,9 +976,13 @@ public sealed class ProyectosController : ControllerBase
         return PhysicalFile(ruta, tipoContenido, Path.GetFileName(recurso.Nombre));
     }
     private static bool PuedeReenviar(TblEntrega entrega, bool esUltimaVersion) =>
+        esUltimaVersion && entrega.EstadoEntrega == "con_correcciones";
+
+    /// <summary>RF-08: la versión aprobada y vigente de un trabajo publicado se puede actualizar.</summary>
+    private static bool PuedeActualizar(TblEntrega entrega, bool esUltimaVersion) =>
         esUltimaVersion &&
-        entrega.EstadoEntrega == "con_correcciones" &&
-        entrega.IdProyectoNavigation.EstadoPublicacion != "publicado";
+        entrega.EstadoEntrega == "aprobada" &&
+        entrega.IdProyectoNavigation.EstadoPublicacion == "publicado";
 
     private static string TraducirEstado(string estado) =>
         estado.ToLowerInvariant() switch

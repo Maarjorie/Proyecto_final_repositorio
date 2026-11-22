@@ -36,6 +36,8 @@ interface EntregaRevision {
   palabrasClave: string[];
   fechaEnvio: string;
   version: number;
+  /** RF-08: actualiza un trabajo publicado; se aprueba solo con permiso de difusión. */
+  esActualizacion?: boolean;
   solicitante: string;
   autores: string[];
   asesores: AsesorRevision[];
@@ -65,6 +67,31 @@ interface Publicacion {
 }
 
 type DecisionRevision = 'Aprobada' | 'Con correcciones' | 'Rechazada';
+type FiltroPublicacion = '' | 'publicado' | 'no_publicado' | 'retirado' | 'destacado';
+type ModoFecha = 'todas' | 'dia' | 'semana' | 'rango';
+
+/** Fecha local como 'AAAA-MM-DD' (así se comparan días sin problemas de hora). */
+function claveDia(fecha: Date): string {
+  const dos = (n: number) => String(n).padStart(2, '0');
+  return fecha.getFullYear() + '-' + dos(fecha.getMonth() + 1) + '-' + dos(fecha.getDate());
+}
+
+/** Lunes y domingo de una semana ISO escrita como 'AAAA-Www' (input type="week"). */
+function rangoSemana(semana: string): [string, string] | null {
+  const m = /^(\d{4})-W(\d{2})$/.exec(semana);
+  if (!m) return null;
+  const anio = Number(m[1]), numero = Number(m[2]);
+  // El 4 de enero siempre cae en la semana 1 (norma ISO 8601).
+  const cuatroEnero = new Date(anio, 0, 4);
+  const lunes = new Date(anio, 0, 4 - ((cuatroEnero.getDay() + 6) % 7) + (numero - 1) * 7);
+  const domingo = new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() + 6);
+  return [claveDia(lunes), claveDia(domingo)];
+}
+
+/** Minúsculas y sin tildes, para buscar sin importar cómo se escriba. */
+function normalizar(texto: string): string {
+  return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es');
+}
 type Pestana = 'pendientes' | 'publicaciones';
 
 /** Borrador del permiso que se edita en una tarjeta antes de guardarlo. */
@@ -98,6 +125,127 @@ export class RevisionSupervisorComponent implements OnInit {
   ];
 
   pestana: Pestana = 'pendientes';
+
+  // Aprobadas y publicaciones: con muchos proyectos se buscan, filtran y
+  // paginan; cada tarjeta se abre solo para gestionarla.
+  busquedaPublicacion = '';
+  filtroPublicacion: FiltroPublicacion = '';
+  paginaPublicaciones = 1;
+  readonly porPaginaPublicaciones = 10;
+  abiertaId: number | null = null;
+  readonly filtrosPublicacion: { valor: FiltroPublicacion; texto: string }[] = [
+    { valor: '', texto: 'Todas' },
+    { valor: 'publicado', texto: 'Publicadas' },
+    { valor: 'no_publicado', texto: 'Sin publicar' },
+    { valor: 'retirado', texto: 'Retiradas' },
+    { valor: 'destacado', texto: 'Destacadas' }
+  ];
+
+  // Filtro por fecha de aprobación: un día, una semana o un rango.
+  modoFecha: ModoFecha = 'todas';
+  fechaDia = '';
+  fechaSemana = '';
+  fechaDesde = '';
+  fechaHasta = '';
+  readonly modosFecha: { valor: ModoFecha; texto: string }[] = [
+    { valor: 'todas', texto: 'Todas' },
+    { valor: 'dia', texto: 'Día' },
+    { valor: 'semana', texto: 'Semana' },
+    { valor: 'rango', texto: 'Rango' }
+  ];
+
+  get hoy(): string {
+    return claveDia(new Date());
+  }
+
+  elegirModoFecha(modo: ModoFecha): void {
+    this.modoFecha = modo;
+    this.paginaPublicaciones = 1;
+  }
+
+  cambiarFecha(campo: 'fechaDia' | 'fechaSemana' | 'fechaDesde' | 'fechaHasta', event: Event): void {
+    this[campo] = (event.target as HTMLInputElement).value;
+    this.paginaPublicaciones = 1;
+  }
+
+  /** "Hoy": deja el filtro en el día de hoy. */
+  filtrarHoy(): void {
+    this.modoFecha = 'dia';
+    this.fechaDia = this.hoy;
+    this.paginaPublicaciones = 1;
+  }
+
+  quitarFiltroFecha(): void {
+    this.modoFecha = 'todas';
+    this.fechaDia = this.fechaSemana = this.fechaDesde = this.fechaHasta = '';
+    this.paginaPublicaciones = 1;
+  }
+
+  private cumpleFecha(publicacion: Publicacion): boolean {
+    const fecha = this.fechaLocal(publicacion.fechaAprobacion);
+    if (this.modoFecha === 'todas' || !fecha) return true;
+    const dia = claveDia(fecha);
+    if (this.modoFecha === 'dia') return !this.fechaDia || dia === this.fechaDia;
+    if (this.modoFecha === 'semana') {
+      const rango = rangoSemana(this.fechaSemana);
+      return !rango || (dia >= rango[0] && dia <= rango[1]);
+    }
+    return (!this.fechaDesde || dia >= this.fechaDesde) && (!this.fechaHasta || dia <= this.fechaHasta);
+  }
+
+  /** Publicaciones dentro de la fecha elegida (base de los demás filtros y conteos). */
+  private get publicacionesEnFecha(): Publicacion[] {
+    return this.publicaciones.filter(publicacion => this.cumpleFecha(publicacion));
+  }
+
+  cuentaFiltro(filtro: FiltroPublicacion): number {
+    return this.publicacionesEnFecha.filter(publicacion => this.cumpleFiltro(publicacion, filtro)).length;
+  }
+
+  private cumpleFiltro(publicacion: Publicacion, filtro: FiltroPublicacion): boolean {
+    return filtro === '' ||
+      (filtro === 'destacado' ? publicacion.destacado : publicacion.estadoPublicacion === filtro);
+  }
+
+  get publicacionesFiltradas(): Publicacion[] {
+    const terminos = normalizar(this.busquedaPublicacion.trim()).split(/\s+/).filter(Boolean);
+    return this.publicacionesEnFecha.filter(publicacion => {
+      if (!this.cumpleFiltro(publicacion, this.filtroPublicacion)) return false;
+      if (!terminos.length) return true;
+      const texto = normalizar([publicacion.titulo, publicacion.carrera, publicacion.tipoTrabajo,
+        String(publicacion.anio), ...publicacion.autores].join(' '));
+      return terminos.every(termino => texto.includes(termino));
+    });
+  }
+
+  get totalPaginasPublicaciones(): number {
+    return Math.max(1, Math.ceil(this.publicacionesFiltradas.length / this.porPaginaPublicaciones));
+  }
+
+  get publicacionesPagina(): Publicacion[] {
+    const pagina = Math.min(this.paginaPublicaciones, this.totalPaginasPublicaciones);
+    const inicio = (pagina - 1) * this.porPaginaPublicaciones;
+    return this.publicacionesFiltradas.slice(inicio, inicio + this.porPaginaPublicaciones);
+  }
+
+  buscarPublicacion(event: Event): void {
+    this.busquedaPublicacion = (event.target as HTMLInputElement).value;
+    this.paginaPublicaciones = 1;
+  }
+
+  elegirFiltroPublicacion(filtro: FiltroPublicacion): void {
+    this.filtroPublicacion = filtro;
+    this.paginaPublicaciones = 1;
+  }
+
+  irAPaginaPublicaciones(pagina: number): void {
+    this.paginaPublicaciones = Math.min(Math.max(1, pagina), this.totalPaginasPublicaciones);
+    this.abiertaId = null;
+  }
+
+  alternarAbierta(idProyecto: number): void {
+    this.abiertaId = this.abiertaId === idProyecto ? null : idProyecto;
+  }
 
   entregas: EntregaRevision[] = [];
   publicaciones: Publicacion[] = [];

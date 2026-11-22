@@ -18,6 +18,7 @@
     }
     @if (esSupervisor) {
       <a routerLink="/revision-supervisor" routerLinkActive="activo">Revisión supervisor</a>
+      <a routerLink="/estadisticas" routerLinkActive="activo">Estadísticas</a>
     }
     <app-sesion-usuario />
   </nav>
@@ -70,7 +71,7 @@
             <div class="datos-proyecto">
               <span>Recibido: <strong>{{ fechaLocal(proyecto.fechaEnvio) | date:'dd/MM/yyyy, h:mm a' }}</strong></span>
               <span>Última actualización: <strong>{{ fechaLocal(proyecto.ultimaActualizacion) | date:'dd/MM/yyyy, h:mm a' }}</strong></span>
-              <span>Versión: <strong>{{ proyecto.version }}</strong></span>
+              <span>Versión: <strong>{{ proyecto.version }}</strong>{{ proyecto.esActualizacion ? ' · actualización' : '' }}</span>
             </div>
 
             @if (proyecto.observacion) {
@@ -104,6 +105,11 @@
                 @if (proyecto.puedeReenviar) {
                   <a class="boton-corregir" routerLink="/publicar" [queryParams]="{ corregir: proyecto.id }">
                     Enviar corrección
+                  </a>
+                }
+                @if (proyecto.puedeActualizar) {
+                  <a class="boton-corregir" routerLink="/publicar" [queryParams]="{ actualizar: proyecto.id }">
+                    Actualizar trabajo
                   </a>
                 }
                 @if (proyecto.puedeEliminar) {
@@ -150,7 +156,7 @@
       @if (solicitud.revisor) {
         <span>Revisado por: <strong>{{ solicitud.revisor }}</strong></span>
       }
-      <span>Versión: <strong>{{ solicitud.version }}</strong></span>
+      <span>Versión: <strong>{{ solicitud.version }}</strong>{{ solicitud.esActualizacion ? ' · actualización' : '' }}</span>
     </div>
 
     @if (errorDetalle) {
@@ -184,7 +190,6 @@
         @for (asesor of solicitud.asesores; track asesor.idDocente) {
           <li>
             {{ asesor.nombre }}
-            <span class="dato-secundario">· {{ asesor.autorizado ? 'Se muestra en el catálogo' : 'Su nombre no se publica' }}</span>
           </li>
         }
       </ul>
@@ -252,6 +257,10 @@
         <p class="dato-secundario">El supervisor pidió correcciones.</p>
         <a class="boton-corregir" routerLink="/publicar" [queryParams]="{ corregir: solicitud.id }">
           Enviar corrección
+        </a>
+      } @else if (solicitud.puedeActualizar) {
+        <a class="boton-corregir" routerLink="/publicar" [queryParams]="{ actualizar: solicitud.id }">
+          Actualizar trabajo
         </a>
       } @else {
         <p class="dato-secundario">Ya revisada; no se puede eliminar.</p>

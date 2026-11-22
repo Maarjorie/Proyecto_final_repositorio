@@ -164,6 +164,9 @@ public partial class RepositorioDbContext : DbContext
             entity.Property(e => e.FechaRevision)
                 .HasColumnType("timestamp without time zone")
                 .HasColumnName("fecha_revision");
+            entity.Property(e => e.DatosPropuestos)
+                .HasColumnType("jsonb")
+                .HasColumnName("datos_propuestos");
             entity.Property(e => e.IdProyecto).HasColumnName("id_proyecto");
             entity.Property(e => e.IdUsuarioEnvia).HasColumnName("id_usuario_envia");
             entity.Property(e => e.IdUsuarioRevisa).HasColumnName("id_usuario_revisa");
@@ -257,7 +260,8 @@ public partial class RepositorioDbContext : DbContext
 
             entity.ToTable("tbl_materia");
 
-            entity.HasIndex(e => e.Codigo, "uq_materia_codigo").IsUnique();
+            // La UES repite códigos entre carreras: la materia es código + nombre.
+            entity.HasIndex(e => new { e.Codigo, e.Nombre }, "uq_materia_codigo_nombre").IsUnique();
 
             entity.Property(e => e.IdMateria).HasColumnName("id_materia");
             entity.Property(e => e.Codigo)

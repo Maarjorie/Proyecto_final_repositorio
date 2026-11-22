@@ -1,0 +1,112 @@
+/* RF-12: tabla de proyectos por año y área. */
+.tabla-desplazable {
+  overflow-x: auto;
+  border-radius: 18px;
+  background: rgba(240, 250, 253, 0.92);
+  box-shadow: 0 12px 28px rgba(5, 24, 38, 0.25);
+}
+
+.tabla-conteo {
+  width: 100%;
+  border-collapse: collapse;
+  color: #183a5d;
+  font-size: 14px;
+}
+
+.tabla-conteo th,
+.tabla-conteo td {
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(24, 58, 93, 0.1);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.tabla-conteo th[scope='row'],
+.tabla-conteo thead th:first-child {
+  text-align: left;
+  font-weight: 600;
+}
+
+.tabla-conteo thead th:first-child {
+  width: 100%;
+}
+
+.tabla-conteo thead th {
+  background: rgba(24, 58, 93, 0.08);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.tabla-conteo td.cero {
+  color: #8aa2b6;
+}
+
+.tabla-conteo .total,
+.tabla-conteo tfoot {
+  font-weight: 800;
+}
+
+.tabla-conteo tfoot th,
+.tabla-conteo tfoot td {
+  border-bottom: 0;
+  background: rgba(24, 58, 93, 0.06);
+}
+
+
+/* Filtros del conteo por año y área. */
+.filtros-conteo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 18px;
+  background: linear-gradient(120deg, rgba(248, 253, 255, 0.95), rgba(196, 230, 238, 0.92));
+  box-shadow: 0 10px 24px rgba(5, 27, 54, 0.22);
+}
+
+.filtro-conteo {
+  display: grid;
+  gap: 6px;
+  color: #183653;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.filtro-conteo select {
+  min-width: 140px;
+  min-height: 50px;
+  padding: 0 14px;
+  border: 1px solid #fff;
+  border-radius: 14px;
+  color: #183a5d;
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.84), rgba(222, 246, 250, 0.86));
+  font: inherit;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.filtro-area {
+  flex: 1 1 260px;
+  font-weight: 800;
+}
+
+.filtro-area app-selector-buscable {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.boton-limpiar-conteo {
+  min-height: 50px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 14px;
+  color: #fff;
+  background: linear-gradient(145deg, #263a46, #0d1c26);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
