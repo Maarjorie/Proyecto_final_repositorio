@@ -619,7 +619,8 @@ export class EnvioProyectoComponent implements OnInit {
       .filter(id => id)
       .forEach(id => datos.append('IdDocentesAsesores', id));
 
-    const materia = this.valorFormulario(formulario, 'materia');
+    // Solo un proyecto de curso pertenece a una asignatura (RF-04).
+    const materia = this.esProyectoCurso ? this.materiaSeleccionada : '';
     if (materia) {
       datos.append('IdMateria', materia);
     }

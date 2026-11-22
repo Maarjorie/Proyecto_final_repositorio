@@ -259,6 +259,13 @@ public sealed class ProyectosController : ControllerBase
             return BadRequest(new { mensaje = "Selecciona un tipo, carrera y temática válidos." });
         }
 
+        // RF-04 / RF-17: solo el proyecto de curso pertenece a una asignatura.
+        if (request.IdMateria is not null &&
+            !tipo.Nombre.Contains("curso", StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest(new { mensaje = "Solo los proyectos de curso llevan asignatura." });
+        }
+
         if (!materiaExiste)
         {
             return BadRequest(new { mensaje = "La asignatura elegida no pertenece al plan de la carrera seleccionada." });
