@@ -1,12 +1,11 @@
-import { Component, inject, input } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { afterNextRender, Component, ElementRef, inject, input } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router, RouterLink } from '@angular/router';
+import { filter } from 'rxjs';
 import { AUTH_USER_KEY } from './auth.constants';
 import { cerrarSesion, sesionActiva, usuarioTieneRol } from './auth.guard';
 
-/**
- * Parte derecha del menú: "Iniciar sesión" sin sesión, o el nombre de la
- * cuenta con su rol y "Cerrar sesión" con sesión. Se usa en todas las pantallas.
- */
+/** Sesión en el menú: iniciar sesión, o nombre, rol y cerrar sesión. */
 @Component({
   selector: 'app-sesion-usuario',
   standalone: true,
@@ -78,8 +77,7 @@ import { cerrarSesion, sesionActiva, usuarioTieneRol } from './auth.guard';
       transition: transform 160ms ease, filter 160ms ease;
     }
 
-    /* Mismo aspecto que los demás enlaces del menú: el fondo oscuro queda
-       reservado para la página activa. */
+    /* Como los demás enlaces del menú. */
     .enlace-admin {
       display: inline-flex;
       align-items: center;
@@ -117,39 +115,23 @@ import { cerrarSesion, sesionActiva, usuarioTieneRol } from './auth.guard';
       outline-offset: 2px;
     }
 
+    /* En celular va al final de la fila del menú. */
     @media (max-width: 760px) {
       :host {
-        width: 100%;
-        flex-wrap: wrap;
-        justify-content: space-between;
-        margin: 6px 0 0;
-        padding: 10px 0 0;
-        border-left: 0;
-        border-top: 1px solid rgba(12, 57, 111, 0.18);
+        flex: 0 0 auto;
+        gap: 6px;
+        margin-left: 4px;
+        padding-left: 8px;
       }
 
-      /* En celular el enlace de administración ocupa su propia fila y el
-         nombre se recorta antes que el botón, para no salirse de la pantalla. */
-      .enlace-admin {
-        flex: 1 0 100%;
-        justify-content: center;
-        min-height: 40px;
-        padding: 10px 12px;
-        background: rgba(255, 255, 255, 0.45);
-      }
-
-      .cuenta {
-        flex: 1 1 auto;
-        min-width: 0;
-        text-align: left;
+      .enlace-admin,
+      .boton-sesion {
+        min-height: 36px;
+        padding: 8px 11px;
       }
 
       .nombre {
-        max-width: 100%;
-      }
-
-      .boton-sesion {
-        flex: 0 0 auto;
+        max-width: 120px;
       }
     }
   `
@@ -160,7 +142,7 @@ export class SesionUsuarioComponent {
   readonly activa = sesionActiva();
   readonly nombre: string;
   readonly correo: string;
-  /** El panel de administración ya tiene su propio enlace, así que lo oculta. */
+  /** Oculta el enlace al panel de administración. */
   readonly mostrarAdmin = input(true);
 
   readonly esAdministrador = usuarioTieneRol('administrador');
@@ -177,6 +159,21 @@ export class SesionUsuarioComponent {
     }
     this.nombre = [usuario.nombres, usuario.apellidos].filter(Boolean).join(' ') || 'Mi cuenta';
     this.correo = usuario.correo ?? '';
+
+    // En celular el menú se desliza: se muestra el enlace de la página actual
+    // cuando el router ya lo marcó como activo.
+    const host: ElementRef<HTMLElement> = inject(ElementRef);
+    const mostrarActivo = () => setTimeout(() => {
+      const menu = host.nativeElement.parentElement;
+      const activo = menu?.querySelector<HTMLElement>('a.activo, a.active');
+      if (menu && activo && menu.scrollWidth > menu.clientWidth) {
+        menu.scrollLeft = activo.offsetLeft - menu.offsetLeft - 12;
+      }
+    });
+    afterNextRender(mostrarActivo);
+    this.router.events
+      .pipe(filter(evento => evento instanceof NavigationEnd), takeUntilDestroyed())
+      .subscribe(mostrarActivo);
   }
 
   salir(): void {

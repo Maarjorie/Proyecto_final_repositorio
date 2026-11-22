@@ -28,7 +28,6 @@
       <app-sesion-usuario />
     </nav>
 
-
   </header>
 
   <main id="inicio">
@@ -72,7 +71,6 @@
         </select>
       </form>
 
-      <!-- Sin trabajos publicados no hay áreas que explorar. -->
       <div class="area-shortcuts" id="areas" [hidden]="areaShortcuts().length === 0">
         <strong>Explorar por<br />área</strong>
         @for (atajo of areaShortcuts(); track atajo.area) {
@@ -128,9 +126,7 @@
             Limpiar
           </button>
 
-          <!-- Un mismo bloque para todos los grupos. Preparado para muchas
-               opciones: muestra las más usadas, "Ver todas" para el resto,
-               buscador en grupos grandes y oculta las que darían 0 resultados. -->
+          <!-- Grupos de filtros: las opciones más usadas, "Ver todas" y buscador. -->
           @for (grupo of facetGroups(); track grupo.key) {
             <details class="filter-group" [id]="'filtro-' + grupo.key"
               [class.filter-group-dependiente]="grupo.key === 'career'"
@@ -221,7 +217,7 @@
           </label>
         </div>
 
-        <!-- Filtros activos: se ven todos de un vistazo y se quitan con un clic. -->
+        <!-- Filtros activos -->
         @if (hasActiveFilters()) {
           <div class="active-filters" aria-label="Filtros activos">
             @for (chip of activeFilters(); track chip.label) {

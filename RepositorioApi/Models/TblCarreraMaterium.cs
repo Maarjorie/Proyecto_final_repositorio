@@ -1,9 +1,6 @@
 namespace RepositorioApi.Models;
 
-/// <summary>
-/// Plan de estudios: una materia dentro de una carrera, con el ciclo en que se
-/// cursa. Una misma materia puede estar en varias carreras.
-/// </summary>
+/// <summary>Materia dentro del plan de una carrera, con su ciclo.</summary>
 public partial class TblCarreraMaterium
 {
     public int IdCarrera { get; set; }

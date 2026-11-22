@@ -7,7 +7,7 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideHttpClient(),
-    // Transición suave entre pantallas (los estilos están en styles.css).
+    // Transición entre pantallas (estilos en styles.css).
     provideRouter(routes, withComponentInputBinding(), withViewTransitions({ skipInitialTransition: true }))
   ]
 };

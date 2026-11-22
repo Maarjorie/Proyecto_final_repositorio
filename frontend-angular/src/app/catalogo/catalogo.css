@@ -24,7 +24,7 @@
   display: none !important;
 }
 
-/* Navegación, con el estilo de las otras pantallas */
+/* Navegación */
 .site-header {
   width: min(100%, 1260px);
   min-height: 74px;
@@ -106,7 +106,6 @@
     inset 0 1px 2px rgba(255, 255, 255, 0.45);
   font-weight: 700;
 }
-
 
 /* Botones */
 .primary-button,
@@ -476,7 +475,7 @@ main {
   grid-column: 1 / -1;
 }
 
-/* Con un solo resultado, la tarjeta ocupa todo el ancho en vez de media columna. */
+/* Con un solo resultado, la tarjeta usa todo el ancho. */
 .work-list > .work-card:only-child {
   grid-column: 1 / -1;
 }
@@ -586,7 +585,7 @@ main {
 }
 
 .work-year {
-  /* El año no se parte en dos líneas cuando hay varias etiquetas. */
+  /* El año no se parte en dos líneas. */
   flex: 0 0 auto;
   color: var(--ink);
   font-size: 14px;
@@ -998,16 +997,13 @@ td select {
     font-size: 13px;
   }
 
-
-
   .catalog-layout {
     grid-template-columns: minmax(0, 1fr);
   }
 
   .catalog-layout .filters {
-    position: sticky;
-    top: 8px;
-    max-height: 55dvh;
+    position: static;
+    max-height: none;
     padding: 15px 17px;
   }
 
@@ -1024,13 +1020,19 @@ td select {
   }
 
   .area-shortcuts {
-    align-items: flex-start;
-    flex-wrap: wrap;
+    align-items: center;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
   }
 
-  .area-shortcuts > strong {
-    width: 100%;
-    min-width: 0;
+  .area-shortcuts::-webkit-scrollbar {
+    display: none;
+  }
+
+  .area-shortcuts > strong,
+  .area-shortcuts > .area-chip {
+    flex: 0 0 auto;
   }
 
   .results-toolbar {
@@ -1133,7 +1135,7 @@ td select {
     transition: none;
   }
 }
-/* Paleta compartida con el formulario de envío */
+/* Colores del encabezado */
 .site-header {
   border-color: rgba(255, 255, 255, 0.92);
   background: linear-gradient(120deg, rgba(244, 252, 255, 0.94), rgba(182, 223, 231, 0.88));
@@ -1164,16 +1166,15 @@ td select {
     inset 0 1px 2px rgba(255, 255, 255, 0.45);
   font-weight: 700;
 }
-/* Distribución del menú como en la pantalla de envío */
+/* Menú en pantallas anchas */
 @media (min-width: 761px) {
   .main-nav {
     margin-inline-start: auto;
   }
 
-
 }
 
-/* Navegación compartida: mismo tamaño y estados en las cuatro pantallas */
+/* Menú: tamaño y estados */
 .site-header .main-nav {
   display: flex;
   align-items: center;
@@ -1239,18 +1240,16 @@ td select {
     font-size: 13px;
   }
 }
-/* Marca compartida: las dos lineas quedan en negrita uniforme */
+/* Marca */
 .brand-copy strong,
 .brand-copy small,
 .brand strong,
 .brand small {
   font-weight: 800;
 }
-/* =====================================================================
-   Filtros mejorados: conteo por opción, filtros activos y buscador de autor
-   ===================================================================== */
+/* Filtros: conteos, filtros activos y buscador */
 
-/* Cuántos trabajos quedarían al marcar la opción. */
+/* Trabajos que quedarían al marcar la opción */
 .facet-count {
   margin-left: auto;
   min-width: 26px;
@@ -1268,7 +1267,7 @@ td select {
   overflow-wrap: anywhere;
 }
 
-/* Opción que dejaría sin resultados: se ve, pero atenuada y sin poder marcarse. */
+/* Opción sin resultados */
 .check-option.sin-resultados {
   cursor: not-allowed;
   opacity: 0.5;
@@ -1309,8 +1308,7 @@ td select {
   font-style: italic;
 }
 
-/* Carrera depende del departamento: aparece debajo, con sangría y una línea
-   que la une a su grupo padre. */
+/* Carrera, dependiente del departamento */
 .filter-group-dependiente {
   margin-left: 4px;
   padding-left: 8px;
@@ -1391,11 +1389,9 @@ td select {
   outline-offset: 2px;
 }
 
-/* ---------------------------------------------------------------------
-   Grupos con muchas opciones (100 autores, 40 temáticas...)
-   --------------------------------------------------------------------- */
+/* Grupos con muchas opciones */
 
-/* La casilla no se aplasta cuando el texto es largo (p. ej. carreras). */
+/* La casilla no se encoge con textos largos */
 .check-option input {
   flex: 0 0 auto;
 }
@@ -1420,7 +1416,7 @@ td select {
   gap: 6px;
 }
 
-/* Expandido: la lista se desplaza dentro del grupo y no estira la página. */
+/* Lista expandida con desplazamiento propio */
 .option-list-expandida {
   max-height: 290px;
   padding-right: 6px;
@@ -1455,7 +1451,7 @@ td select {
   border-radius: 6px;
 }
 
-/* Cuántas opciones están marcadas en cada grupo, junto a su título. */
+/* Cantidad de opciones marcadas */
 .group-badge {
   display: inline-grid;
   place-items: center;
@@ -1471,7 +1467,7 @@ td select {
   vertical-align: 1px;
 }
 
-/* Atajo "Más áreas": mismo tamaño que las demás, con contorno. */
+/* Botón "Más áreas" */
 .area-chip-mas {
   border-color: rgba(255, 255, 255, 0.75);
   background: transparent;
@@ -1482,8 +1478,7 @@ td select {
   background: rgba(255, 255, 255, 0.12);
 }
 
-/* Atajos de área: pasan a otra línea en vez de aplastarse, y el texto de
-   cada botón no se parte. */
+/* Atajos de área */
 .area-shortcuts {
   flex-wrap: wrap;
   row-gap: 10px;
@@ -1498,8 +1493,7 @@ td select {
   white-space: nowrap;
 }
 
-
-/* Números de página: la actual resaltada en oscuro, las demás como las etiquetas. */
+/* Números de página */
 .page-number {
   min-width: 40px;
   min-height: 40px;
@@ -1531,5 +1525,48 @@ td select {
     min-width: 34px;
     min-height: 34px;
     font-size: 12px;
+  }
+}
+
+/* Celular: encabezado compacto, con el menú en una fila que se desliza */
+@media (max-width: 760px) {
+  .site-header {
+    gap: 8px;
+    min-height: 0;
+    margin-bottom: 18px;
+    padding: 10px 12px;
+    border-radius: 18px;
+  }
+
+  .brand img {
+    width: 34px;
+    height: 40px;
+  }
+
+  .site-header .main-nav {
+    width: 100%;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    gap: 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .site-header .main-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .site-header .main-nav a {
+    flex: 0 0 auto;
+    min-height: 36px;
+    padding: 8px 11px;
+    font-size: 13px;
+  }
+}
+
+/* Celular: atajos de área en una sola fila que se desliza */
+@media (max-width: 760px) {
+  .area-shortcuts {
+    flex-wrap: nowrap;
   }
 }

@@ -1,10 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TimeoutError } from 'rxjs';
 
-/**
- * Las mismas reglas que valida la API (RepositorioApi/Services/Validacion.cs),
- * para avisar antes de enviar.
- */
+/** Mismas reglas que valida la API (Services/Validacion.cs). */
 export const REGLAS = {
   anioMinimo: 1969,
   tituloMinimo: 10,
@@ -51,7 +48,7 @@ export function esCarnet(valor: string): boolean {
   return CARNET.test(valor.trim());
 }
 
-/** Detecta texto sin sentido como "sssss…": una palabra más larga que cualquier palabra real. */
+/** Detecta palabras demasiado largas, como "sssss…". */
 export function tienePalabraDemasiadoLarga(texto: string): boolean {
   return texto
     .split(/\s+/)
@@ -65,7 +62,7 @@ function mayuscula(texto: string): string {
   return sinPosesivo.charAt(0).toUpperCase() + sinPosesivo.slice(1);
 }
 
-/** Mensaje claro para cualquier error de una llamada a la API. */
+/** Mensaje para el error de una llamada a la API. */
 export function mensajeDeError(error: unknown, porDefecto: string): string {
   if (error instanceof TimeoutError) {
     return 'El servidor tardó demasiado en responder. Inténtalo de nuevo.';

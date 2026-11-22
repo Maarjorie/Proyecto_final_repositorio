@@ -281,7 +281,7 @@
   }
 }
 
-/* Navegación compartida: mismo tamaño y estados en las cuatro pantallas */
+/* Menú: tamaño y estados */
 .site-header .main-nav {
   display: flex;
   align-items: center;
@@ -347,14 +347,14 @@
     font-size: 13px;
   }
 }
-/* Marca compartida: las dos lineas quedan en negrita uniforme */
+/* Marca */
 .brand-copy strong,
 .brand-copy small,
 .brand strong,
 .brand small {
   font-weight: 800;
 }
-/* Estados con color propio, en la misma familia que Mis proyectos */
+/* Colores por tipo de aviso */
 .tipo-notificacion.correcciones {
   background: rgba(255, 224, 161, 0.72);
   color: #604414;
@@ -452,5 +452,153 @@
   .notificacion-acciones,
   .notificacion-acciones button {
     width: 100%;
+  }
+}
+
+/* Celular: encabezado compacto, con el menú en una fila que se desliza */
+@media (max-width: 760px) {
+  .site-header {
+    gap: 8px;
+    min-height: 0;
+    margin-bottom: 18px;
+    padding: 10px 12px;
+    border-radius: 18px;
+  }
+
+  .brand img {
+    width: 34px;
+    height: 40px;
+  }
+
+  .site-header .main-nav {
+    width: 100%;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    gap: 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .site-header .main-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .site-header .main-nav a {
+    flex: 0 0 auto;
+    min-height: 36px;
+    padding: 8px 11px;
+    font-size: 13px;
+  }
+}
+
+/* Filtros de avisos */
+.filtros-avisos {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.fila-filtros {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 190px;
+  gap: 10px;
+}
+
+.buscar-aviso,
+.filtro-fecha {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid #fff;
+  border-radius: 12px;
+  color: #183a5d;
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.92), rgba(222, 246, 250, 0.9));
+  font: inherit;
+  font-size: 14px;
+}
+
+.chips-filtro {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip-filtro {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid rgba(12, 57, 111, 0.18);
+  border-radius: 999px;
+  color: #183a5d;
+  background: rgba(248, 252, 255, 0.85);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.chip-filtro span {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(24, 58, 93, 0.1);
+  font-size: 11px;
+}
+
+.chip-filtro.activo {
+  border-color: transparent;
+  color: #fff;
+  background: linear-gradient(145deg, #263a46, #0d1c26);
+}
+
+.chip-filtro.activo span {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Páginas de avisos */
+.paginacion-avisos {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 18px;
+  color: #183a5d;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.boton-pagina {
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  border-radius: 12px;
+  color: #fff;
+  background: linear-gradient(145deg, #263a46, #0d1c26);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.boton-pagina:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+  .fila-filtros {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Los chips de tipo se deslizan en una fila */
+  .chips-filtro {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .chip-filtro {
+    flex: 0 0 auto;
   }
 }

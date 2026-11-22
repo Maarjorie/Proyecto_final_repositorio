@@ -8,6 +8,9 @@ import { AUTH_TOKEN_KEY } from '../../auth/auth.constants';
 
 const API_URL = 'https://localhost:7244/api';
 
+/** Minúsculas y sin tildes. */
+const normalizar = (texto: string) => texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
 export type TipoNotificacion =
   | 'Nueva entrega'
   | 'Correcciones solicitadas'
@@ -36,7 +39,7 @@ export interface Notificacion {
 export class NotificacionesComponent implements OnInit {
   private readonly http = inject(HttpClient);
   private readonly router = inject(Router);
-  // La app es zoneless: tras cada respuesta HTTP hay que pedir que se repinte.
+  // La app es zoneless: se repinta con markForCheck().
   private readonly cdr = inject(ChangeDetectorRef);
 
   readonly esSupervisor = usuarioTieneRol('supervisor');
@@ -47,6 +50,61 @@ export class NotificacionesComponent implements OnInit {
 
   get sinLeer(): number {
     return this.notificaciones.filter(notificacion => !notificacion.leida).length;
+  }
+
+  // Filtros ('' = sin filtro) y páginas de 10.
+  filtroLectura: '' | 'sin_leer' | 'leidas' = '';
+  filtroTipo = '';
+  filtroFecha: '' | 'hoy' | '7' | '30' = '';
+  busqueda = '';
+  pagina = 1;
+  readonly porPagina = 10;
+
+  get hayFiltros(): boolean {
+    return !!(this.filtroLectura || this.filtroTipo || this.filtroFecha || this.busqueda.trim());
+  }
+
+  /** Tipos de aviso que tiene la cuenta, con su cantidad. */
+  get tipos(): { tipo: string; total: number }[] {
+    const conteo = new Map<string, number>();
+    this.notificaciones.forEach(n => conteo.set(n.tipo, (conteo.get(n.tipo) ?? 0) + 1));
+    return [...conteo.entries()].map(([tipo, total]) => ({ tipo, total })).sort((a, b) => b.total - a.total);
+  }
+
+  get filtradas(): Notificacion[] {
+    const texto = normalizar(this.busqueda.trim());
+    const desde = this.filtroFecha === 'hoy'
+      ? new Date(new Date().setHours(0, 0, 0, 0))
+      : this.filtroFecha ? new Date(Date.now() - Number(this.filtroFecha) * 86400000) : null;
+    return this.notificaciones.filter(n =>
+      (!this.filtroLectura || (this.filtroLectura === 'leidas') === n.leida) &&
+      (!this.filtroTipo || n.tipo === this.filtroTipo) &&
+      (!desde || this.fechaLocal(n.fecha) >= desde) &&
+      (!texto || normalizar(n.tituloProyecto + ' ' + n.mensaje).includes(texto)));
+  }
+
+  get totalPaginas(): number {
+    return Math.max(1, Math.ceil(this.filtradas.length / this.porPagina));
+  }
+
+  get visibles(): Notificacion[] {
+    const pagina = Math.min(this.pagina, this.totalPaginas);
+    return this.filtradas.slice((pagina - 1) * this.porPagina, pagina * this.porPagina);
+  }
+
+  /** Cambia un filtro y vuelve a la primera página. */
+  filtrar(cambio: Partial<Pick<NotificacionesComponent, 'filtroLectura' | 'filtroTipo' | 'filtroFecha' | 'busqueda'>>): void {
+    Object.assign(this, cambio);
+    this.pagina = 1;
+  }
+
+  quitarFiltros(): void {
+    this.filtrar({ filtroLectura: '', filtroTipo: '', filtroFecha: '', busqueda: '' });
+  }
+
+  irAPagina(pagina: number): void {
+    this.pagina = Math.min(this.totalPaginas, Math.max(1, pagina));
+    globalThis.scrollTo?.({ top: 0, behavior: 'smooth' });
   }
 
   ngOnInit(): void {
@@ -72,7 +130,7 @@ export class NotificacionesComponent implements OnInit {
       });
   }
 
-  /** Las fechas llegan en UTC sin zona; se marcan como UTC para mostrarlas en hora local. */
+  /** Las fechas llegan en UTC sin zona. */
   fechaLocal(fecha: string): Date {
     const tieneZona = /[zZ]|[+-]\d{2}:?\d{2}$/.test(fecha);
     return new Date(tieneZona ? fecha : fecha + 'Z');
@@ -85,7 +143,6 @@ export class NotificacionesComponent implements OnInit {
   /** Marca el aviso como leído y lleva a la pantalla donde se atiende. */
   abrir(notificacion: Notificacion): void {
     this.marcarLeida(notificacion);
-    // Cada rol atiende sus avisos en su propia pantalla.
     const destino = this.esSupervisor ? '/revision-supervisor' : '/mis-proyectos';
     void this.router.navigateByUrl(destino);
   }

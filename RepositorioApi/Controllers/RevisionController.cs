@@ -10,16 +10,13 @@ using RepositorioApi.Services;
 
 namespace RepositorioApi.Controllers;
 
-/// <summary>
-/// Operaciones del supervisor (RNF-03: solo el rol supervisor decide,
-/// registra permisos, retira y marca destacados).
-/// </summary>
+/// <summary>Acciones del supervisor: revisar, permisos, retiros y destacados.</summary>
 [ApiController]
 [Authorize(Roles = "supervisor")]
 [Route("api/revision")]
 public sealed class RevisionController : ControllerBase
 {
-    // Valores que acepta el frontend para el permiso de los autores (RF-10).
+    // Permisos de difusión (RF-10).
     private const string PermisoPendiente = "pendiente";
     private const string PermisoSoloFicha = "solo_ficha";
     private const string PermisoFichaYMateriales = "ficha_y_materiales";
@@ -73,7 +70,7 @@ public sealed class RevisionController : ControllerBase
         foreach (var entrega in entregas)
         {
             var proyecto = entrega.IdProyectoNavigation;
-            // RF-08: una actualización se revisa con los datos propuestos.
+            // Una actualización se revisa con los datos propuestos.
             var propuesta = DatosProyecto.Leer(entrega.DatosPropuestos);
             var vista = propuesta is null ? null : await propuesta.DescribirAsync(_db, cancellationToken);
 
@@ -101,7 +98,7 @@ public sealed class RevisionController : ControllerBase
                         .OrderBy(relacion => relacion.OrdenAutoria)
                         .Select(relacion => relacion.IdAutorNavigation.Nombres + " " + relacion.IdAutorNavigation.Apellidos)
                         .ToList(),
-                // Los asesores que siguen en la actualización muestran su permiso actual.
+                // Los asesores que siguen mantienen su permiso actual.
                 asesores = vista is null
                     ? MapearAsesores(proyecto)
                     : vista.Asesores.Select(asesor => new
@@ -120,10 +117,7 @@ public sealed class RevisionController : ControllerBase
         return Ok(resultado);
     }
 
-    /// <summary>
-    /// RF-18: aprobar, pedir correcciones o rechazar. Al aprobar se registra el
-    /// permiso de los autores (RF-10) y se publica si ya existe (RF-07).
-    /// </summary>
+    /// <summary>RF-18: aprueba, pide correcciones o rechaza una entrega.</summary>
     [HttpPost("{idEntrega:int}/decision")]
     public async Task<IActionResult> RegistrarDecision(
         int idEntrega,
@@ -153,11 +147,16 @@ public sealed class RevisionController : ControllerBase
 
         var observacion = request.Observacion?.Trim() ?? string.Empty;
 
-        // RF-18: rechazar exige motivo y pedir correcciones exige describirlas,
-        // para que el solicitante sepa qué corregir antes de reenviar (RF-20).
+        // Rechazar y pedir correcciones exigen una observación que se entienda.
         if (decision == "rechazada" && observacion.Length == 0)
         {
             return BadRequest(new { mensaje = "Escribe el motivo del rechazo." });
+        }
+
+        if (decision != "aprobada" &&
+            (observacion.Length < Validacion.ObservacionMinima || Validacion.TienePalabraDemasiadoLarga(observacion)))
+        {
+            return BadRequest(new { mensaje = $"Explica la decisión con al menos {Validacion.ObservacionMinima} caracteres." });
         }
 
         if (decision == "con_correcciones" && observacion.Length == 0)
@@ -190,7 +189,7 @@ public sealed class RevisionController : ControllerBase
             return Conflict(new { mensaje = "Esta entrega ya tiene una decisión registrada." });
         }
 
-        // RNF-03: quien envía no decide sobre su propia entrega.
+        // Nadie revisa su propia entrega.
         if (entrega.IdUsuarioEnvia == idSupervisor)
         {
             return Conflict(new { mensaje = "No puedes revisar una entrega que enviaste tú; debe decidirla otro supervisor." });
@@ -220,8 +219,7 @@ public sealed class RevisionController : ControllerBase
 
         if (decision == "aprobada")
         {
-            // RF-08: la actualización de un trabajo publicado reemplaza a la
-            // versión visible solo si se aprueba con permiso de difusión.
+            // Una actualización solo se aprueba con permiso de difusión.
             if (propuesta is not null && permiso is not (PermisoSoloFicha or PermisoFichaYMateriales))
             {
                 return BadRequest(new
@@ -230,8 +228,7 @@ public sealed class RevisionController : ControllerBase
                 });
             }
 
-            // Aprobar una nueva versión es una nueva decisión: puede volver a
-            // publicarse aunque una versión anterior se hubiera retirado.
+            // Una versión nueva aprobada puede volver a publicarse aunque se hubiera retirado.
             if (proyecto.EstadoPublicacion == "retirado")
             {
                 proyecto.EstadoPublicacion = "no_publicado";
@@ -252,7 +249,6 @@ public sealed class RevisionController : ControllerBase
             await AplicarPermisoAsesoresAsync(proyecto.IdProyecto, request.AsesoresAutorizados, cancellationToken);
             detalle += " " + DescribirPublicacion(proyecto);
         }
-        // Con correcciones o rechazo, una versión publicada antes sigue visible (RF-08).
 
         proyecto.FechaActualizacion = ahora;
 
@@ -284,46 +280,46 @@ public sealed class RevisionController : ControllerBase
     }
 
     /// <summary>
-    /// Proyectos con una entrega aprobada: su permiso, su estado de publicación,
-    /// si son destacados y el motivo del retiro (RF-07, RF-09, RF-10, RF-12).
-    /// </summary>
-    /// <summary>
-    /// RF-12: cuántos proyectos se registraron por año y área temática. Cada
-    /// proyecto cuenta una vez: un reenvío o una actualización no suma. Las
-    /// combinaciones sin proyectos valen cero.
+    /// RF-12: datos para contar proyectos por año, área, departamento, carrera y tipo.
+    /// Cada proyecto aparece una vez; la pantalla los agrupa según los filtros.
     /// </summary>
     [HttpGet("estadisticas")]
     public async Task<IActionResult> ObtenerEstadisticas(CancellationToken cancellationToken)
     {
-        var conteos = await _db.TblProyectos
-            .AsNoTracking()
-            .GroupBy(proyecto => new { proyecto.Anio, proyecto.IdTematica })
-            .Select(grupo => new { grupo.Key.Anio, grupo.Key.IdTematica, Total = grupo.Count() })
-            .ToListAsync(cancellationToken);
         var areas = await _db.TblTematicas
             .AsNoTracking()
             .OrderBy(tematica => tematica.Nombre)
-            .Select(tematica => new { tematica.IdTematica, tematica.Nombre })
+            .Select(tematica => new { id = tematica.IdTematica, nombre = tematica.Nombre })
             .ToListAsync(cancellationToken);
-        var anios = conteos.Select(item => item.Anio).Distinct().OrderByDescending(anio => anio).ToList();
+        var proyectos = await _db.TblProyectos
+            .AsNoTracking()
+            .Select(proyecto => new
+            {
+                id = proyecto.IdProyecto,
+                anio = proyecto.Anio,
+                idTematica = proyecto.IdTematica,
+                tipo = proyecto.IdTipoProyectoNavigation.Nombre,
+                departamento = proyecto.IdCarreraNavigation.IdDepartamentoNavigation.Nombre,
+                carrera = proyecto.IdCarreraNavigation.Nombre,
+                publicacion = proyecto.EstadoPublicacion
+            })
+            .ToListAsync(cancellationToken);
+        var entregas = await _db.TblEntregas
+            .AsNoTracking()
+            .Select(entrega => new { idProyecto = entrega.IdProyecto, estado = entrega.EstadoEntrega })
+            .ToListAsync(cancellationToken);
 
         return Ok(new
         {
-            anios,
-            total = conteos.Sum(item => item.Total),
-            totalesPorAnio = anios.Select(anio => conteos.Where(item => item.Anio == anio).Sum(item => item.Total)).ToList(),
-            areas = areas.Select(area => new
-            {
-                id = area.IdTematica,
-                nombre = area.Nombre,
-                porAnio = anios
-                    .Select(anio => conteos.Where(item => item.Anio == anio && item.IdTematica == area.IdTematica).Sum(item => item.Total))
-                    .ToList(),
-                total = conteos.Where(item => item.IdTematica == area.IdTematica).Sum(item => item.Total)
-            })
+            anios = proyectos.Select(proyecto => proyecto.anio).Distinct().OrderByDescending(anio => anio).ToList(),
+            total = proyectos.Count,
+            areas,
+            proyectos,
+            entregas
         });
     }
 
+    /// <summary>Proyectos aprobados con su permiso, publicación, destacado y retiro.</summary>
     [HttpGet("publicaciones")]
     public async Task<IActionResult> ObtenerPublicaciones(CancellationToken cancellationToken)
     {
@@ -347,7 +343,7 @@ public sealed class RevisionController : ControllerBase
                 .ThenInclude(recurso => recurso.IdTipoRecursoNavigation)
             .ToListAsync(cancellationToken);
 
-        // Por proyecto se gestiona la última versión aprobada (RF-08, RF-20).
+        // De cada proyecto se toma la última versión aprobada.
         var vigentes = aprobadas
             .GroupBy(entrega => entrega.IdProyecto)
             .Select(grupo => grupo.OrderByDescending(entrega => entrega.FechaRevision).First())
@@ -399,10 +395,7 @@ public sealed class RevisionController : ControllerBase
         }));
     }
 
-    /// <summary>
-    /// RF-10 / RF-07: registrar o cambiar el permiso de los autores de la última
-    /// entrega aprobada. Si el permiso llega después de aprobar, se publica entonces.
-    /// </summary>
+    /// <summary>RF-10: registra o cambia el permiso de los autores; si lo autorizan, se publica.</summary>
     [HttpPut("proyectos/{idProyecto:int}/permiso")]
     public async Task<IActionResult> RegistrarPermiso(
         int idProyecto,
@@ -461,10 +454,7 @@ public sealed class RevisionController : ControllerBase
         });
     }
 
-    /// <summary>
-    /// RF-09: retirar una publicación. Sin motivo no se confirma; el motivo queda
-    /// en el historial interno y la ficha deja de mostrarse en el catálogo.
-    /// </summary>
+    /// <summary>RF-09: retira una publicación con su motivo.</summary>
     [HttpPost("proyectos/{idProyecto:int}/retirar")]
     public async Task<IActionResult> Retirar(
         int idProyecto,
@@ -480,6 +470,11 @@ public sealed class RevisionController : ControllerBase
         if (motivo.Length == 0)
         {
             return BadRequest(new { mensaje = "Escribe el motivo del retiro." });
+        }
+
+        if (motivo.Length < Validacion.ObservacionMinima || Validacion.TienePalabraDemasiadoLarga(motivo))
+        {
+            return BadRequest(new { mensaje = $"Explica el motivo del retiro con al menos {Validacion.ObservacionMinima} caracteres." });
         }
 
         var proyecto = await _db.TblProyectos
@@ -507,7 +502,7 @@ public sealed class RevisionController : ControllerBase
             Detalle = motivo
         });
 
-        // Se avisa al solicitante de la última entrega aprobada.
+        // Avisa al solicitante.
         var entrega = await _db.TblEntregas
             .Where(item => item.IdProyecto == idProyecto && item.EstadoEntrega == "aprobada")
             .OrderByDescending(item => item.FechaRevision)
@@ -578,10 +573,7 @@ public sealed class RevisionController : ControllerBase
         });
     }
 
-    /// <summary>
-    /// Aplica el permiso al proyecto y a los materiales de la entrega, y
-    /// publica solo si el permiso lo permite y no fue retirado (RF-07, RF-10).
-    /// </summary>
+    /// <summary>Aplica el permiso al proyecto y a sus materiales; publica si corresponde.</summary>
     private static string? AplicarPermiso(
         TblProyecto proyecto,
         TblEntrega entrega,
@@ -614,7 +606,7 @@ public sealed class RevisionController : ControllerBase
             _ => "pendiente"
         };
 
-        // Una publicación retirada solo vuelve al catálogo con una nueva decisión.
+        // Un trabajo retirado no se vuelve a publicar solo por cambiar el permiso.
         if (proyecto.EstadoPublicacion != "retirado")
         {
             proyecto.EstadoPublicacion = proyecto.EstadoAutorizacion == "autorizado"
@@ -630,10 +622,7 @@ public sealed class RevisionController : ControllerBase
         return null;
     }
 
-    /// <summary>
-    /// RF-16: marca qué asesores autorizaron mostrar su nombre. Los que no
-    /// están en la lista quedan sin autorizar (la ficha se publica sin ellos).
-    /// </summary>
+    /// <summary>RF-16: marca qué asesores autorizaron mostrar su nombre.</summary>
     private async Task AplicarPermisoAsesoresAsync(
         int idProyecto,
         List<int>? asesoresAutorizados,
@@ -712,7 +701,7 @@ public sealed class RevisionController : ControllerBase
     private bool TryObtenerUsuario(out int idUsuario) =>
         int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out idUsuario);
 
-    // La BD guarda timestamp sin zona en UTC (el contenedor usa Etc/UTC).
+    // La base guarda fechas UTC sin zona.
     private static DateTime AhoraUtc() =>
         DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
 }
@@ -730,7 +719,7 @@ public sealed class DecisionRevisionRequest
 
     public List<int>? RecursosAutorizados { get; set; }
 
-    /// <summary>RF-16: docentes asesores cuyo nombre se autorizó mostrar.</summary>
+    /// <summary>Asesores que autorizaron mostrar su nombre.</summary>
     public List<int>? AsesoresAutorizados { get; set; }
 }
 
@@ -741,7 +730,7 @@ public sealed class PermisoRequest
 
     public List<int>? RecursosAutorizados { get; set; }
 
-    /// <summary>RF-16: docentes asesores cuyo nombre se autorizó mostrar.</summary>
+    /// <summary>Asesores que autorizaron mostrar su nombre.</summary>
     public List<int>? AsesoresAutorizados { get; set; }
 }
 

@@ -42,10 +42,9 @@ export class AuthComponent {
   confirmarContrasena = '';
   enviando = false;
   mensajeError = '';
-  /** Error de cada campo ('' = sin error). Se muestra debajo del campo. */
+  /** Error de cada campo ('' = sin error). */
   errores: Partial<Record<'nombres' | 'apellidos' | 'correo' | 'contrasena' | 'confirmarContrasena', string>> = {};
 
-  /** Al corregir un campo se borra su aviso. */
   limpiarError(campo: keyof AuthComponent['errores']): void {
     if (this.errores[campo]) {
       this.errores = { ...this.errores, [campo]: '' };
@@ -82,11 +81,7 @@ export class AuthComponent {
       : '/catalogo';
   }
 
-  /**
-   * Si la persona venía de una página protegida, vuelve a ella. Si no, entra a
-   * la pantalla de su rol: el supervisor a la revisión (RF-21) y el
-   * solicitante a sus proyectos (RF-19).
-   */
+  /** Vuelve a la página que se pidió o entra a la pantalla de su rol. */
   private destinoTrasIngresar(roles: string[]): string {
     if (this.route.snapshot.queryParamMap.has('returnUrl') && this.returnUrl !== '/catalogo') {
       const pideRevision = this.returnUrl.startsWith('/revision-supervisor');
@@ -95,7 +90,6 @@ export class AuthComponent {
       }
     }
 
-    // El administrador entra a su panel; si además es supervisor, puede ir a la revisión desde el menú.
     if (roles.includes('administrador')) {
       return '/admin';
     }

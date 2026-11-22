@@ -31,7 +31,7 @@ interface RespuestaEnvio {
 interface SolicitudACorregir {
   id: number;
   puedeReenviar: boolean;
-  /** RF-08: la versión publicada vigente se puede actualizar. */
+  /** Se puede actualizar (RF-08). */
   puedeActualizar: boolean;
   version: number;
   titulo: string;
@@ -86,8 +86,7 @@ const API_URL = 'https://localhost:7244/api';
 })
 export class EnvioProyectoComponent implements OnInit {
   private readonly http = inject(HttpClient);
-  // La app es zoneless: tras una respuesta HTTP hay que avisar a Angular
-  // para que vuelva a pintar la vista.
+  // La app es zoneless: se repinta con markForCheck().
   private readonly cdr = inject(ChangeDetectorRef);
 
   autores: AutorFormulario[] = [
@@ -100,7 +99,7 @@ export class EnvioProyectoComponent implements OnInit {
   palabrasClave: string[] = [];
   mensajeError = '';
   mensajeExito = '';
-  /** Id del campo con error: el aviso se muestra debajo de él. */
+  /** Id del campo con error. */
   campoConError = '';
   tipoProyecto = '';
   enviando = false;
@@ -119,7 +118,7 @@ export class EnvioProyectoComponent implements OnInit {
   cargandoMaterias = false;
   docentes: DocenteCatalogo[] = [];
 
-  /** RF-16: ids de los docentes asesores elegidos ('' = sin elegir). Hasta 3. */
+  /** Ids de los asesores elegidos ('' = sin elegir), hasta 3. */
   asesores: string[] = [''];
 
   agregarAsesor(): void {
@@ -149,7 +148,7 @@ export class EnvioProyectoComponent implements OnInit {
     this.limpiarMensajes();
   }
 
-  /** Temáticas para el selector con buscador (49 o más no caben en una lista). */
+  /** Opciones de temáticas para el selector. */
   private cacheTematicas: { origen: OpcionCatalogo[]; opciones: OpcionBuscable[] } | null = null;
   get opcionesTematicas(): OpcionBuscable[] {
     if (this.cacheTematicas?.origen !== this.tematicas) {
@@ -161,10 +160,7 @@ export class EnvioProyectoComponent implements OnInit {
     return this.cacheTematicas.opciones;
   }
 
-  /**
-   * Opciones de cada fila de asesor. Se guardan mientras no cambien los datos,
-   * para no entregar al selector una lista nueva en cada repintado.
-   */
+  /** Opciones de cada fila de asesor; se reutilizan mientras no cambien los datos. */
   private cacheAsesores = new Map<number, { clave: string; opciones: OpcionBuscable[] }>();
   opcionesAsesor(indice: number): OpcionBuscable[] {
     const clave = [this.docentes.length, this.departamentos.length, this.departamentoSeleccionado,
@@ -188,10 +184,7 @@ export class EnvioProyectoComponent implements OnInit {
     return this.docentes.filter(docente => !elegidos.includes(String(docente.id)));
   }
 
-  /**
-   * Con un departamento elegido, primero se ofrecen sus docentes y después
-   * los de otros departamentos (un asesor puede ser de otro departamento).
-   */
+  /** Primero los docentes del departamento elegido, luego los demás. */
   gruposDeAsesores(indice: number): { titulo: string; docentes: DocenteCatalogo[] }[] {
     const disponibles = this.docentesDisponibles(indice);
     const idDepartamento = Number(this.departamentoSeleccionado);
@@ -265,14 +258,14 @@ export class EnvioProyectoComponent implements OnInit {
   palabrasClaveTexto = '';
   enlacesTexto = '';
 
-  // RF-20: reenvío de una versión corregida.
+  // Corrección (RF-20) o actualización (RF-08).
   private readonly route = inject(ActivatedRoute);
   correccion: SolicitudACorregir | null = null;
   cargandoCorreccion = false;
   errorCorreccion = '';
   conservarRecursos: number[] = [];
 
-  /** RF-08: se actualiza un trabajo publicado en lugar de corregir una entrega observada. */
+  /** Actualiza un trabajo publicado en lugar de corregir. */
   actualizando = false;
 
   get corrigiendo(): boolean {
@@ -351,7 +344,7 @@ export class EnvioProyectoComponent implements OnInit {
     }
   }
 
-  /** RF-20: precarga la versión observada para enviar la corrección. */
+  /** Precarga la versión a corregir o actualizar. */
   private cargarCorreccion(idEntrega: number): void {
     let token: string | null = null;
     try {
@@ -402,8 +395,7 @@ export class EnvioProyectoComponent implements OnInit {
           this.asesores = (datos.asesores ?? []).length > 0
             ? datos.asesores.map(asesor => String(asesor.idDocente))
             : [''];
-          // Por defecto se conservan todos los materiales; el solicitante
-          // desmarca los que reemplaza.
+          // Por defecto se conservan todos los materiales.
           this.conservarRecursos = datos.recursos.map(recurso => recurso.id);
           this.cdr.markForCheck();
         },
@@ -437,9 +429,7 @@ export class EnvioProyectoComponent implements OnInit {
     aplicar: (datos: T[]) => void,
     mensajeError: string
   ): void {
-    // Los catálogos siempre se piden a la API: si la API no responde, el
-    // formulario queda vacío y avisa, en lugar de mostrar datos guardados.
-    // Se borra la copia que guardaban versiones anteriores del formulario.
+    // Los catálogos siempre vienen de la API; se borra la copia que guardaban versiones viejas.
     try {
       globalThis.sessionStorage.removeItem(claveCache);
     } catch {
@@ -532,7 +522,7 @@ export class EnvioProyectoComponent implements OnInit {
     this.mensajeError = this.revisarArchivos(this.archivosZip, '.zip', 'ZIP');
   }
 
-  /** Extensión, archivos vacíos y tamaño (25 MB por archivo). */
+  /** Revisa extensión, archivos vacíos y tamaño (25 MB). */
   private revisarArchivos(archivos: File[], extension: string, tipo: string): string {
     const incorrecto = archivos.find(archivo => !archivo.name.toLowerCase().endsWith(extension));
     if (incorrecto) return `«${incorrecto.name}» no es un archivo ${tipo}.`;
@@ -543,10 +533,7 @@ export class EnvioProyectoComponent implements OnInit {
     return '';
   }
 
-  /**
-   * Revisa todo el formulario con las mismas reglas que la API. Devuelve el
-   * primer problema y el id del campo al que llevar el foco.
-   */
+  /** Valida con las reglas de la API. Devuelve el primer error y su campo. */
   private validarFormulario(): { mensaje: string; campo?: string } | null {
     const titulo = this.titulo.trim();
     if (!titulo) return { mensaje: 'Escribe el título del proyecto.', campo: 'titulo' };
@@ -722,7 +709,7 @@ export class EnvioProyectoComponent implements OnInit {
       .filter(id => id)
       .forEach(id => datos.append('IdDocentesAsesores', id));
 
-    // Solo un proyecto de curso pertenece a una asignatura (RF-04).
+    // Solo el proyecto de curso lleva asignatura.
     const materia = this.esProyectoCurso ? this.materiaSeleccionada : '';
     if (materia) {
       datos.append('IdMateria', materia);
@@ -747,8 +734,7 @@ export class EnvioProyectoComponent implements OnInit {
     this.enviando = true;
     this.limpiarMensajes();
 
-    // RF-20: la corrección se registra como otra entrega del mismo proyecto.
-    // RF-08: la actualización de un trabajo publicado también es otra entrega.
+    // Corrección y actualización se envían como otra entrega del proyecto.
     const url = this.correccion
       ? API_URL + '/proyectos/mis-proyectos/' + this.correccion.id + (this.actualizando ? '/actualizacion' : '/reenvio')
       : API_URL + '/proyectos';

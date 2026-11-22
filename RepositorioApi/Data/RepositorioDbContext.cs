@@ -260,7 +260,7 @@ public partial class RepositorioDbContext : DbContext
 
             entity.ToTable("tbl_materia");
 
-            // La UES repite códigos entre carreras: la materia es código + nombre.
+            // La UES repite códigos entre carreras: la materia es única por código y nombre.
             entity.HasIndex(e => new { e.Codigo, e.Nombre }, "uq_materia_codigo_nombre").IsUnique();
 
             entity.Property(e => e.IdMateria).HasColumnName("id_materia");
@@ -272,7 +272,7 @@ public partial class RepositorioDbContext : DbContext
                 .HasMaxLength(150)
                 .HasColumnName("nombre");
 
-            // Docentes que imparten la materia (004_relaciones_materia.sql).
+            // Docentes que imparten la materia.
             entity.HasMany(d => d.IdDocentes).WithMany(p => p.IdMateria)
                 .UsingEntity<Dictionary<string, object>>(
                     "TblMateriaDocente",
@@ -398,7 +398,7 @@ public partial class RepositorioDbContext : DbContext
                 .OnDelete(DeleteBehavior.Restrict)
                 .HasConstraintName("fk_proyecto_tipo");
 
-            // Tabla intermedia con datos propios: el permiso de mostrar al asesor (RF-16).
+            // Relación con dato propio: si se autorizó mostrar al asesor.
             entity.HasMany(d => d.IdDocentes).WithMany(p => p.IdProyectos)
                 .UsingEntity<TblProyectoDocente>(
                     r => r.HasOne(e => e.IdDocenteNavigation).WithMany(p => p.TblProyectoDocentes)

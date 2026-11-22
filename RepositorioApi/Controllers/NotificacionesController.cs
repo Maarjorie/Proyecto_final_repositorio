@@ -42,8 +42,7 @@ public sealed class NotificacionesController : ControllerBase
             })
             .ToListAsync(cancellationToken);
 
-        // Cada rol ve sus propios avisos: el supervisor, las entregas que llegan
-        // para revisión; el solicitante, las decisiones sobre sus proyectos.
+        // El supervisor ve las entregas nuevas; el solicitante, las decisiones.
         var esSupervisor = User.IsInRole("supervisor");
 
         return Ok(notificaciones
@@ -104,7 +103,7 @@ public sealed class NotificacionesController : ControllerBase
         return NoContent();
     }
 
-    // El tipo se deduce del texto que generan RevisionController y ProyectosController.
+    // Clasifica el aviso según su texto.
     private static string ClasificarMensaje(string mensaje) => mensaje switch
     {
         _ when mensaje.StartsWith("Nueva entrega", StringComparison.Ordinal) => "Nueva entrega",

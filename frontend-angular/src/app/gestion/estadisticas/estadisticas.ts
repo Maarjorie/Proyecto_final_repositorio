@@ -7,31 +7,53 @@ import { OpcionBuscable, SelectorBuscable } from '../../compartido/selector-busc
 
 const API_URL = 'https://localhost:7244/api';
 
-/** RF-12: proyectos registrados por año y área (GET /api/revision/estadisticas). */
+/** Un proyecto, con lo necesario para filtrar y agrupar. */
+interface ProyectoDato {
+  id: number;
+  anio: number;
+  idTematica: number;
+  tipo: string;
+  departamento: string;
+  carrera: string;
+  publicacion: 'publicado' | 'no_publicado' | 'retirado';
+}
+
+/** Respuesta de GET /api/revision/estadisticas. */
 interface Estadisticas {
   anios: number[];
   total: number;
-  totalesPorAnio: number[];
-  areas: { id: number; nombre: string; porAnio: number[]; total: number }[];
+  areas: { id: number; nombre: string }[];
+  proyectos: ProyectoDato[];
+  entregas: { idProyecto: number; estado: 'pendiente' | 'aprobada' | 'con_correcciones' | 'rechazada' }[];
 }
 
-interface FilaConteo {
-  id: number;
-  nombre: string;
-  valores: number[];
+interface Indicadores {
+  proyectos: number;
+  publicados: number;
+  enRevision: number;
+  tasaAprobacion: number | null;
+}
+
+/** Qué agrupa la tabla en sus filas. */
+type Dimension = 'area' | 'departamento' | 'carrera' | 'tipo';
+
+interface Tabla {
+  anios: number[];
+  filas: { nombre: string; valores: number[]; total: number }[];
+  totales: number[];
   total: number;
 }
 
-/**
- * RF-12: cuántos proyectos se registraron por año y área temática. Cada
- * proyecto cuenta una vez y las combinaciones sin proyectos valen cero.
- */
+const mayuscula = (texto: string) => texto.charAt(0).toLocaleUpperCase('es-SV') + texto.slice(1);
+const sinPrefijo = (departamento: string) => departamento.replace(/^departamento de\s+/i, '');
+
+/** RF-12: proyectos registrados por año, con filtros y agrupación a elegir. */
 @Component({
   selector: 'app-estadisticas',
   standalone: true,
   imports: [SesionUsuarioComponent, RouterLink, RouterLinkActive, SelectorBuscable],
   templateUrl: './estadisticas.html',
-  // Comparte el aspecto del panel de supervisión.
+  // Usa los estilos del panel de supervisión.
   styleUrls: [
     '../../publicaciones/seguimiento/seguimiento.css',
     '../revision-supervisor/revision-supervisor.css',
@@ -49,6 +71,16 @@ export class EstadisticasComponent implements OnInit {
   // Filtros ('' = todos).
   filtroAnio = '';
   filtroArea = '';
+  filtroDepartamento = '';
+  filtroTipo = '';
+
+  dimension: Dimension = 'area';
+  readonly dimensiones: { valor: Dimension; texto: string }[] = [
+    { valor: 'area', texto: 'Área temática' },
+    { valor: 'departamento', texto: 'Departamento' },
+    { valor: 'carrera', texto: 'Carrera' },
+    { valor: 'tipo', texto: 'Tipo de trabajo' }
+  ];
 
   ngOnInit(): void {
     let token: string | null = null;
@@ -69,6 +101,9 @@ export class EstadisticasComponent implements OnInit {
         next: datos => {
           this.estadisticas = datos;
           this.cargando = false;
+          if (!datos.proyectos) {
+            this.mensajeError = 'La API en ejecución es una versión anterior. Recompílala y vuelve a iniciarla.';
+          }
           this.cdr.markForCheck();
         },
         error: (error: unknown) => {
@@ -79,53 +114,150 @@ export class EstadisticasComponent implements OnInit {
       });
   }
 
-  formatearArea(nombre: string): string {
-    return nombre.charAt(0).toLocaleUpperCase('es-SV') + nombre.slice(1);
-  }
+  // ----- Opciones de los filtros -----
 
-  /** Áreas para el buscador (todas, también las que aún no tienen proyectos). */
-  private cacheAreas: { origen: Estadisticas | null; opciones: OpcionBuscable[] } = { origen: null, opciones: [] };
-  get opcionesAreas(): OpcionBuscable[] {
-    if (this.cacheAreas.origen !== this.estadisticas) {
-      this.cacheAreas = {
-        origen: this.estadisticas,
-        opciones: (this.estadisticas?.areas ?? [])
-          .map(area => ({ value: String(area.id), label: this.formatearArea(area.nombre) }))
-          .sort((a, b) => a.label.localeCompare(b.label, 'es'))
+  private nombresArea = new Map<number, string>();
+  private cacheOpciones: { origen: Estadisticas | null; areas: OpcionBuscable[]; departamentos: string[]; tipos: string[] } =
+    { origen: null, areas: [], departamentos: [], tipos: [] };
+
+  private get opciones() {
+    const datos = this.estadisticas;
+    if (this.cacheOpciones.origen !== datos) {
+      this.nombresArea = new Map((datos?.areas ?? []).map(area => [area.id, mayuscula(area.nombre)]));
+      const proyectos = datos?.proyectos ?? [];
+      this.cacheOpciones = {
+        origen: datos,
+        areas: [...this.nombresArea.entries()]
+          .map(([id, nombre]) => ({ value: String(id), label: nombre }))
+          .sort((a, b) => a.label.localeCompare(b.label, 'es')),
+        departamentos: [...new Set(proyectos.map(p => sinPrefijo(p.departamento)))].sort((a, b) => a.localeCompare(b, 'es')),
+        tipos: [...new Set(proyectos.map(p => mayuscula(p.tipo)))].sort((a, b) => a.localeCompare(b, 'es'))
       };
     }
-    return this.cacheAreas.opciones;
+    return this.cacheOpciones;
   }
 
-  /**
-   * Tabla según los filtros. Sin área elegida se listan las que tienen
-   * proyectos (de más a menos); con un área elegida se muestra aunque sea 0.
-   */
-  get vista(): { anios: number[]; filas: FilaConteo[]; totales: number[]; total: number } {
-    const datos = this.estadisticas;
-    if (!datos) return { anios: [], filas: [], totales: [], total: 0 };
-    const indices = datos.anios
-      .map((anio, indice) => ({ anio, indice }))
-      .filter(item => !this.filtroAnio || String(item.anio) === this.filtroAnio);
-    const filas = datos.areas
-      .filter(area => !this.filtroArea || String(area.id) === this.filtroArea)
-      .map(area => {
-        const valores = indices.map(item => area.porAnio[item.indice] ?? 0);
-        return { id: area.id, nombre: area.nombre, valores, total: valores.reduce((a, b) => a + b, 0) };
-      })
-      .filter(fila => this.filtroArea || fila.total > 0)
-      .sort((a, b) => b.total - a.total || a.nombre.localeCompare(b.nombre, 'es'));
-    const totales = indices.map((_, columna) => filas.reduce((suma, fila) => suma + fila.valores[columna], 0));
-    return { anios: indices.map(item => item.anio), filas, totales, total: totales.reduce((a, b) => a + b, 0) };
+  get opcionesAreas(): OpcionBuscable[] {
+    return this.opciones.areas;
   }
 
-  elegirAnio(event: Event): void {
-    this.filtroAnio = (event.target as HTMLSelectElement).value;
+  get departamentos(): string[] {
+    return this.opciones.departamentos;
+  }
+
+  get tipos(): string[] {
+    return this.opciones.tipos;
+  }
+
+  get hayFiltros(): boolean {
+    return !!(this.filtroAnio || this.filtroArea || this.filtroDepartamento || this.filtroTipo);
+  }
+
+  get tituloDimension(): string {
+    return this.dimensiones.find(d => d.valor === this.dimension)?.texto ?? '';
+  }
+
+  elegir(filtro: 'filtroAnio' | 'filtroDepartamento' | 'filtroTipo', event: Event): void {
+    this[filtro] = (event.target as HTMLSelectElement).value;
+  }
+
+  elegirDimension(event: Event): void {
+    this.dimension = (event.target as HTMLSelectElement).value as Dimension;
   }
 
   limpiarFiltros(): void {
-    this.filtroAnio = '';
-    this.filtroArea = '';
+    this.filtroAnio = this.filtroArea = this.filtroDepartamento = this.filtroTipo = '';
+  }
+
+  // ----- Datos filtrados -----
+
+  private filtrados(): ProyectoDato[] {
+    void this.opciones; // prepara los nombres de las áreas
+    return (this.estadisticas?.proyectos ?? []).filter(p =>
+      (!this.filtroAnio || String(p.anio) === this.filtroAnio) &&
+      (!this.filtroArea || String(p.idTematica) === this.filtroArea) &&
+      (!this.filtroDepartamento || sinPrefijo(p.departamento) === this.filtroDepartamento) &&
+      (!this.filtroTipo || mayuscula(p.tipo) === this.filtroTipo));
+  }
+
+  /** Se recalcula solo si cambian los datos, los filtros o las filas. */
+  private cache: { clave: string; indicadores: Indicadores | null; tabla: Tabla | null } =
+    { clave: '', indicadores: null, tabla: null };
+
+  private calcular(): void {
+    const clave = [this.estadisticas?.total, this.filtroAnio, this.filtroArea, this.filtroDepartamento, this.filtroTipo, this.dimension].join('|');
+    if (this.cache.clave === clave) return;
+    const datos = this.estadisticas;
+    if (!datos?.proyectos) {
+      this.cache = { clave, indicadores: null, tabla: null };
+      return;
+    }
+
+    const proyectos = this.filtrados();
+    const ids = new Set(proyectos.map(p => p.id));
+    const entregas = datos.entregas.filter(e => ids.has(e.idProyecto));
+    const aprobadas = entregas.filter(e => e.estado === 'aprobada').length;
+    const decididas = entregas.filter(e => e.estado !== 'pendiente').length;
+
+    const indicadores: Indicadores = {
+      proyectos: proyectos.length,
+      publicados: proyectos.filter(p => p.publicacion === 'publicado').length,
+      enRevision: entregas.filter(e => e.estado === 'pendiente').length,
+      tasaAprobacion: decididas ? Math.round((aprobadas / decididas) * 100) : null
+    };
+
+    const anios = [...new Set(proyectos.map(p => p.anio))].sort((a, b) => b - a);
+    const grupos = new Map<string, number[]>();
+    for (const p of proyectos) {
+      const nombre = this.nombreFila(p);
+      const fila = grupos.get(nombre) ?? anios.map(() => 0);
+      fila[anios.indexOf(p.anio)]++;
+      grupos.set(nombre, fila);
+    }
+    const filas = [...grupos.entries()]
+      .map(([nombre, valores]) => ({ nombre, valores, total: valores.reduce((a, b) => a + b, 0) }))
+      .sort((a, b) => b.total - a.total || a.nombre.localeCompare(b.nombre, 'es'));
+    const totales = anios.map((_, i) => filas.reduce((suma, fila) => suma + fila.valores[i], 0));
+
+    this.cache = { clave, indicadores, tabla: { anios, filas, totales, total: proyectos.length } };
+  }
+
+  get indicadores(): Indicadores | null {
+    this.calcular();
+    return this.cache.indicadores;
+  }
+
+  get tabla(): Tabla | null {
+    this.calcular();
+    return this.cache.tabla;
+  }
+
+  private nombreFila(p: ProyectoDato): string {
+    switch (this.dimension) {
+      case 'departamento': return sinPrefijo(p.departamento);
+      case 'carrera': return p.carrera;
+      case 'tipo': return mayuscula(p.tipo);
+      default: return this.nombresArea.get(p.idTematica) ?? '';
+    }
+  }
+
+  /** Descarga la tabla como CSV (se abre en Excel). */
+  descargarCsv(): void {
+    const tabla = this.tabla;
+    if (!tabla) return;
+    const celda = (valor: string | number) => `"${String(valor).replace(/"/g, '""')}"`;
+    const lineas = [
+      [this.tituloDimension, ...tabla.anios, 'Total'],
+      ...tabla.filas.map(fila => [fila.nombre, ...fila.valores, fila.total]),
+      ['Total', ...tabla.totales, tabla.total]
+    ].map(linea => linea.map(celda).join(';'));
+    // BOM para que Excel lea bien las tildes.
+    const archivo = new Blob(['﻿' + lineas.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const enlace = document.createElement('a');
+    enlace.href = URL.createObjectURL(archivo);
+    enlace.download = `estadisticas-${this.dimension}${this.filtroAnio ? '-' + this.filtroAnio : ''}.csv`;
+    enlace.click();
+    URL.revokeObjectURL(enlace.href);
   }
 
   private mensajeErrorApi(error: unknown): string {

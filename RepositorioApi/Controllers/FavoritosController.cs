@@ -7,11 +7,7 @@ using RepositorioApi.Models;
 
 namespace RepositorioApi.Controllers;
 
-/// <summary>
-/// RF-14: favoritos de cada cuenta. Se guardan en la base, así que se
-/// recuperan al volver a iniciar sesión, y solo incluyen trabajos publicados:
-/// una publicación retirada deja de aparecer también en los favoritos.
-/// </summary>
+/// <summary>RF-14: favoritos de cada cuenta (solo trabajos publicados).</summary>
 [ApiController]
 [Authorize]
 [Route("api/favoritos")]
@@ -44,7 +40,6 @@ public sealed class FavoritosController : ControllerBase
         return Ok(ids);
     }
 
-    /// <summary>Guardar la misma ficha dos veces deja una sola entrada.</summary>
     [HttpPut("{idProyecto:int}")]
     public async Task<IActionResult> Guardar(int idProyecto, CancellationToken cancellationToken)
     {

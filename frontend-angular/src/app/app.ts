@@ -1,7 +1,6 @@
 import { Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 
-
 type PermissionMode =
   | 'Pendiente'
   | 'Solo ficha'
@@ -22,7 +21,7 @@ export interface Work {
   authors: string[];
   year: number;
   career: string;
-  /** Departamento al que pertenece la carrera (filtro Departamento → Carrera). */
+  /** Departamento de la carrera. */
   department?: string;
   area: string;
   type: string;

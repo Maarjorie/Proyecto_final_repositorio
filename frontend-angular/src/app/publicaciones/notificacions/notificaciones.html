@@ -53,8 +53,64 @@
     @if (cargando) {
       <div class="estado-vacio" role="status">Cargando notificaciones...</div>
     } @else if (notificaciones.length > 0) {
+      <div class="filtros-avisos">
+        <div class="fila-filtros">
+          <input
+            type="search"
+            class="buscar-aviso"
+            placeholder="Buscar por proyecto o mensaje"
+            aria-label="Buscar avisos"
+            [value]="busqueda"
+            (input)="filtrar({ busqueda: $any($event.target).value })"
+          >
+          <select
+            class="filtro-fecha"
+            aria-label="Fecha"
+            [value]="filtroFecha"
+            (change)="filtrar({ filtroFecha: $any($event.target).value })"
+          >
+            <option value="">Cualquier fecha</option>
+            <option value="hoy">Hoy</option>
+            <option value="7">Últimos 7 días</option>
+            <option value="30">Últimos 30 días</option>
+          </select>
+        </div>
+
+        <div class="chips-filtro" role="group" aria-label="Estado de lectura">
+          <button type="button" class="chip-filtro" [class.activo]="filtroLectura === ''" (click)="filtrar({ filtroLectura: '' })">
+            Todas <span>{{ notificaciones.length }}</span>
+          </button>
+          <button type="button" class="chip-filtro" [class.activo]="filtroLectura === 'sin_leer'" (click)="filtrar({ filtroLectura: 'sin_leer' })">
+            Sin leer <span>{{ sinLeer }}</span>
+          </button>
+          <button type="button" class="chip-filtro" [class.activo]="filtroLectura === 'leidas'" (click)="filtrar({ filtroLectura: 'leidas' })">
+            Leídas <span>{{ notificaciones.length - sinLeer }}</span>
+          </button>
+        </div>
+
+        @if (tipos.length > 1) {
+          <div class="chips-filtro" role="group" aria-label="Tipo de aviso">
+            <button type="button" class="chip-filtro" [class.activo]="filtroTipo === ''" (click)="filtrar({ filtroTipo: '' })">
+              Todos los tipos
+            </button>
+            @for (item of tipos; track item.tipo) {
+              <button type="button" class="chip-filtro" [class.activo]="filtroTipo === item.tipo" (click)="filtrar({ filtroTipo: item.tipo })">
+                {{ item.tipo }} <span>{{ item.total }}</span>
+              </button>
+            }
+          </div>
+        }
+      </div>
+
+      @if (filtradas.length === 0) {
+        <div class="estado-vacio">
+          <h3>Ningún aviso coincide con los filtros</h3>
+          <button type="button" class="boton-texto" (click)="quitarFiltros()">Quitar filtros</button>
+        </div>
+      }
+
       <div class="lista-notificaciones">
-        @for (notificacion of notificaciones; track notificacion.id) {
+        @for (notificacion of visibles; track notificacion.id) {
           <article class="tarjeta-notificacion" [class.no-leida]="!notificacion.leida">
             <div class="notificacion-superior">
               <span
@@ -84,6 +140,14 @@
           </article>
         }
       </div>
+
+      @if (totalPaginas > 1) {
+        <nav class="paginacion-avisos" aria-label="Páginas de avisos">
+          <button type="button" class="boton-pagina" [disabled]="pagina <= 1" (click)="irAPagina(pagina - 1)">← Anterior</button>
+          <span>Página {{ pagina }} de {{ totalPaginas }}</span>
+          <button type="button" class="boton-pagina" [disabled]="pagina >= totalPaginas" (click)="irAPagina(pagina + 1)">Siguiente →</button>
+        </nav>
+      }
     } @else {
       <div class="estado-vacio">
         <h3>No tienes notificaciones</h3>

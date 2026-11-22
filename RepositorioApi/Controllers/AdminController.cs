@@ -5,14 +5,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RepositorioApi.Data;
 using RepositorioApi.Models;
+using RepositorioApi.Services;
 
 namespace RepositorioApi.Controllers;
 
-/// <summary>
-/// Panel del administrador: gestiona cuentas, roles y catálogos académicos
-/// (RNF-03: "el administrador gestiona cuentas y roles"). Los cambios de
-/// permisos y las eliminaciones exigen la contraseña del administrador.
-/// </summary>
+/// <summary>Panel del administrador: cuentas, roles y catálogos.</summary>
 [ApiController]
 [Authorize(Roles = "administrador")]
 [Route("api/admin")]
@@ -95,8 +92,7 @@ public sealed class AdminController : ControllerBase
         {
             usuario.IdRols.Add(rol);
 
-            // Un supervisor nuevo también recibe el aviso de las entregas que ya
-            // estaban esperando revisión (salvo las que envió él mismo).
+            // Un supervisor nuevo recibe aviso de las entregas que ya están pendientes.
             if (rolNombre == "supervisor")
             {
                 var pendientes = await _db.TblEntregas
@@ -133,7 +129,7 @@ public sealed class AdminController : ControllerBase
         });
     }
 
-    /// <summary>Habilita o deshabilita una cuenta. Una cuenta inactiva no puede iniciar sesión.</summary>
+    /// <summary>Habilita o deshabilita una cuenta.</summary>
     [HttpPut("usuarios/{idUsuario:int}/activo")]
     public async Task<IActionResult> CambiarActivo(
         int idUsuario,
@@ -168,19 +164,16 @@ public sealed class AdminController : ControllerBase
         });
     }
 
-    /// <summary>
-    /// Registra una cuenta como docente, requisito para asignarle materias.
-    /// Cada docente pertenece a un departamento académico.
-    /// </summary>
+    /// <summary>Registra una cuenta como docente de un departamento.</summary>
     [HttpPost("docentes")]
     public async Task<IActionResult> RegistrarDocente(
         [FromBody] DocenteRequest request,
         CancellationToken cancellationToken)
     {
         var codigo = request.Codigo.Trim().ToUpperInvariant();
-        if (codigo.Length == 0 || codigo.Length > 20)
+        if (!Validacion.EsCodigo(codigo))
         {
-            return BadRequest(new { mensaje = "El código docente es obligatorio (máximo 20 caracteres)." });
+            return BadRequest(new { mensaje = "El código docente lleva de 2 a 20 letras, números o guiones (por ejemplo DOC-041)." });
         }
 
         if (request.IdDepartamento is null ||
@@ -273,7 +266,6 @@ public sealed class AdminController : ControllerBase
                     id = item.IdMateria,
                     codigo = item.Codigo,
                     nombre = item.Nombre,
-                    // Texto para la tabla y detalle para editar los vínculos.
                     carreras = string.Join("; ", item.Carreras.Select(plan => plan.Nombre + " (ciclo " + plan.Ciclo + ")")),
                     docentes = string.Join("; ", item.Docentes.Select(docente => docente.Nombre)),
                     descripcion = item.Descripcion,
@@ -315,12 +307,23 @@ public sealed class AdminController : ControllerBase
             return BadRequest(new { mensaje = "El nombre es obligatorio." });
         }
 
+        if (descripcion?.Length > Validacion.DescripcionMaxima)
+        {
+            return BadRequest(new { mensaje = $"La descripción admite hasta {Validacion.DescripcionMaxima} caracteres." });
+        }
+
+        // Carreras y materias se identifican por un código.
+        if ((tipo == "carreras" || tipo == "materias") && !Validacion.EsCodigo(codigo))
+        {
+            return BadRequest(new { mensaje = "El código lleva de 2 a 20 letras, números o guiones (por ejemplo ISS115)." });
+        }
+
         switch (tipo)
         {
             case "departamentos":
-                if (nombre.Length > 150)
+                if (!Validacion.EsNombreCatalogo(nombre, 150))
                 {
-                    return BadRequest(new { mensaje = "El nombre admite hasta 150 caracteres." });
+                    return BadRequest(new { mensaje = "Escribe un nombre de 3 a 150 caracteres." });
                 }
                 if (await _db.TblDepartamentos.AnyAsync(item => item.Nombre.ToLower() == nombre.ToLower(), cancellationToken))
                 {
@@ -330,9 +333,9 @@ public sealed class AdminController : ControllerBase
                 break;
 
             case "carreras":
-                if (codigo.Length == 0 || codigo.Length > 20 || nombre.Length > 150)
+                if (!Validacion.EsNombreCatalogo(nombre, 150))
                 {
-                    return BadRequest(new { mensaje = "El código (máx. 20) y el nombre (máx. 150) son obligatorios." });
+                    return BadRequest(new { mensaje = "Escribe un nombre de 3 a 150 caracteres." });
                 }
                 if (request.IdDepartamento is null ||
                     !await _db.TblDepartamentos.AnyAsync(item => item.IdDepartamento == request.IdDepartamento, cancellationToken))
@@ -343,6 +346,10 @@ public sealed class AdminController : ControllerBase
                 {
                     return Conflict(new { mensaje = "Ya existe una carrera con ese código." });
                 }
+                if (await _db.TblCarreras.AnyAsync(item => item.Nombre.ToLower() == nombre.ToLower(), cancellationToken))
+                {
+                    return Conflict(new { mensaje = "Ya existe una carrera con ese nombre." });
+                }
                 _db.TblCarreras.Add(new TblCarrera
                 {
                     Codigo = codigo,
@@ -352,11 +359,11 @@ public sealed class AdminController : ControllerBase
                 break;
 
             case "tematicas":
-                // tbl_tematica exige el nombre en minúsculas (ck_tematica_nombre).
+                // ck_tematica_nombre exige minúsculas.
                 nombre = nombre.ToLowerInvariant();
-                if (nombre.Length > 100)
+                if (!Validacion.EsNombreCatalogo(nombre, 100))
                 {
-                    return BadRequest(new { mensaje = "El nombre admite hasta 100 caracteres." });
+                    return BadRequest(new { mensaje = "Escribe un nombre de 3 a 100 caracteres." });
                 }
                 if (await _db.TblTematicas.AnyAsync(item => item.Nombre == nombre, cancellationToken))
                 {
@@ -366,9 +373,9 @@ public sealed class AdminController : ControllerBase
                 break;
 
             case "materias":
-                if (codigo.Length == 0 || codigo.Length > 20 || nombre.Length > 150)
+                if (!Validacion.EsNombreCatalogo(nombre, 150))
                 {
-                    return BadRequest(new { mensaje = "El código (máx. 20) y el nombre (máx. 150) son obligatorios." });
+                    return BadRequest(new { mensaje = "Escribe un nombre de 3 a 150 caracteres." });
                 }
                 if (request.IdCarrera is null ||
                     !await _db.TblCarreras.AnyAsync(item => item.IdCarrera == request.IdCarrera, cancellationToken))
@@ -413,10 +420,7 @@ public sealed class AdminController : ControllerBase
         return Ok(new { mensaje = "Registro agregado." });
     }
 
-    /// <summary>
-    /// Elimina un registro de catálogo si nada lo usa. Pide la contraseña del
-    /// administrador. Las llaves foráneas son RESTRICT, así que se revisa antes.
-    /// </summary>
+    /// <summary>Elimina un registro del catálogo si nada lo usa. Pide la contraseña.</summary>
     [HttpPost("catalogos/{tipo}/{id:int}/eliminar")]
     public async Task<IActionResult> EliminarDelCatalogo(
         string tipo,
@@ -584,7 +588,7 @@ public sealed class AdminController : ControllerBase
         return Ok(new { mensaje = "Docente quitado de la materia." });
     }
 
-    /// <summary>Comprueba la contraseña de la cuenta de administrador que hace la petición.</summary>
+    /// <summary>Verifica la contraseña del administrador.</summary>
     private async Task<(TblUsuario? Admin, IActionResult? Error)> VerificarAdministradorAsync(
         string? contrasena,
         CancellationToken cancellationToken)

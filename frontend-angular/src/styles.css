@@ -1,13 +1,42 @@
-/* Reserva siempre el espacio de la barra de desplazamiento: al pasar de una
-   pantalla sin scroll a otra con scroll, el contenido no se corre a la izquierda. */
+/* Reserva el espacio de la barra de desplazamiento para que el contenido no se mueva */
 html {
   scrollbar-gutter: stable;
 }
 
-*{box-sizing:border-box}html{min-width:320px;scroll-behavior:smooth}body{margin:0;min-width:320px;min-height:100vh;font-family:"DM Sans","Segoe UI",Arial,sans-serif;-webkit-font-smoothing:antialiased}button,input,select{font:inherit}button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid #4b8ee8;outline-offset:3px}
+/* Base */
+* {
+  box-sizing: border-box;
+}
 
-/* Encabezado común: la marca no se encoge ni se parte en dos líneas y el
-   menú ocupa el espacio restante, para que todo quepa en una fila. */
+html {
+  min-width: 320px;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  font-family: "DM Sans", "Segoe UI", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+summary:focus-visible {
+  outline: 3px solid #4b8ee8;
+  outline-offset: 3px;
+}
+
+/* Encabezado: la marca no se encoge y el menú usa el resto */
 .site-header > .brand {
   flex: 0 0 auto;
 }
@@ -22,12 +51,8 @@ html {
   min-width: 0;
 }
 
-/* =====================================================================
-   Animaciones de la aplicación
-   Suaves y cortas: acompañan la navegación sin distraer. Se usa
-   `backwards` (no `both`) para que, al terminar, no bloqueen los efectos
-   de :hover de cada componente.
-   ===================================================================== */
+/* ===== Animaciones =====
+   Se usa `backwards` para no bloquear los :hover al terminar. */
 
 :root {
   --ues-ease: cubic-bezier(0.22, 1, 0.36, 1);
@@ -80,8 +105,7 @@ html {
   }
 }
 
-/* --- Transición entre pantallas (View Transitions del router) ---
-   El encabezado conserva su lugar y solo cambia el contenido. */
+/* Transición entre pantallas: el encabezado se queda fijo */
 .site-header,
 .workspace-header,
 .auth-header {
@@ -115,7 +139,7 @@ html {
   }
 }
 
-/* --- Encabezados de página: título y descripción entran en cascada --- */
+/* Encabezados de página */
 .intro > *,
 .encabezado-pagina > * {
   animation: ues-aparecer 620ms var(--ues-ease) backwards;
@@ -128,7 +152,7 @@ html {
 .intro > :nth-child(4),
 .encabezado-pagina > :nth-child(4) { animation-delay: 210ms; }
 
-/* --- Paneles principales --- */
+/* Paneles principales */
 .auth-card,
 .tarjeta-publicacion,
 .panel-notificaciones,
@@ -140,7 +164,7 @@ html {
   animation: ues-desde-izquierda 640ms var(--ues-ease) 160ms backwards;
 }
 
-/* --- Tarjetas en lista: aparecen una tras otra --- */
+/* Tarjetas en lista, una tras otra */
 .work-list > .work-card,
 .lista-proyectos > .tarjeta-proyecto,
 .lista-notificaciones > .tarjeta-notificacion,
@@ -170,7 +194,7 @@ html {
 .lista-notificaciones > :nth-child(n + 6),
 .lista-revision > :nth-child(n + 6) { animation-delay: 500ms; }
 
-/* Al pasar el cursor, las tarjetas se elevan un poco. */
+/* Tarjetas: se elevan al pasar el cursor */
 .tarjeta-proyecto,
 .tarjeta-notificacion {
   transition: transform 260ms var(--ues-ease), box-shadow 260ms var(--ues-ease);
@@ -182,7 +206,7 @@ html {
   box-shadow: 0 24px 48px rgba(5, 27, 54, 0.34), inset 0 2px 8px rgba(255, 255, 255, 0.95);
 }
 
-/* --- Ventanas emergentes: el fondo se oscurece y la ventana emerge --- */
+/* Ventanas emergentes */
 .dialog-backdrop,
 .fondo-detalle {
   animation: ues-velo 220ms ease-out backwards;
@@ -192,12 +216,12 @@ html {
   animation: ues-emerger 380ms var(--ues-ease-rebote) backwards;
 }
 
-/* El panel de detalle de Mis proyectos ya usa transform para centrarse. */
+/* El detalle ya usa transform para centrarse */
 .panel-detalle {
   animation: ues-velo 260ms ease-out backwards;
 }
 
-/* --- Avisos de éxito o error: bajan suavemente --- */
+/* Avisos */
 .mensaje-exito,
 .mensaje-error,
 .mensaje-revision,
@@ -206,12 +230,12 @@ html {
   animation: ues-aviso 320ms var(--ues-ease) backwards;
 }
 
-/* --- Notificación nueva: un pulso suave para llamar la atención --- */
+/* Notificación nueva */
 .tarjeta-notificacion.no-leida .estado-lectura {
   animation: ues-latido 2.2s ease-out 600ms 3;
 }
 
-/* --- Botones: se hunden un poco al presionarlos --- */
+/* Botones al presionar */
 button:not(:disabled):active,
 a.boton-corregir:active,
 a.boton-sesion:active {
@@ -219,7 +243,7 @@ a.boton-sesion:active {
   transition-duration: 80ms;
 }
 
-/* --- Respeta la opción del sistema "reducir movimiento" --- */
+/* Respeta "reducir movimiento" del sistema */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -19,10 +19,7 @@ public partial class TblEntrega
 
     public DateTime? FechaRevision { get; set; }
 
-    /// <summary>
-    /// RF-08: datos propuestos (JSON) de una actualización de un trabajo
-    /// publicado. Se copian al proyecto al aprobarse con permiso.
-    /// </summary>
+    /// <summary>Datos propuestos (JSON) de una actualización; se aplican al aprobarse.</summary>
     public string? DatosPropuestos { get; set; }
 
     public virtual TblProyecto IdProyectoNavigation { get; set; } = null!;

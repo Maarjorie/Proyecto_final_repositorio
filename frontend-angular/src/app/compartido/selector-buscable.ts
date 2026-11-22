@@ -8,18 +8,14 @@ export interface OpcionBuscable {
   detalle?: string;
 }
 
-/** Minúsculas y sin tildes: "Informática" y "informatica" coinciden. */
+/** Minúsculas y sin tildes. */
 function normalizar(texto: string): string {
   return texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLocaleLowerCase('es');
 }
 
 let siguienteId = 0;
 
-/**
- * Lista desplegable con buscador, para listas largas (temáticas, docentes,
- * cuentas). Se escribe para filtrar y solo se muestran las primeras
- * coincidencias, así sirve igual con 10 que con 10 000 registros.
- */
+/** Lista desplegable con buscador para listas largas. */
 @Component({
   selector: 'app-selector-buscable',
   standalone: true,
@@ -33,8 +29,7 @@ export class SelectorBuscable {
   private readonly lista = viewChild<ElementRef<HTMLUListElement>>('lista');
 
   constructor() {
-    // La lista se pinta sobre toda la página (en <body>) para que ninguna
-    // tarjeta ni ventana la corte, y se coloca justo debajo del campo.
+    // La lista va en <body> para que ningún contenedor la recorte.
     const reubicar = () => this.posicionar();
     effect(onCleanup => {
       const lista = this.lista()?.nativeElement;
@@ -61,7 +56,7 @@ export class SelectorBuscable {
   readonly deshabilitado = input(false);
   readonly requerido = input(false);
 
-  /** Cuántas coincidencias se pintan como máximo; el resto se afina escribiendo. */
+  /** Máximo de coincidencias visibles. */
   readonly limite = 50;
   readonly listaId = 'selector-buscable-' + ++siguienteId;
 
@@ -147,7 +142,7 @@ export class SelectorBuscable {
         break;
       case 'Escape':
         if (this.abierto()) {
-          // Que no cierre también la ventana en la que está el selector.
+          // Evita cerrar también la ventana que contiene el selector.
           evento.preventDefault();
           evento.stopPropagation();
           this.cerrar();

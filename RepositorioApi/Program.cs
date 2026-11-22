@@ -16,10 +16,7 @@ var jwtAudience = builder.Configuration["Jwt:Audience"]
 builder.Services.AddControllers()
     .ConfigureApiBehaviorOptions(options =>
     {
-        // Mismo formato que el resto de errores ({ mensaje }) para que la
-        // pantalla lo muestre. Los mensajes de los atributos están en español;
-        // los automáticos de ASP.NET (en inglés) se cambian por uno genérico.
-        // Un número vacío o mal escrito no llega a los atributos: se nombra el campo.
+        // Errores de validación en español y con el formato { mensaje } de la API.
         var mensajesPorCampo = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["Anio"] = "Escribe el año del trabajo.",

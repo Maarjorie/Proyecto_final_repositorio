@@ -67,11 +67,7 @@ export const requireSession: CanActivateFn = (_route, state) => {
   });
 };
 
-/**
- * Pantallas del solicitante (enviar y seguir proyectos). RNF-03: "el
- * solicitante envía, el supervisor decide"; una cuenta de supervisor usa
- * su propia interfaz y se redirige a la revisión.
- */
+/** Pantallas del solicitante; un supervisor se redirige a la revisión. */
 export const requireSolicitante: CanActivateFn = (_route, state) => {
   const router = inject(Router);
 
@@ -90,15 +86,12 @@ export const requireSolicitante: CanActivateFn = (_route, state) => {
     : true;
 };
 
-/**
- * Cuentas de gestión (supervisor o administrador): usan su propia interfaz y
- * no ven las pantallas del solicitante (Mis proyectos, Subir proyecto).
- */
+/** Supervisor o administrador: no ven Mis proyectos ni Subir proyecto. */
 export function esCuentaDeGestion(): boolean {
   return usuarioTieneRol('supervisor') || usuarioTieneRol('administrador');
 }
 
-/** Panel de administración: solo cuentas con el rol administrador (RNF-03). */
+/** Solo administradores. */
 export const requireAdministrador: CanActivateFn = (_route, state) => {
   const router = inject(Router);
 

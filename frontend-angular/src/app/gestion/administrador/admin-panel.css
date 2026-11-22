@@ -1,4 +1,4 @@
-/* Paleta, medidas y tipografía compartidas con el catálogo y el formulario de envío */
+/* Paleta y medidas */
 :host {
   --dark-jungle: #0d1c26;
   --ateneo-blue: #0c396f;
@@ -224,14 +224,13 @@ button:disabled {
     inset 0 1px 2px rgba(255, 255, 255, 0.45);
 }
 
-/* Giro entre pantallas */
+/* Contenido de la pestaña */
 .flip-stage {
   width: min(100%, 1240px);
   margin: 0 auto;
 }
 
-/* Al cambiar de pestaña, el contenido entra con la misma animación suave del
-   resto de la app (ues-aparecer, definida en styles.css), en cascada. */
+/* Al cambiar de pestaña el contenido entra con ues-aparecer (styles.css) */
 .screen-flip > * {
   animation: ues-aparecer 520ms var(--ues-ease, ease-out) backwards;
 }
@@ -487,7 +486,7 @@ td {
   margin: 14px 0 0;
   padding: 10px 12px;
   border-radius: 12px;
-  /* Fondo propio para que se lea también donde el panel se vuelve azul. */
+  /* Fondo propio para que se lea sobre el azul */
   background: rgba(255, 255, 255, 0.6);
   color: #183653;
   font-size: 12px;
@@ -751,7 +750,7 @@ td {
   }
 }
 
-/* Contraste: pestañas legibles sobre todo el ancho de la barra. */
+/* Contraste de las pestañas */
 .admin-tabs.glass-panel {
   background: linear-gradient(120deg, rgba(248, 253, 255, 0.95), rgba(196, 230, 238, 0.92));
 }
@@ -761,7 +760,7 @@ td {
   font-weight: 700;
 }
 
-/* Rol fijo de la propia cuenta: se ve activo y con candado, no apagado. */
+/* Rol fijo de la propia cuenta */
 .role-chip.fijo {
   display: inline-flex;
   align-items: center;
@@ -769,7 +768,7 @@ td {
   cursor: default;
 }
 
-/* En lugar del botón deshabilitado, una etiqueta que explica por qué. */
+/* Etiqueta "Tu cuenta" en lugar de un botón deshabilitado */
 .tu-cuenta {
   display: inline-flex;
   align-items: center;
@@ -784,8 +783,7 @@ td {
   white-space: nowrap;
 }
 
-/* Celular: cada fila de las tablas se muestra como tarjeta, con la etiqueta
-   de cada dato, en lugar de obligar a desplazarse hacia los lados. */
+/* Celular: cada fila de la tabla se muestra como tarjeta */
 @media (max-width: 700px) {
   .table-scroll {
     overflow: visible;
@@ -833,7 +831,7 @@ td {
     text-transform: uppercase;
   }
 
-  /* El usuario ya se identifica por su avatar y correo. */
+  /* El usuario ya se ve por su avatar y correo */
   .table-scroll td[data-label="Usuario"]::before {
     display: none;
   }
@@ -843,7 +841,7 @@ td {
   }
 }
 
-/* Carreras y docentes de una materia. */
+/* Carreras y docentes de una materia */
 .row-actions {
   display: flex;
   flex-wrap: wrap;

@@ -4,10 +4,7 @@ using RepositorioApi.Data;
 
 namespace RepositorioApi.Controllers;
 
-/// <summary>
-/// Catálogo público: solo fichas publicadas y autorizadas (RF-07), y solo los
-/// materiales que los autores permitieron difundir (RF-10, RF-11).
-/// </summary>
+/// <summary>Catálogo público: fichas publicadas y materiales autorizados.</summary>
 [ApiController]
 [Route("api/catalogo")]
 public sealed class CatalogoPublicoController : ControllerBase
@@ -49,7 +46,7 @@ public sealed class CatalogoPublicoController : ControllerBase
 
         return Ok(proyectos.Select(proyecto =>
         {
-            // La versión visible es la última entrega aprobada (RF-08).
+            // La versión visible es la última entrega aprobada.
             var vigente = proyecto.TblEntregas
                 .OrderByDescending(entrega => entrega.FechaRevision)
                 .FirstOrDefault();
@@ -84,7 +81,7 @@ public sealed class CatalogoPublicoController : ControllerBase
                 resumen = proyecto.Resumen,
                 palabrasClave = proyecto.IdEtiqueta.Select(etiqueta => etiqueta.Nombre).OrderBy(nombre => nombre).ToList(),
                 destacado = proyecto.EsDestacado,
-                // RF-16: solo los asesores que autorizaron mostrar su nombre.
+                // Solo los asesores que autorizaron mostrar su nombre.
                 asesores = proyecto.TblProyectoDocentes
                     .Select(asesor =>
                         asesor.IdDocenteNavigation.IdUsuarioNavigation.Nombres + " " +
@@ -97,10 +94,7 @@ public sealed class CatalogoPublicoController : ControllerBase
         }));
     }
 
-    /// <summary>
-    /// Descarga pública de un material. Un material reservado o de una ficha
-    /// retirada no se entrega aunque se conozca su dirección (RF-11).
-    /// </summary>
+    /// <summary>Descarga pública de un material autorizado de una ficha vigente (RF-11).</summary>
     [HttpGet("recursos/{idRecurso:int}")]
     public async Task<IActionResult> DescargarRecurso(int idRecurso, CancellationToken cancellationToken)
     {

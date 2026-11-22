@@ -5,6 +5,7 @@ import { ChangeDetectorRef, Component, inject, OnInit } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { Observable } from 'rxjs';
 import { AUTH_TOKEN_KEY } from '../../auth/auth.constants';
+import { tienePalabraDemasiadoLarga } from '../../compartido/validacion';
 
 const API_URL = 'https://localhost:7244/api';
 
@@ -16,7 +17,7 @@ interface RecursoRevision {
   autorizado: boolean;
 }
 
-/** RF-16: docente asesor del proyecto y si se autorizó mostrar su nombre. */
+/** Asesor y si autorizó mostrar su nombre. */
 interface AsesorRevision {
   idDocente: number;
   nombre: string;
@@ -36,7 +37,7 @@ interface EntregaRevision {
   palabrasClave: string[];
   fechaEnvio: string;
   version: number;
-  /** RF-08: actualiza un trabajo publicado; se aprueba solo con permiso de difusión. */
+  /** Actualiza un trabajo publicado (RF-08). */
   esActualizacion?: boolean;
   solicitante: string;
   autores: string[];
@@ -44,7 +45,7 @@ interface EntregaRevision {
   recursos: RecursoRevision[];
 }
 
-/** RF-10: lo que los autores permiten difundir. */
+/** Permiso de difusión (RF-10). */
 type Permiso = 'pendiente' | 'solo_ficha' | 'ficha_y_materiales' | 'no_autorizado';
 
 interface Publicacion {
@@ -70,7 +71,7 @@ type DecisionRevision = 'Aprobada' | 'Con correcciones' | 'Rechazada';
 type FiltroPublicacion = '' | 'publicado' | 'no_publicado' | 'retirado' | 'destacado';
 type ModoFecha = 'todas' | 'dia' | 'semana' | 'rango';
 
-/** Fecha local como 'AAAA-MM-DD' (así se comparan días sin problemas de hora). */
+/** Fecha local como 'AAAA-MM-DD'. */
 function claveDia(fecha: Date): string {
   const dos = (n: number) => String(n).padStart(2, '0');
   return fecha.getFullYear() + '-' + dos(fecha.getMonth() + 1) + '-' + dos(fecha.getDate());
@@ -88,7 +89,7 @@ function rangoSemana(semana: string): [string, string] | null {
   return [claveDia(lunes), claveDia(domingo)];
 }
 
-/** Minúsculas y sin tildes, para buscar sin importar cómo se escriba. */
+/** Minúsculas y sin tildes. */
 function normalizar(texto: string): string {
   return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es');
 }
@@ -98,7 +99,7 @@ type Pestana = 'pendientes' | 'publicaciones';
 interface BorradorPermiso {
   permiso: Permiso;
   recursos: number[];
-  /** RF-16: docentes asesores cuyo nombre se autoriza mostrar. */
+  /** Asesores autorizados. */
   asesores: number[];
 }
 
@@ -114,7 +115,7 @@ interface BorradorPermiso {
 })
 export class RevisionSupervisorComponent implements OnInit {
   private readonly http = inject(HttpClient);
-  // La app es zoneless: tras cada respuesta HTTP hay que pedir que se repinte.
+  // La app es zoneless: se repinta con markForCheck().
   private readonly cdr = inject(ChangeDetectorRef);
 
   readonly opcionesPermiso: { valor: Permiso; texto: string; ayuda: string }[] = [
@@ -126,8 +127,7 @@ export class RevisionSupervisorComponent implements OnInit {
 
   pestana: Pestana = 'pendientes';
 
-  // Aprobadas y publicaciones: con muchos proyectos se buscan, filtran y
-  // paginan; cada tarjeta se abre solo para gestionarla.
+  // Aprobadas y publicaciones: búsqueda, filtros y páginas.
   busquedaPublicacion = '';
   filtroPublicacion: FiltroPublicacion = '';
   paginaPublicaciones = 1;
@@ -141,7 +141,7 @@ export class RevisionSupervisorComponent implements OnInit {
     { valor: 'destacado', texto: 'Destacadas' }
   ];
 
-  // Filtro por fecha de aprobación: un día, una semana o un rango.
+  // Filtro por fecha de aprobación.
   modoFecha: ModoFecha = 'todas';
   fechaDia = '';
   fechaSemana = '';
@@ -168,7 +168,6 @@ export class RevisionSupervisorComponent implements OnInit {
     this.paginaPublicaciones = 1;
   }
 
-  /** "Hoy": deja el filtro en el día de hoy. */
   filtrarHoy(): void {
     this.modoFecha = 'dia';
     this.fechaDia = this.hoy;
@@ -193,7 +192,7 @@ export class RevisionSupervisorComponent implements OnInit {
     return (!this.fechaDesde || dia >= this.fechaDesde) && (!this.fechaHasta || dia <= this.fechaHasta);
   }
 
-  /** Publicaciones dentro de la fecha elegida (base de los demás filtros y conteos). */
+  /** Publicaciones dentro del filtro de fecha. */
   private get publicacionesEnFecha(): Publicacion[] {
     return this.publicaciones.filter(publicacion => this.cumpleFecha(publicacion));
   }
@@ -260,7 +259,7 @@ export class RevisionSupervisorComponent implements OnInit {
   retirandoId: number | null = null;
 
   ocupadoId: number | null = null;
-  /** Tarjeta donde se muestra el último error, para verlo junto al botón. */
+  /** Tarjeta que muestra el último error. */
   errorEntregaId: number | null = null;
   mensaje = '';
   mensajeError = '';
@@ -277,7 +276,7 @@ export class RevisionSupervisorComponent implements OnInit {
       : nombre.charAt(0).toLocaleUpperCase('es-SV') + nombre.slice(1);
   }
 
-  /** Las fechas llegan en UTC sin zona; se marcan como UTC para mostrarlas en hora local. */
+  /** Las fechas llegan en UTC sin zona. */
   fechaLocal(fecha: string | null): Date | null {
     if (!fecha) {
       return null;
@@ -329,7 +328,6 @@ export class RevisionSupervisorComponent implements OnInit {
     return asesores.map(asesor => asesor.nombre).join(', ');
   }
 
-  /** RF-16: marca si se autoriza mostrar el nombre de un asesor. */
   alternarAsesor(borrador: BorradorPermiso, idDocente: number, event: Event): void {
     const marcado = (event.target as HTMLInputElement).checked;
     borrador.asesores = marcado
@@ -356,6 +354,11 @@ export class RevisionSupervisorComponent implements OnInit {
 
     if (decision === 'Con correcciones' && observacion.length === 0) {
       this.mensajeError = 'Describe las correcciones que debe hacer el solicitante.';
+      return;
+    }
+
+    if (decision !== 'Aprobada' && (observacion.length < 10 || tienePalabraDemasiadoLarga(observacion))) {
+      this.mensajeError = 'Explica la decisión con al menos 10 caracteres.';
       return;
     }
 
@@ -390,7 +393,7 @@ export class RevisionSupervisorComponent implements OnInit {
         this.publicacionesCargadas = false;
       },
       error => {
-        // Si otro supervisor ya decidió, se recarga para mostrar lo vigente.
+        // Otro supervisor ya decidió: se recarga.
         if (error instanceof HttpErrorResponse && error.status === 409) {
           this.cargarPendientes();
         }
@@ -480,6 +483,10 @@ export class RevisionSupervisorComponent implements OnInit {
     const motivo = (this.motivosRetiro[publicacion.idProyecto] ?? '').trim();
     if (motivo.length === 0) {
       this.mensajeError = 'Escribe el motivo del retiro. Sin motivo no se confirma.';
+      return;
+    }
+    if (motivo.length < 10 || tienePalabraDemasiadoLarga(motivo)) {
+      this.mensajeError = 'Explica el motivo del retiro con al menos 10 caracteres.';
       return;
     }
 
@@ -585,7 +592,7 @@ export class RevisionSupervisorComponent implements OnInit {
       });
   }
 
-  /** Ejecuta una acción del supervisor, bloqueando la tarjeta mientras responde. */
+  /** Ejecuta una acción y bloquea la tarjeta mientras responde. */
   private ejecutar<T>(
     id: number,
     peticion$: Observable<T>,

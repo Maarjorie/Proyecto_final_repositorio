@@ -137,7 +137,7 @@
     </div>
     <form class="add-user-form" (submit)="$event.preventDefault(); registerTeacher()">
       <label>Cuenta
-        <!-- Con buscador por nombre o correo: puede haber miles de cuentas. -->
+        <!-- Con buscador: puede haber muchas cuentas. -->
         <app-selector-buscable
           etiqueta="Cuenta"
           [opciones]="accountOptions()"
@@ -199,7 +199,7 @@
                 <div class="role-chips">
                   @for (role of roleNames; track role) {
                     @if (isSelf(user) && role === 'Administrador') {
-                      <!-- Tu propio rol de administrador no se puede quitar: se muestra fijo, no como botón apagado. -->
+                      <!-- El propio rol de administrador no se puede quitar. -->
                       <span class="role-chip on fijo" title="No puedes quitarte tu propio rol de administrador">
                         <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.6"
                           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

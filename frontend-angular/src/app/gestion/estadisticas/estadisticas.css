@@ -1,4 +1,102 @@
-/* RF-12: tabla de proyectos por año y área. */
+/* Filtros */
+.filtros-conteo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 18px;
+  background: linear-gradient(120deg, rgba(248, 253, 255, 0.95), rgba(196, 230, 238, 0.92));
+  box-shadow: 0 10px 24px rgba(5, 27, 54, 0.22);
+}
+
+.filtro-conteo {
+  display: grid;
+  gap: 6px;
+  color: #183653;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.filtro-conteo select {
+  min-width: 150px;
+  min-height: 50px;
+  padding: 0 14px;
+  border: 1px solid #fff;
+  border-radius: 14px;
+  color: #183a5d;
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.84), rgba(222, 246, 250, 0.86));
+  font: inherit;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.filtro-area {
+  flex: 1 1 260px;
+}
+
+.filtro-area app-selector-buscable {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.boton-limpiar-conteo {
+  min-height: 50px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 14px;
+  color: #fff;
+  background: linear-gradient(145deg, #263a46, #0d1c26);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Indicadores */
+.indicadores {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 26px;
+}
+
+.indicador {
+  display: grid;
+  gap: 4px;
+  padding: 16px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 18px;
+  color: #183653;
+  background: linear-gradient(140deg, rgba(248, 253, 255, 0.96), rgba(196, 230, 238, 0.92));
+  box-shadow: 0 10px 24px rgba(5, 27, 54, 0.22);
+}
+
+.indicador strong {
+  font-size: 28px;
+  line-height: 1.1;
+}
+
+.indicador span {
+  color: #45627d;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* "Ver por" y descarga, junto al título de la tabla */
+.barra-tabla {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.barra-tabla .filtro-conteo {
+  color: #fff;
+}
+
+/* Tabla de proyectos por año */
 .tabla-desplazable {
   overflow-x: auto;
   border-radius: 18px;
@@ -38,6 +136,10 @@
   text-transform: uppercase;
 }
 
+.tabla-conteo tbody tr:hover {
+  background: rgba(104, 198, 221, 0.12);
+}
+
 .tabla-conteo td.cero {
   color: #8aa2b6;
 }
@@ -53,60 +155,26 @@
   background: rgba(24, 58, 93, 0.06);
 }
 
-
-/* Filtros del conteo por año y área. */
-.filtros-conteo {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 12px;
-  margin-bottom: 16px;
-  padding: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  border-radius: 18px;
-  background: linear-gradient(120deg, rgba(248, 253, 255, 0.95), rgba(196, 230, 238, 0.92));
-  box-shadow: 0 10px 24px rgba(5, 27, 54, 0.22);
+@media (max-width: 900px) {
+  .indicadores {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
-.filtro-conteo {
-  display: grid;
-  gap: 6px;
-  color: #183653;
-  font-size: 12px;
-  font-weight: 800;
-}
+/* Celular: la columna del nombre queda fija al deslizar la tabla */
+@media (max-width: 760px) {
+  .tabla-conteo th[scope='row'],
+  .tabla-conteo thead th:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    background: #eef8fb;
+  }
 
-.filtro-conteo select {
-  min-width: 140px;
-  min-height: 50px;
-  padding: 0 14px;
-  border: 1px solid #fff;
-  border-radius: 14px;
-  color: #183a5d;
-  background: linear-gradient(120deg, rgba(255, 255, 255, 0.84), rgba(222, 246, 250, 0.86));
-  font: inherit;
-  font-size: 15px;
-  font-weight: 500;
-}
-
-.filtro-area {
-  flex: 1 1 260px;
-  font-weight: 800;
-}
-
-.filtro-area app-selector-buscable {
-  font-size: 15px;
-  font-weight: 500;
-}
-
-.boton-limpiar-conteo {
-  min-height: 50px;
-  padding: 0 18px;
-  border: 0;
-  border-radius: 14px;
-  color: #fff;
-  background: linear-gradient(145deg, #263a46, #0d1c26);
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
+  .indicador strong {
+    font-size: 22px;
+  }
 }

@@ -1,7 +1,7 @@
 import { SesionUsuarioComponent } from '../auth/sesion-usuario';
 import { esCuentaDeGestion, sesionActiva, usuarioTieneRol } from '../auth/auth.guard';
 import { AUTH_TOKEN_KEY } from '../auth/auth.constants';
-import { Component, computed, effect, input, model, OnInit, output, signal, untracked, WritableSignal } from '@angular/core';
+import { Component, computed, effect, input, model, OnInit, signal, untracked, WritableSignal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import type { Work } from '../app';
@@ -13,7 +13,7 @@ const API_URL = 'https://localhost:7244/api';
 /** Grupos de filtros del catálogo. */
 type FilterGroup = 'area' | 'year' | 'type' | 'department' | 'career' | 'subject' | 'author';
 
-/** Pasa a minúsculas y quita tildes: "Informática" y "informatica" coinciden. */
+/** Minúsculas y sin tildes, para comparar textos. */
 function normalizar(texto: string): string {
   return texto.normalize('NFD').replace(/[̀-ͯ]/g, '').toLocaleLowerCase('es');
 }
@@ -37,7 +37,7 @@ interface FichaApi {
   resumen: string;
   palabrasClave: string[];
   destacado: boolean;
-  /** RF-16: solo los asesores que autorizaron mostrar su nombre. */
+  /** Solo asesores autorizados. */
   asesores?: string[];
   permiso: 'solo_ficha' | 'ficha_y_materiales';
   recursos: { id: number; nombre: string; tipo: string; url: string | null }[];
@@ -48,7 +48,6 @@ interface FichaApi {
   imports: [SesionUsuarioComponent, FormsModule, RouterLink, RouterLinkActive],
   templateUrl: './catalogo.html',
   styleUrl: './catalogo.css',
-  host: { '(window:scroll)': 'onCatalogScroll()' },
 })
 export class Catalogo implements OnInit {
   readonly esSupervisor = usuarioTieneRol('supervisor');
@@ -56,16 +55,15 @@ export class Catalogo implements OnInit {
   readonly active = input.required<boolean>();
   private readonly http = inject(HttpClient);
 
-  /** Fichas publicadas y autorizadas que entrega la API (RF-07, RF-10, RF-11). */
+  /** Fichas publicadas. */
   readonly works = signal<Work[]>([]);
   readonly areas = signal<string[]>([]);
   readonly cargandoCatalogo = signal(true);
-  /** La API no respondió: los filtros no tienen con qué llenarse. */
+  /** La API no respondió. */
   readonly errorCarga = signal(false);
-  /** El catálogo cargó bien pero todavía no hay trabajos publicados. */
+  /** Cargó bien, pero no hay trabajos publicados. */
   readonly sinTrabajos = computed(() => !this.cargandoCatalogo() && !this.errorCarga() && this.publicWorks().length === 0);
   readonly actionNotice = model('');
-  readonly navigateTo = output<'requester' | 'login'>();
 
   readonly query = signal('');
   readonly searchScope = signal('all');
@@ -75,12 +73,12 @@ export class Catalogo implements OnInit {
   readonly selectedDepartments = signal<string[]>([]);
   readonly selectedCareers = signal<string[]>([]);
   readonly selectedSubjects = signal<string[]>([]);
-  /** RF-03: filtro por autor (además de buscarlo en la barra). */
+  /** Filtro por autor. */
   readonly selectedAuthors = signal<string[]>([]);
   readonly sortOrder = signal('recent');
   readonly page = signal(1);
   readonly pageSize = 10;
-  /** RF-14: los favoritos son de la cuenta y se guardan en la base. */
+  /** Los favoritos requieren sesión. */
   readonly conSesion = sesionActiva();
   readonly favoriteIds = signal<number[]>([]);
   readonly favoritesOnly = signal(false);
@@ -90,10 +88,7 @@ export class Catalogo implements OnInit {
   readonly years = computed(() => [...new Set(this.publicWorks().map((work) => work.year))].sort((a, b) => b - a));
   readonly types = computed(() => [...new Set(this.publicWorks().map((work) => work.type))].sort((a, b) => a.localeCompare(b, 'es')));
   readonly departments = computed(() => [...new Set(this.publicWorks().map((work) => work.department ?? '').filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es')));
-  /**
-   * Carreras que dependen del departamento: solo aparecen las de los
-   * departamentos marcados. Sin departamento marcado, el grupo no se muestra.
-   */
+  /** Carreras de los departamentos marcados. */
   readonly careers = computed(() => {
     const departamentos = this.selectedDepartments();
     if (!departamentos.length) return [];
@@ -103,15 +98,11 @@ export class Catalogo implements OnInit {
   });
   readonly subjects = computed(() => [...new Set(this.publicWorks().map((work) => work.subject).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es')));
 
-  /**
-   * Grupos de filtros preparados para muchas opciones (100 autores, 40
-   * temáticas...): se muestran las más usadas, el resto con "Ver todas", las
-   * que darían 0 resultados se ocultan y cada grupo grande tiene buscador.
-   */
+  /** Opciones visibles por grupo antes de "Ver todas". */
   readonly facetLimit = 6;
-  /** A partir de cuántas opciones el grupo muestra su propio buscador. */
+  /** Desde cuántas opciones aparece el buscador del grupo. */
   readonly facetSearchFrom = 8;
-  /** Grupos con pocas opciones (ocho años, cuatro tipos, ocho departamentos). */
+  /** Grupos cortos: se muestran completos y sin buscador. */
   readonly shortGroups: FilterGroup[] = ['year', 'type', 'department'];
   readonly expandedGroups = signal<FilterGroup[]>([]);
   readonly groupQueries = signal<Partial<Record<FilterGroup, string>>>({});
@@ -124,7 +115,6 @@ export class Catalogo implements OnInit {
       { key: 'department', title: 'Departamento', values: this.departments(), selection: this.selectedDepartments as WritableSignal<(string | number)[]> },
       { key: 'career', title: 'Carrera', values: this.careers(), selection: this.selectedCareers as WritableSignal<(string | number)[]> },
       { key: 'subject', title: 'Asignatura', values: this.subjects(), selection: this.selectedSubjects as WritableSignal<(string | number)[]> },
-      // RF-03: con muchos autores el grupo muestra los más frecuentes y su buscador.
       { key: 'author', title: 'Autor', values: this.authors(), selection: this.selectedAuthors as WritableSignal<(string | number)[]> }
     ];
     const expandidos = this.expandedGroups();
@@ -133,8 +123,7 @@ export class Catalogo implements OnInit {
     return definiciones
       .map((grupo) => {
         const seleccion = grupo.selection();
-        // Opciones con resultados (o ya marcadas), las marcadas primero y luego
-        // las de más trabajos. El año se ordena del más reciente al más antiguo.
+        // Opciones con resultados: marcadas primero, luego por cantidad (años, del más reciente).
         const disponibles = grupo.values
           .map((value) => ({ value, label: String(value), count: this.count(grupo.key, value), selected: seleccion.includes(value) }))
           .filter((option) => option.count > 0 || option.selected)
@@ -146,7 +135,6 @@ export class Catalogo implements OnInit {
         const termino = normalizar((busquedas[grupo.key] ?? '').trim());
         const coincidentes = termino ? disponibles.filter((option) => normalizar(option.label).includes(termino)) : disponibles;
         const expandido = expandidos.includes(grupo.key) || termino.length > 0;
-        // Año, tipo y departamento son pocos: se muestran completos y sin buscador.
         const corto = this.shortGroups.includes(grupo.key);
         // Las marcadas nunca se esconden detrás de "Ver todas".
         const limite = corto
@@ -166,7 +154,6 @@ export class Catalogo implements OnInit {
           canExpand: !termino && coincidentes.length > limite,
           hiddenCount: coincidentes.length - visibles.length,
           options: visibles,
-          // Pista bajo Departamento mientras no se ha elegido ninguno.
           hint: grupo.key === 'department' && !seleccion.length ? 'Marca un departamento para ver sus carreras.' : ''
         };
       })
@@ -183,10 +170,7 @@ export class Catalogo implements OnInit {
     this.groupQueries.update((actuales) => ({ ...actuales, [key]: value }));
   }
 
-  /**
-   * Atajos de "Explorar por área": solo las áreas con trabajos, las más usadas
-   * primero, hasta 8. El resto queda en el filtro con "Más áreas".
-   */
+  /** Atajos de "Explorar por área": las áreas con más trabajos. */
   readonly areaShortcutLimit = 8;
   readonly areaShortcuts = computed(() => {
     const seleccion = this.selectedAreas();
@@ -200,7 +184,7 @@ export class Catalogo implements OnInit {
     Math.max(0, this.areas().filter((area) => this.count('area', area) > 0).length - this.areaShortcuts().length)
   );
 
-  /** "Más áreas": abre el grupo de área completo dentro de los filtros. */
+  /** Abre el grupo de área completo. */
   showAllAreas(): void {
     this.filtersOpen.set(true);
     if (!this.expandedGroups().includes('area')) this.toggleGroupExpanded('area');
@@ -209,10 +193,7 @@ export class Catalogo implements OnInit {
     }, { injector: this.injector });
   }
 
-  /**
-   * Texto de búsqueda de cada ficha, ya normalizado (sin tildes ni mayúsculas)
-   * y separado por campo. Se calcula una vez cuando llegan las fichas.
-   */
+  /** Texto normalizado de cada ficha, por campo, para la búsqueda. */
   private readonly searchIndex = computed(() => {
     const index = new Map<number, Record<string, string>>();
     for (const work of this.publicWorks()) {
@@ -229,10 +210,10 @@ export class Catalogo implements OnInit {
     return index;
   });
 
-  /** Palabras buscadas: cada una debe aparecer, en cualquier orden. */
+  /** Cada palabra buscada debe aparecer, en cualquier orden. */
   private readonly searchTerms = computed(() => normalizar(this.query()).split(/\s+/).filter(Boolean));
 
-  /** Resultado final con todos los filtros y el orden elegido. */
+  /** Resultado con filtros y orden aplicados. */
   readonly filteredWorks = computed(() => {
     const results = this.publicWorks().filter((work) => this.matches(work, null));
     const order = this.sortOrder();
@@ -240,15 +221,12 @@ export class Catalogo implements OnInit {
       if (order === 'featured' && a.featured !== b.featured) return a.featured ? -1 : 1;
       if (order === 'title') return a.title.localeCompare(b.title, 'es');
       const byYear = order === 'old' ? a.year - b.year : b.year - a.year;
-      // Desempate estable: por título, para que el orden no cambie al filtrar.
+      // Desempate por título.
       return byYear !== 0 ? byYear : a.title.localeCompare(b.title, 'es');
     });
   });
 
-  /**
-   * Cuántos trabajos quedarían al marcar cada opción, considerando los demás
-   * filtros activos (búsqueda por facetas). Así se ve qué opción da 0 resultados.
-   */
+  /** Cuántos trabajos quedarían al marcar cada opción, con los demás filtros. */
   readonly facetCounts = computed(() => {
     const contar = <K extends string | number>(grupo: FilterGroup, valores: (work: Work) => K[]) => {
       const conteo = new Map<K, number>();
@@ -271,7 +249,7 @@ export class Catalogo implements OnInit {
     };
   });
 
-  /** Filtros marcados, para mostrarlos como etiquetas que se pueden quitar. */
+  /** Filtros activos como etiquetas que se pueden quitar. */
   readonly activeFilters = computed(() => {
     const chips: { label: string; remove: () => void }[] = [];
     const add = <T extends string | number>(selection: WritableSignal<T[]>, prefijo: string) => {
@@ -296,7 +274,7 @@ export class Catalogo implements OnInit {
   });
 
   readonly pageCount = computed(() => Math.max(1, Math.ceil(this.filteredWorks().length / this.pageSize)));
-  /** La página nunca queda fuera de rango aunque cambien los resultados. */
+  /** Página dentro del rango aunque cambien los resultados. */
   readonly currentPage = computed(() => Math.min(this.page(), this.pageCount()));
   readonly pageWorks = computed(() =>
     this.filteredWorks().slice((this.currentPage() - 1) * this.pageSize, this.currentPage() * this.pageSize)
@@ -355,7 +333,7 @@ export class Catalogo implements OnInit {
     });
   }
 
-  /** Un enlace compartido (#trabajo-N) abre la ficha solo si sigue publicada (RF-09). */
+  /** Abre la ficha de un enlace compartido (#trabajo-N) si sigue publicada. */
   private abrirFichaDelEnlace(): void {
     const match = globalThis.location?.hash.match(/^#trabajo-(\d+)$/);
     if (!match) return;
@@ -382,14 +360,13 @@ export class Catalogo implements OnInit {
       authors: ficha.autores,
       year: ficha.anio,
       career: ficha.carrera,
-      // El grupo ya se llama «Departamento»: se muestra «Ingeniería y Arquitectura».
+      // Sin el prefijo "Departamento de".
       department: ficha.departamento ? this.capitalizar(ficha.departamento.replace(/^departamento de\s+/i, '')) : '',
       area: this.capitalizar(ficha.tematica),
       type: this.capitalizar(ficha.tipoTrabajo),
       subject: ficha.materia ?? '',
       summary: ficha.resumen,
       keywords: ficha.palabrasClave,
-      // RF-16: la API solo envía los asesores autorizados; sin ellos la ficha se publica sin el dato.
       advisor: (ficha.asesores ?? []).join(', '),
       advisorAllowed: (ficha.asesores ?? []).length > 0,
       permission: ficha.permiso === 'ficha_y_materiales' ? 'Ficha y materiales autorizados' : 'Solo ficha',
@@ -398,7 +375,7 @@ export class Catalogo implements OnInit {
         id: recurso.id,
         name: recurso.nombre,
         kind: tipoRecurso(recurso.tipo),
-        // Los archivos se sirven por la API, que vuelve a comprobar el permiso (RF-11).
+        // La API vuelve a comprobar el permiso del archivo.
         href: recurso.url ?? API_URL + '/catalogo/recursos/' + recurso.id
       })),
       published: true,
@@ -412,8 +389,7 @@ export class Catalogo implements OnInit {
   }
 
   constructor() {
-    // Los filtros viven en la URL (?q=...&area=...): sobreviven a una recarga,
-    // al botón "atrás" y se pueden compartir como enlace.
+    // Los filtros se guardan en la URL: sobreviven a recargas y se pueden compartir.
     this.leerFiltrosDeUrl();
     effect(() => this.escribirFiltrosEnUrl());
     // Al desmarcar un departamento se sueltan también sus carreras.
@@ -467,12 +443,12 @@ export class Catalogo implements OnInit {
     if (this.page() > 1) params.set('pagina', String(this.page()));
 
     const location = globalThis.location;
-    // Solo mientras se está en el catálogo, para no tocar la URL de otra pantalla.
+    // Solo en la pantalla del catálogo.
     if (!location || location.pathname !== '/catalogo') return;
     const search = params.toString();
     const url = location.pathname + (search ? '?' + search : '') + location.hash;
     if (url !== location.pathname + location.search + location.hash) {
-      // replaceState: no agrega una entrada al historial por cada tecla.
+      // replaceState: no llena el historial con cada tecla.
       globalThis.history.replaceState(globalThis.history.state, '', url);
     }
   }
@@ -487,7 +463,7 @@ export class Catalogo implements OnInit {
     return { Authorization: 'Bearer ' + token };
   }
 
-  /** RF-14: favoritos de la cuenta (solo trabajos publicados). */
+  /** Carga los favoritos de la cuenta. */
   private cargarFavoritos(): void {
     if (!this.conSesion) return;
     this.http.get<number[]>(API_URL + '/favoritos', { headers: this.authHeaders() }).subscribe({
@@ -496,7 +472,6 @@ export class Catalogo implements OnInit {
     });
   }
 
-  /** "Ver mis favoritos" solo tiene sentido con una cuenta. */
   toggleFavoritesOnly(): void {
     if (!this.conSesion) {
       this.actionNotice.set('Inicia sesión para guardar y ver tus favoritos.');
@@ -531,7 +506,6 @@ export class Catalogo implements OnInit {
     this.page.set(1);
   }
 
-  /** Hay algún filtro o búsqueda activa (para mostrar "Limpiar todo"). */
   readonly hasActiveFilters = computed(() => this.activeFilters().length > 0);
 
   toggleFavorite(id: number): void {
@@ -541,7 +515,7 @@ export class Catalogo implements OnInit {
     }
     const anterior = this.favoriteIds();
     const guardado = anterior.includes(id);
-    // Se marca al instante y se deshace si la API no lo guarda.
+    // Se marca al instante y se revierte si falla.
     this.favoriteIds.set(guardado ? anterior.filter((item) => item !== id) : [...anterior, id]);
     const url = API_URL + '/favoritos/' + id;
     const peticion = guardado
@@ -598,31 +572,11 @@ export class Catalogo implements OnInit {
     return work.permission === 'Ficha y materiales autorizados' && work.approvedResourceIds.includes(resourceId);
   }
 
-  readonly filtersOpen = signal(true);
-  private wasBelowCatalogStart = false;
+  /**
+   * Panel de filtros abierto o cerrado; solo cambia cuando el usuario lo pide.
+   * En celular empieza cerrado para que se vean primero los resultados.
+   */
+  readonly filtersOpen = signal(!(globalThis.matchMedia?.('(max-width: 760px)').matches ?? false));
 
-  onCatalogScroll(): void {
-    if (!this.active()) return;
-
-    const catalog = document.getElementById('catalogo');
-    if (!catalog) return;
-
-    const belowCatalogStart = catalog.getBoundingClientRect().top < -120;
-    if (belowCatalogStart === this.wasBelowCatalogStart) return;
-
-    this.wasBelowCatalogStart = belowCatalogStart;
-    this.filtersOpen.set(!belowCatalogStart);
-  }
   private readonly injector = inject(Injector);
-
-  openNotifications(): void {
-    this.navigateTo.emit('requester');
-
-    afterNextRender(() => {
-      document.getElementById('requester-notices')?.scrollIntoView({
-        block: 'start',
-      });
-    }, { injector: this.injector });
-  }
-
 }

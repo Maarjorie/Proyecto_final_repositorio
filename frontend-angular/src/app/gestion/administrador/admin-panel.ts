@@ -161,7 +161,7 @@ export class AdminPanel {
     }
   };
 
-  /** Parte de la ruta /admin/:seccion (llega por enlace de componente). */
+  /** Sección de la ruta /admin/:seccion. */
   readonly seccion = input<string>();
   readonly activeTab = computed<AdminTab>(() => {
     const value = this.seccion();
@@ -200,12 +200,12 @@ export class AdminPanel {
     );
   });
 
-  // Registro de docentes (necesario para crear materias).
+  // Registro de docentes.
   readonly docenteUserId = signal('');
   readonly docenteCode = signal('');
   readonly docenteDepto = signal('');
 
-  // Carreras y docentes de una materia (ventana «Carreras y docentes»).
+  // Ventana "Carreras y docentes" de una materia.
   readonly cicloOptions = CICLOS;
   readonly managingId = signal<string | null>(null);
   readonly linkCarrera = signal('');
@@ -313,7 +313,7 @@ export class AdminPanel {
     this.draft.update(current => ({ ...current, [key]: value }));
   }
 
-  /** Listas largas que se eligen con buscador en lugar de una lista desplegable. */
+  /** Fuentes largas que usan el selector con buscador. */
   readonly searchableSources: OptionSource[] = ['docentes', 'carreras'];
   readonly sourceOptions = computed<Record<OptionSource, OpcionBuscable[]>>(() => {
     const desde = (rows: CatalogRow[]) => rows.map(row => ({ value: row.id, label: row['nombre'] ?? '' }));
@@ -446,7 +446,7 @@ export class AdminPanel {
       .join('');
   }
 
-  /** Registra una cuenta existente como docente para poder asignarle materias. */
+  /** Registra una cuenta como docente. */
   async registerTeacher(): Promise<void> {
     const idUsuario = Number(this.docenteUserId());
     const codigo = this.docenteCode().trim();
@@ -473,7 +473,7 @@ export class AdminPanel {
     }
   }
 
-  /** Solicita un cambio de permisos: no se aplica hasta confirmar la contraseña. */
+  /** Pide confirmar con la contraseña antes de cambiar un rol. */
   requestRoleChange(user: AdminUser, role: Role, enabled: boolean): void {
     if (this.isSelf(user) && role === 'Administrador' && !enabled) return;
     this.openPasswordDialog({ kind: 'role', id: user.id, role, enabled });
@@ -510,7 +510,7 @@ export class AdminPanel {
     this.passwordError.set('');
 
     try {
-      // La API vuelve a comprobar la contraseña de esta cuenta antes de aplicar el cambio.
+      // La API vuelve a comprobar la contraseña.
       const mensaje = await this.applyChange(change, this.password());
       this.pending.set(null);
       this.password.set('');
@@ -560,7 +560,6 @@ export class AdminPanel {
     try {
       if (tab === 'cuentas') {
         await this.loadUsers();
-        // El docente se registra con su departamento.
         await this.loadCatalog('departamentos');
       } else {
         await this.loadCatalog(tab);
@@ -599,7 +598,7 @@ export class AdminPanel {
     const rows: CatalogRow[] = datos.map(item => {
       const row: CatalogRow = { id: String(item['id']) };
       for (const [key, value] of Object.entries(item)) {
-        // Las listas (vínculos de una materia) se guardan aparte.
+        // Las listas de vínculos se guardan aparte.
         if (key !== 'id' && !Array.isArray(value)) row[key] = value === null || value === undefined ? '' : String(value);
       }
       return row;

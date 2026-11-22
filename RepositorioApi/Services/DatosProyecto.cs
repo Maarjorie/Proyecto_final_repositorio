@@ -6,11 +6,7 @@ using RepositorioApi.Models;
 
 namespace RepositorioApi.Services;
 
-/// <summary>
-/// Datos de un proyecto tal como los envía el solicitante. En un envío normal
-/// se aplican al proyecto de inmediato; en la actualización de un trabajo
-/// publicado (RF-08) se guardan en la entrega y se aplican al aprobarse.
-/// </summary>
+/// <summary>Datos de un proyecto tal como los envía el solicitante.</summary>
 public sealed class DatosProyecto
 {
     public string Titulo { get; set; } = string.Empty;
@@ -44,11 +40,8 @@ public sealed class DatosProyecto
     }
 
     /// <summary>
-    /// Copia los datos al proyecto. Con <paramref name="reemplazar"/> se quitan
-    /// antes sus autores y palabras clave; los asesores que se mantienen
-    /// conservan el permiso ya registrado (RF-16). Devuelve los autores que
-    /// dejaron de figurar, para limpiarlos después de guardar.
-    /// El proyecto debe tener ya su id (estar guardado).
+    /// Copia autores, palabras clave y asesores al proyecto (ya guardado).
+    /// Devuelve los autores que dejaron de figurar.
     /// </summary>
     public async Task<List<int>> AplicarAsync(
         RepositorioDbContext db,
@@ -140,10 +133,7 @@ public sealed class DatosProyecto
                                 !autor.TblProyectoAutors.Any())
                 .ExecuteDeleteAsync(cancellationToken);
 
-    /// <summary>
-    /// Los datos propuestos listos para mostrar (nombres en lugar de ids), para
-    /// que el supervisor y el solicitante vean la versión que se revisa.
-    /// </summary>
+    /// <summary>Los datos con nombres en lugar de ids, para mostrarlos.</summary>
     public async Task<VistaDatosProyecto> DescribirAsync(RepositorioDbContext db, CancellationToken cancellationToken)
     {
         var tipo = await db.TblTipoProyectos.AsNoTracking()

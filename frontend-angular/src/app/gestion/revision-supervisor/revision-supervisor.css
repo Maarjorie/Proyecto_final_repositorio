@@ -1,11 +1,10 @@
-/* Usa la base de Mis proyectos (seguimiento.css) y agrega lo propio de la revisión. */
+/* Se apoya en seguimiento.css (Mis proyectos) */
 
 .pagina-revision {
   padding-bottom: 48px;
 }
 
 /* Pestañas */
-/* Misma barra que la del panel del administrador: ocupa todo el ancho. */
 .pestanas {
   display: flex;
   flex-wrap: wrap;
@@ -62,7 +61,7 @@
   background: rgba(255, 255, 255, 0.22);
 }
 
-/* Lista: tarjetas anchas, una por fila, porque llevan formularios. */
+/* Lista de entregas: una tarjeta por fila */
 .lista-revision {
   display: grid;
   gap: 18px;
@@ -130,7 +129,7 @@ fieldset.bloque-revision > legend {
   overflow-wrap: anywhere;
 }
 
-/* Permiso de los autores (RF-10) */
+/* Permiso de los autores */
 .permiso-autores {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
 }
@@ -230,7 +229,7 @@ fieldset.bloque-revision > legend {
   outline-offset: 1px;
 }
 
-/* Botones de decisión con el acabado "vidrio" de la app */
+/* Botones de decisión */
 .acciones-revision {
   display: flex;
   flex-wrap: wrap;
@@ -307,13 +306,20 @@ fieldset.bloque-revision > legend {
     flex: 1 1 140px;
   }
 
+  /* Las dos pestañas lado a lado */
   .pestanas {
-    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    margin-bottom: 18px;
+    padding: 6px;
   }
 
   .pestana {
-    flex: 1 1 auto;
-    justify-content: center;
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 10px 8px;
+    font-size: 13px;
+    text-align: center;
   }
 
   .insignias-estado {
@@ -325,12 +331,12 @@ fieldset.bloque-revision > legend {
   margin: 14px 0 0;
 }
 
-/* RF-16: casillas de los asesores, separadas visualmente de los materiales. */
+/* Asesores */
 .asesores-autorizados {
   background: rgba(190, 232, 205, 0.32);
 }
 
-/* Aprobadas y publicaciones: buscador, filtros y tarjetas compactas. */
+/* Aprobadas y publicaciones */
 .barra-publicaciones {
   display: grid;
   gap: 12px;
@@ -433,7 +439,7 @@ fieldset.bloque-revision > legend {
   }
 }
 
-/* Filtro por fecha de aprobación, a la izquierda de la lista. */
+/* Filtro por fecha */
 .disposicion-publicaciones {
   display: grid;
   grid-template-columns: 250px minmax(0, 1fr);
@@ -553,5 +559,10 @@ fieldset.bloque-revision > legend {
 
   .panel-fechas {
     position: static;
+  }
+
+  /* Los cuatro modos de fecha en una fila */
+  .modos-fecha {
+    grid-template-columns: repeat(4, 1fr);
   }
 }

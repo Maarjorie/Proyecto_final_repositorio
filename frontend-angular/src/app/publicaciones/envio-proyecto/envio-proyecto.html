@@ -236,7 +236,7 @@
 
       <div class="campo">
         <label for="tematica">Área temática</label>
-        <!-- Con buscador: hay muchas temáticas y una lista desplegable se vuelve enorme. -->
+        <!-- Con buscador: hay muchas temáticas. -->
         <app-selector-buscable
           inputId="tematica"
           [requerido]="true"
@@ -264,13 +264,12 @@
         @if (campoConError === 'materia') { <small class="error-campo" role="alert">{{ mensajeError }}</small> }
       </div>
 
-      <!-- RF-16: docentes que asesoraron el trabajo. Su nombre se muestra en
-           el catálogo solo si el supervisor registra que se autorizó. -->
+      <!-- RF-16: docentes asesores. -->
       <div class="campo campo-asesores">
         <label for="asesor-0">Docente asesor (opcional)</label>
         @for (asesor of asesores; track $index; let i = $index) {
           <div class="fila-asesor">
-            <!-- Con buscador por nombre o código: puede haber miles de docentes. -->
+            <!-- Con buscador por nombre o código. -->
             <app-selector-buscable
               class="selector-asesor"
               [inputId]="'asesor-' + i"
@@ -401,7 +400,6 @@
           {{ mensajeError }}
         </p>
       </fieldset>
-
 
       @if (mensajeExito) {
         <p class="mensaje-exito" role="status">

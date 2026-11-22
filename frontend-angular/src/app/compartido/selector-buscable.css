@@ -45,7 +45,7 @@ input:focus {
   opacity: 0.72;
 }
 
-/* Flecha, igual que la de las listas desplegables. */
+/* Flecha */
 .flecha {
   position: absolute;
   top: 50%;
@@ -88,7 +88,7 @@ input:focus {
   outline: none;
 }
 
-/* Va en <body> con posición fija: la coloca el componente bajo el campo. */
+/* Lista en <body> con posición fija, bajo el campo */
 .lista {
   position: fixed;
   z-index: 2000;

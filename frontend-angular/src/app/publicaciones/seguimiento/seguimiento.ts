@@ -26,7 +26,7 @@ export interface ProyectoEnSeguimiento {
   estado: EstadoSolicitud;
   puedeEliminar: boolean;
   puedeReenviar: boolean;
-  /** RF-08: versión publicada vigente que se puede actualizar. */
+  /** Se puede actualizar (RF-08). */
   puedeActualizar: boolean;
   esActualizacion: boolean;
   observacion: string | null;
@@ -86,12 +86,12 @@ export interface DetalleSolicitud {
 })
 export class SeguimientoComponent implements OnInit {
   private readonly http = inject(HttpClient);
-  // La app es zoneless: tras cada respuesta HTTP hay que pedir que se repinte.
+  // La app es zoneless: se repinta con markForCheck().
   private readonly cdr = inject(ChangeDetectorRef);
 
   /** Una tarjeta por proyecto: su versión más reciente. */
   proyectos: ProyectoEnSeguimiento[] = [];
-  /** Todas las versiones enviadas (las anteriores van en el historial de cada tarjeta). */
+  /** Todas las versiones enviadas. */
   private envios: ProyectoEnSeguimiento[] = [];
   historialAbierto: number | null = null;
   cargando = true;
@@ -111,7 +111,7 @@ export class SeguimientoComponent implements OnInit {
     this.cargarProyectos();
   }
 
-  /** Las fechas llegan en UTC sin zona; se marcan como UTC para mostrarlas en hora local. */
+  /** Las fechas llegan en UTC sin zona. */
   fechaLocal(fecha: string | null): Date | null {
     if (!fecha) {
       return null;
@@ -246,7 +246,7 @@ export class SeguimientoComponent implements OnInit {
       .subscribe({
         next: respuesta => {
           this.mensajeExito = respuesta.mensaje;
-          // Si era una versión nueva, la anterior vuelve a ser la vigente: se recarga la lista.
+          // La versión anterior puede volver a ser la vigente: se recarga.
           this.cargarProyectos();
           this.eliminandoId = null;
           this.confirmandoEliminarId = null;
