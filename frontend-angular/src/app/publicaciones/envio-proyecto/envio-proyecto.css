@@ -594,3 +594,25 @@
   color: var(--muted);
   font-size: 12px;
 }
+
+/* Campo con error y su aviso. */
+.invalido {
+  border-color: #c0504d !important;
+  box-shadow: 0 0 0 3px rgba(192, 80, 77, 0.16) !important;
+}
+
+.campo small.error-campo {
+  color: #a33a37;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.contador-caracteres {
+  color: #4b6478;
+  font-size: 12px;
+}
+
+.campo small.contador-caracteres.corto {
+  color: #a33a37;
+}

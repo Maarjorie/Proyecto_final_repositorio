@@ -13,7 +13,38 @@ var jwtIssuer = builder.Configuration["Jwt:Issuer"]
 var jwtAudience = builder.Configuration["Jwt:Audience"]
     ?? throw new InvalidOperationException("Falta configurar Jwt:Audience.");
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        // Mismo formato que el resto de errores ({ mensaje }) para que la
+        // pantalla lo muestre. Los mensajes de los atributos están en español;
+        // los automáticos de ASP.NET (en inglés) se cambian por uno genérico.
+        // Un número vacío o mal escrito no llega a los atributos: se nombra el campo.
+        var mensajesPorCampo = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["Anio"] = "Escribe el año del trabajo.",
+            ["IdTipoProyecto"] = "Selecciona el tipo de trabajo.",
+            ["IdCarrera"] = "Selecciona la carrera.",
+            ["IdTematica"] = "Selecciona el área temática.",
+            ["IdMateria"] = "Selecciona una asignatura válida.",
+            ["IdDocentesAsesores"] = "Selecciona docentes asesores válidos."
+        };
+        options.InvalidModelStateResponseFactory = context =>
+        {
+            var mensaje = context.ModelState
+                .Where(campo => campo.Value?.Errors.Count > 0)
+                .Select(campo =>
+                    campo.Value!.Errors
+                        .Select(error => error.ErrorMessage)
+                        .FirstOrDefault(texto => !string.IsNullOrWhiteSpace(texto) && !texto.StartsWith("The ", StringComparison.Ordinal))
+                    ?? mensajesPorCampo.GetValueOrDefault(campo.Key.Split('[')[0]))
+                .FirstOrDefault(texto => texto is not null);
+            return new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(new
+            {
+                mensaje = mensaje ?? "Revisa los datos del formulario."
+            });
+        };
+    });
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AngularLocal", policy =>

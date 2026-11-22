@@ -73,12 +73,13 @@
       </aside>
     }
 
-    <form class="formulario" (submit)="enviarSolicitud($event)"
+    <form class="formulario" novalidate (submit)="enviarSolicitud($event)"
       [hidden]="cargandoCorreccion || errorCorreccion.length > 0">
       <div class="campo">
         <label for="titulo">Título del proyecto</label>
         <input
           id="titulo"
+          [class.invalido]="campoConError === 'titulo'"
           name="titulo"
           type="text"
           maxlength="300"
@@ -87,6 +88,7 @@
           (input)="actualizarCampo('titulo', $event)"
           required
         >
+        @if (campoConError === 'titulo') { <small class="error-campo" role="alert">{{ mensajeError }}</small> }
       </div>
 
       <fieldset class="grupo-autores">
@@ -98,6 +100,7 @@
               <label [for]="'nombres-autor-' + i">Nombres</label>
               <input
                 [id]="'nombres-autor-' + i"
+                [class.invalido]="campoConError === 'nombres-autor-' + i"
                 type="text"
                 maxlength="100"
                 [value]="autor.nombres"
@@ -105,12 +108,14 @@
                 placeholder="Nombres"
                 required
               >
+              @if (campoConError === 'nombres-autor-' + i) { <small class="error-campo" role="alert">{{ mensajeError }}</small> }
             </div>
 
             <div class="campo">
               <label [for]="'apellidos-autor-' + i">Apellidos</label>
               <input
                 [id]="'apellidos-autor-' + i"
+                [class.invalido]="campoConError === 'apellidos-autor-' + i"
                 type="text"
                 maxlength="100"
                 [value]="autor.apellidos"
@@ -118,18 +123,21 @@
                 placeholder="Apellidos"
                 required
               >
+              @if (campoConError === 'apellidos-autor-' + i) { <small class="error-campo" role="alert">{{ mensajeError }}</small> }
             </div>
 
             <div class="campo">
               <label [for]="'carnet-autor-' + i">Carnet (opcional)</label>
               <input
                 [id]="'carnet-autor-' + i"
+                [class.invalido]="campoConError === 'carnet-autor-' + i"
                 type="text"
-                maxlength="20"
+                maxlength="7"
                 [value]="autor.carnet"
                 (input)="actualizarAutor(i, 'carnet', $event)"
-                placeholder="Carnet (opcional)"
+                placeholder="Ej. AB12345"
               >
+              @if (campoConError === 'carnet-autor-' + i) { <small class="error-campo" role="alert">{{ mensajeError }}</small> }
             </div>
 
             @if (autores.length > 1) {
@@ -154,21 +162,24 @@
           <label for="anio">Año del trabajo</label>
           <input
             id="anio"
+            [class.invalido]="campoConError === 'anio'"
             name="anio"
             type="number"
-            min="1"
-            max="9999"
+            [min]="reglas.anioMinimo"
+            [max]="anioActual"
             placeholder="Ej. 2026"
             [value]="anio"
             (input)="actualizarCampo('anio', $event)"
             required
           >
+          @if (campoConError === 'anio') { <small class="error-campo" role="alert">{{ mensajeError }}</small> }
         </div>
 
         <div class="campo">
           <label for="tipoProyecto">Tipo de trabajo</label>
           <select
             id="tipoProyecto"
+            [class.invalido]="campoConError === 'tipoProyecto'"
             name="tipoProyecto"
             required
             (change)="actualizarTipoProyecto($event)"
@@ -178,6 +189,7 @@
               <option [value]="tipo.id" [selected]="tipo.id === +tipoProyecto">{{ formatearNombre(tipo.nombre) }}</option>
             }
           </select>
+          @if (campoConError === 'tipoProyecto') { <small class="error-campo" role="alert">{{ mensajeError }}</small> }
         </div>
       </div>
 
@@ -186,6 +198,7 @@
           <label for="departamento">Departamento</label>
           <select
             id="departamento"
+            [class.invalido]="campoConError === 'departamento'"
             name="departamento"
             [value]="departamentoSeleccionado"
             (change)="actualizarDepartamento($event)"
@@ -196,12 +209,14 @@
               <option [value]="departamento.id" [selected]="departamento.id === +departamentoSeleccionado">{{ departamento.nombre }}</option>
             }
           </select>
+          @if (campoConError === 'departamento') { <small class="error-campo" role="alert">{{ mensajeError }}</small> }
         </div>
 
         <div class="campo">
           <label for="carrera">Carrera</label>
           <select
             id="carrera"
+            [class.invalido]="campoConError === 'carrera'"
             name="carrera"
             [value]="carreraSeleccionada"
             [disabled]="!departamentoSeleccionado"
@@ -215,6 +230,7 @@
               <option [value]="carrera.id" [selected]="carrera.id === +carreraSeleccionada">{{ carrera.nombre }}</option>
             }
           </select>
+          @if (campoConError === 'carrera') { <small class="error-campo" role="alert">{{ mensajeError }}</small> }
         </div>
       </div>
 
@@ -225,23 +241,27 @@
           inputId="tematica"
           [requerido]="true"
           [opciones]="opcionesTematicas"
-          [(valor)]="tematicaSeleccionada"
+          [valor]="tematicaSeleccionada"
+          (valorChange)="elegirTematica($event)"
           placeholder="Buscar área temática"
         />
+        @if (campoConError === 'tematica') { <small class="error-campo" role="alert">{{ mensajeError }}</small> }
       </div>
 
       <div class="campo" [hidden]="!esProyectoCurso">
-        <label for="materia">Asignatura (opcional)</label>
+        <label for="materia">Asignatura</label>
         <app-selector-buscable
           inputId="materia"
           [opciones]="opcionesMaterias"
-          [(valor)]="materiaSeleccionada"
+          [valor]="materiaSeleccionada"
+          (valorChange)="elegirMateria($event)"
           [deshabilitado]="!carreraSeleccionada || materias.length === 0"
           [placeholder]="!carreraSeleccionada ? 'Primero selecciona la carrera'
             : cargandoMaterias ? 'Cargando asignaturas…'
             : materias.length ? 'Buscar asignatura'
             : 'Sin asignaturas registradas'"
         />
+        @if (campoConError === 'materia') { <small class="error-campo" role="alert">{{ mensajeError }}</small> }
       </div>
 
       <!-- RF-16: docentes que asesoraron el trabajo. Su nombre se muestra en
@@ -278,25 +298,33 @@
         <label for="resumen">Resumen del proyecto</label>
         <textarea
           id="resumen"
+          [class.invalido]="campoConError === 'resumen'"
           name="resumen"
           rows="5"
+          [attr.maxlength]="reglas.resumenMaximo"
           placeholder="Describe brevemente el proyecto."
           [value]="resumen"
           (input)="actualizarCampo('resumen', $event)"
           required
         ></textarea>
+        <small class="contador-caracteres" [class.corto]="resumen.trim().length < reglas.resumenMinimo">
+          {{ resumen.trim().length }} / {{ reglas.resumenMaximo }} caracteres · mínimo {{ reglas.resumenMinimo }}
+        </small>
+        @if (campoConError === 'resumen') { <small class="error-campo" role="alert">{{ mensajeError }}</small> }
       </div>
 
       <div class="campo">
-        <label for="palabrasClave">Palabras clave (opcional)</label>
+        <label for="palabrasClave">Palabras clave</label>
         <textarea
           id="palabrasClave"
+          [class.invalido]="campoConError === 'palabrasClave'"
           name="palabrasClave"
           rows="2"
           placeholder="Escribe una palabra clave por línea"
           [value]="palabrasClaveTexto"
           (input)="actualizarPalabrasClave($event)"
         ></textarea>
+        @if (campoConError === 'palabrasClave') { <small class="error-campo" role="alert">{{ mensajeError }}</small> }
       </div>
 
       <fieldset class="recursos">
@@ -323,6 +351,7 @@
           <label for="pdfs">Documentos PDF </label>
           <input
             id="pdfs"
+            [class.invalido]="campoConError === 'pdfs'"
             name="pdfs"
             type="file"
             accept=".pdf,application/pdf"
@@ -332,6 +361,7 @@
           <small [hidden]="pdfs.length === 0">
             {{ pdfs.length }} PDF seleccionados.
           </small>
+          @if (campoConError === 'pdfs') { <small class="error-campo" role="alert">{{ mensajeError }}</small> }
         </div>
 
         <div class="campo">
@@ -353,6 +383,7 @@
           <label for="enlaces">Enlaces</label>
           <textarea
             id="enlaces"
+            [class.invalido]="campoConError === 'enlaces'"
             name="enlaces"
             rows="3"
             placeholder="Agrega un enlace por línea: https://..."
@@ -361,11 +392,12 @@
           <small [hidden]="enlaces.length === 0">
             {{ enlaces.length }} enlace(s) agregados.
           </small>
+          @if (campoConError === 'enlaces') { <small class="error-campo" role="alert">{{ mensajeError }}</small> }
         </div>
 
         <p class="contador-recursos">Recursos agregados: {{ totalRecursos }}</p>
 
-        <p class="mensaje-error" [hidden]="mensajeError.length === 0" role="alert">
+        <p class="mensaje-error" [hidden]="mensajeError.length === 0 || campoConError !== ''" role="alert">
           {{ mensajeError }}
         </p>
       </fieldset>

@@ -151,6 +151,29 @@ public sealed class ProyectosController : ControllerBase
             }
         }
 
+        // Título, resumen y año.
+        var titulo = request.Titulo.Trim();
+        var resumen = request.Resumen.Trim();
+        if (titulo.Length is < Validacion.TituloMinimo or > Validacion.TituloMaximo)
+        {
+            return BadRequest(new { mensaje = $"El título debe tener entre {Validacion.TituloMinimo} y {Validacion.TituloMaximo} caracteres." });
+        }
+
+        if (resumen.Length is < Validacion.ResumenMinimo or > Validacion.ResumenMaximo)
+        {
+            return BadRequest(new { mensaje = $"El resumen debe tener entre {Validacion.ResumenMinimo} y {Validacion.ResumenMaximo} caracteres." });
+        }
+
+        if (Validacion.TienePalabraDemasiadoLarga(titulo) || Validacion.TienePalabraDemasiadoLarga(resumen))
+        {
+            return BadRequest(new { mensaje = "El título o el resumen tienen texto sin espacios demasiado largo. Revisa que estén bien escritos." });
+        }
+
+        if (request.Anio < Validacion.AnioMinimo || request.Anio > DateTime.Now.Year)
+        {
+            return BadRequest(new { mensaje = $"El año debe estar entre {Validacion.AnioMinimo} y {DateTime.Now.Year}." });
+        }
+
         List<AutorProyectoRequest>? autores;
         try
         {
@@ -169,13 +192,23 @@ public sealed class ProyectosController : ControllerBase
         }
 
         if (autores.Any(autor =>
-                string.IsNullOrWhiteSpace(autor.Nombres) ||
-                string.IsNullOrWhiteSpace(autor.Apellidos) ||
-                autor.Nombres.Trim().Length > 100 ||
-                autor.Apellidos.Trim().Length > 100 ||
-                (autor.Carnet?.Trim().Length ?? 0) > 20))
+                !Validacion.EsNombrePersona(autor.Nombres) ||
+                !Validacion.EsNombrePersona(autor.Apellidos)))
         {
-            return BadRequest(new { mensaje = "Revisa los nombres, apellidos y carnets de los autores." });
+            return BadRequest(new { mensaje = "Los nombres y apellidos de los autores solo llevan letras y al menos 2 caracteres." });
+        }
+
+        if (autores.Any(autor => !string.IsNullOrWhiteSpace(autor.Carnet) && !Validacion.EsCarnet(autor.Carnet)))
+        {
+            return BadRequest(new { mensaje = "El carnet lleva dos letras y cinco números, por ejemplo AB12345." });
+        }
+
+        var nombresAutores = autores
+            .Select(autor => (autor.Nombres.Trim() + " " + autor.Apellidos.Trim()).ToLowerInvariant())
+            .ToList();
+        if (nombresAutores.Distinct(StringComparer.Ordinal).Count() != nombresAutores.Count)
+        {
+            return BadRequest(new { mensaje = "Hay un autor repetido." });
         }
 
         var carnets = autores
@@ -195,15 +228,25 @@ public sealed class ProyectosController : ControllerBase
             .Distinct(StringComparer.Ordinal)
             .ToList();
 
-        if (palabrasClave.Any(palabra => palabra.Length > 60))
+        if (palabrasClave.Count == 0 || palabrasClave.Count > Validacion.MaximoPalabrasClave)
         {
-            return BadRequest(new { mensaje = "Cada palabra clave admite hasta 60 caracteres." });
+            return BadRequest(new { mensaje = $"Agrega entre 1 y {Validacion.MaximoPalabrasClave} palabras clave." });
+        }
+
+        if (palabrasClave.Any(palabra => palabra.Length is < 2 or > 60 || Validacion.TienePalabraDemasiadoLarga(palabra)))
+        {
+            return BadRequest(new { mensaje = "Cada palabra clave debe tener entre 2 y 60 caracteres." });
         }
 
         var enlaces = (request.Enlaces ?? [])
             .Select(enlace => enlace.Trim())
             .Where(enlace => enlace.Length > 0)
             .ToList();
+
+        if (enlaces.Count > Validacion.MaximoEnlaces || enlaces.Any(enlace => enlace.Length > 500))
+        {
+            return BadRequest(new { mensaje = $"Agrega hasta {Validacion.MaximoEnlaces} enlaces de máximo 500 caracteres." });
+        }
 
         if (enlaces.Any(enlace =>
                 !Uri.TryCreate(enlace, UriKind.Absolute, out var uri) ||
@@ -259,6 +302,15 @@ public sealed class ProyectosController : ControllerBase
             });
         }
 
+        // El contenido debe ser el del tipo indicado (un archivo renombrado no pasa).
+        foreach (var item in archivos)
+        {
+            if (!await Validacion.ContenidoCoincideAsync(item.Archivo, item.Extension, cancellationToken))
+            {
+                return BadRequest(new { mensaje = $"El archivo «{Path.GetFileName(item.Archivo.FileName)}» no es un {item.TipoNombre} válido." });
+            }
+        }
+
         var tipo = await _db.TblTipoProyectos
             .AsNoTracking()
             .FirstOrDefaultAsync(
@@ -285,6 +337,14 @@ public sealed class ProyectosController : ControllerBase
             !tipo.Nombre.Contains("curso", StringComparison.OrdinalIgnoreCase))
         {
             return BadRequest(new { mensaje = "Solo los proyectos de curso llevan asignatura." });
+        }
+
+        // Un proyecto de curso pertenece a una asignatura del plan de su carrera.
+        if (request.IdMateria is null &&
+            tipo.Nombre.Contains("curso", StringComparison.OrdinalIgnoreCase) &&
+            await _db.TblCarreraMateria.AnyAsync(item => item.IdCarrera == request.IdCarrera, cancellationToken))
+        {
+            return BadRequest(new { mensaje = "Selecciona la asignatura del proyecto de curso." });
         }
 
         if (!materiaExiste)
@@ -348,8 +408,8 @@ public sealed class ProyectosController : ControllerBase
 
         var datos = new DatosProyecto
         {
-            Titulo = request.Titulo.Trim(),
-            Resumen = request.Resumen.Trim(),
+            Titulo = titulo,
+            Resumen = resumen,
             Anio = request.Anio,
             IdTipoProyecto = request.IdTipoProyecto,
             IdCarrera = request.IdCarrera,
@@ -997,23 +1057,22 @@ public sealed class ProyectosController : ControllerBase
 
 public sealed class CrearProyectoRequest
 {
-    [Required]
-    [StringLength(300, MinimumLength = 3)]
+    [Required(ErrorMessage = "Escribe el título del proyecto.")]
     public string Titulo { get; set; } = string.Empty;
 
-    [Required]
+    [Required(ErrorMessage = "Escribe el resumen del proyecto.")]
     public string Resumen { get; set; } = string.Empty;
 
-    [Range(1900, 2100)]
+    [Range(1, 9999, ErrorMessage = "Escribe el año del trabajo.")]
     public int Anio { get; set; }
 
-    [Range(1, int.MaxValue)]
+    [Range(1, int.MaxValue, ErrorMessage = "Selecciona el tipo de trabajo.")]
     public int IdTipoProyecto { get; set; }
 
-    [Range(1, int.MaxValue)]
+    [Range(1, int.MaxValue, ErrorMessage = "Selecciona la carrera.")]
     public int IdCarrera { get; set; }
 
-    [Range(1, int.MaxValue)]
+    [Range(1, int.MaxValue, ErrorMessage = "Selecciona el área temática.")]
     public int IdTematica { get; set; }
 
     public int? IdMateria { get; set; }

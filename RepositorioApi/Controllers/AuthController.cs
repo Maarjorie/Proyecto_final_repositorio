@@ -9,6 +9,7 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authorization;
 using RepositorioApi.Data;
 using RepositorioApi.Models;
+using RepositorioApi.Services;
 
 namespace RepositorioApi.Controllers;
 
@@ -32,6 +33,16 @@ public class AuthController : ControllerBase
     public async Task<IActionResult> Registrar(RegistroRequest request)
     {
         var correo = request.Correo.Trim().ToLowerInvariant();
+
+        if (!Validacion.EsNombrePersona(request.Nombres) || !Validacion.EsNombrePersona(request.Apellidos))
+        {
+            return BadRequest(new { mensaje = "Los nombres y apellidos solo llevan letras y al menos 2 caracteres." });
+        }
+
+        if (!Validacion.EsContrasenaSegura(request.Contrasena))
+        {
+            return BadRequest(new { mensaje = "La contraseña debe tener entre 8 y 128 caracteres, con al menos una letra y un número." });
+        }
 
         var yaExiste = await _db.TblUsuarios
             .AnyAsync(usuario => usuario.Correo.ToLower() == correo);
@@ -162,30 +173,30 @@ public class AuthController : ControllerBase
 
 public class RegistroRequest
 {
-    [Required]
-    [StringLength(100, MinimumLength = 2)]
+    [Required(ErrorMessage = "Escribe tus nombres.")]
+    [StringLength(100, MinimumLength = 2, ErrorMessage = "Los nombres deben tener entre 2 y 100 caracteres.")]
     public string Nombres { get; set; } = string.Empty;
 
-    [Required]
-    [StringLength(100, MinimumLength = 2)]
+    [Required(ErrorMessage = "Escribe tus apellidos.")]
+    [StringLength(100, MinimumLength = 2, ErrorMessage = "Los apellidos deben tener entre 2 y 100 caracteres.")]
     public string Apellidos { get; set; } = string.Empty;
 
-    [Required]
-    [EmailAddress]
-    [StringLength(254)]
+    [Required(ErrorMessage = "Escribe tu correo electrónico.")]
+    [EmailAddress(ErrorMessage = "Escribe un correo electrónico válido.")]
+    [StringLength(254, ErrorMessage = "El correo es demasiado largo.")]
     public string Correo { get; set; } = string.Empty;
 
-    [Required]
-    [MinLength(8)]
+    [Required(ErrorMessage = "Escribe una contraseña.")]
+    [StringLength(128, MinimumLength = 8, ErrorMessage = "La contraseña debe tener entre 8 y 128 caracteres.")]
     public string Contrasena { get; set; } = string.Empty;
 }
 
 public class LoginRequest
 {
-    [Required]
-    [EmailAddress]
+    [Required(ErrorMessage = "Escribe tu correo electrónico.")]
+    [EmailAddress(ErrorMessage = "Escribe un correo electrónico válido.")]
     public string Correo { get; set; } = string.Empty;
 
-    [Required]
+    [Required(ErrorMessage = "Escribe tu contraseña.")]
     public string Contrasena { get; set; } = string.Empty;
 }

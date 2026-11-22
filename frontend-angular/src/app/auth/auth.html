@@ -26,71 +26,98 @@
         <p class="error-message" role="alert">{{ mensajeError }}</p>
       }
 
-      <form (ngSubmit)="submit()">
+      <form (ngSubmit)="submit()" novalidate>
         @if (mode() === 'registro') {
           <div class="field-row">
             <label>
-              Nombres
-              <input
-                type="text"
-                name="nombres"
-                [(ngModel)]="nombres"
-                required
-                minlength="2"
-                maxlength="100"
-                autocomplete="given-name"
-                placeholder="Tus nombres">
-            </label>
+            Nombres
+            <input
+              type="text"
+              name="nombres"
+              [(ngModel)]="nombres"
+              (ngModelChange)="limpiarError('nombres')"
+              [attr.aria-invalid]="errores.nombres ? true : null"
+              [class.invalido]="errores.nombres"
+              maxlength="100"
+              autocomplete="given-name"
+              placeholder="Tus nombres">
+            @if (errores.nombres) { <small class="error-campo">{{ errores.nombres }}</small> }
+          </label>
             <label>
-              Apellidos
-              <input
-                type="text"
-                name="apellidos"
-                [(ngModel)]="apellidos"
-                required
-                minlength="2"
-                maxlength="100"
-                autocomplete="family-name"
-                placeholder="Tus apellidos">
-            </label>
+            Apellidos
+            <input
+              type="text"
+              name="apellidos"
+              [(ngModel)]="apellidos"
+              (ngModelChange)="limpiarError('apellidos')"
+              [attr.aria-invalid]="errores.apellidos ? true : null"
+              [class.invalido]="errores.apellidos"
+              maxlength="100"
+              autocomplete="family-name"
+              placeholder="Tus apellidos">
+            @if (errores.apellidos) { <small class="error-campo">{{ errores.apellidos }}</small> }
+          </label>
           </div>
         }
 
         <label>
-          Correo electrónico
-          <input
-            type="email"
-            name="correo"
-            [(ngModel)]="correo"
-            required
-            maxlength="254"
-            autocomplete="email"
-            placeholder="tu.correo@ues.edu.sv">
-        </label>
-
-        <label>
-          Contraseña
-          <input
-            type="password"
-            name="contrasena"
-            [(ngModel)]="contrasena"
-            required
-            [minlength]="mode() === 'registro' ? 8 : 1"
-            autocomplete="current-password"
-            placeholder="Escribe tu contraseña">
-        </label>
+            Correo electrónico
+            <input
+              type="email"
+              name="correo"
+              [(ngModel)]="correo"
+              (ngModelChange)="limpiarError('correo')"
+              [attr.aria-invalid]="errores.correo ? true : null"
+              [class.invalido]="errores.correo"
+              maxlength="254"
+              autocomplete="email"
+              placeholder="tu.correo@ues.edu.sv">
+            @if (errores.correo) { <small class="error-campo">{{ errores.correo }}</small> }
+          </label>
 
         @if (mode() === 'registro') {
+          <label>
+            Contraseña
+            <input
+              type="password"
+              name="contrasena"
+              [(ngModel)]="contrasena"
+              (ngModelChange)="limpiarError('contrasena')"
+              [attr.aria-invalid]="errores.contrasena ? true : null"
+              [class.invalido]="errores.contrasena"
+              maxlength="128"
+              autocomplete="new-password"
+              placeholder="Mínimo 8 caracteres, con letras y números">
+            @if (errores.contrasena) { <small class="error-campo">{{ errores.contrasena }}</small> }
+          </label>
+
           <label>
             Confirmar contraseña
             <input
               type="password"
               name="confirmarContrasena"
               [(ngModel)]="confirmarContrasena"
-              required
-              minlength="8"
+              (ngModelChange)="limpiarError('confirmarContrasena')"
+              [attr.aria-invalid]="errores.confirmarContrasena ? true : null"
+              [class.invalido]="errores.confirmarContrasena"
+              maxlength="128"
               autocomplete="new-password"
               placeholder="Escribe de nuevo tu contraseña">
+            @if (errores.confirmarContrasena) { <small class="error-campo">{{ errores.confirmarContrasena }}</small> }
+          </label>
+        } @else {
+          <label>
+            Contraseña
+            <input
+              type="password"
+              name="contrasena"
+              [(ngModel)]="contrasena"
+              (ngModelChange)="limpiarError('contrasena')"
+              [attr.aria-invalid]="errores.contrasena ? true : null"
+              [class.invalido]="errores.contrasena"
+              autocomplete="current-password"
+              placeholder="Escribe tu contraseña">
+            @if (errores.contrasena) { <small class="error-campo">{{ errores.contrasena }}</small> }
           </label>
         }
 

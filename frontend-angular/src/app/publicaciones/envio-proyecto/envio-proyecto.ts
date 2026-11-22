@@ -3,7 +3,8 @@ import { esCuentaDeGestion, usuarioTieneRol } from '../../auth/auth.guard';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, inject, OnInit } from '@angular/core';
 import { ActivatedRoute, RouterLink, RouterLinkActive } from '@angular/router';
-import { firstValueFrom, retry } from 'rxjs';
+import { REGLAS, esCarnet, mensajeDeError, tienePalabraDemasiadoLarga, validarNombre } from '../../compartido/validacion';
+import { firstValueFrom, retry, timeout } from 'rxjs';
 import { AUTH_TOKEN_KEY } from '../../auth/auth.constants';
 import { OpcionBuscable, SelectorBuscable } from '../../compartido/selector-buscable';
 
@@ -99,10 +100,14 @@ export class EnvioProyectoComponent implements OnInit {
   palabrasClave: string[] = [];
   mensajeError = '';
   mensajeExito = '';
+  /** Id del campo con error: el aviso se muestra debajo de él. */
+  campoConError = '';
   tipoProyecto = '';
   enviando = false;
   solicitudEnviada = false;
   readonly esSupervisor = usuarioTieneRol('supervisor');
+  readonly reglas = REGLAS;
+  readonly anioActual = new Date().getFullYear();
   readonly esGestion = esCuentaDeGestion();
 
   departamentos: DepartamentoCatalogo[] = [];
@@ -127,6 +132,16 @@ export class EnvioProyectoComponent implements OnInit {
     this.asesores = this.asesores.length > 1
       ? this.asesores.filter((_, i) => i !== indice)
       : [''];
+  }
+
+  elegirTematica(valor: string): void {
+    this.tematicaSeleccionada = valor;
+    this.limpiarErrorDe('tematica');
+  }
+
+  elegirMateria(valor: string): void {
+    this.materiaSeleccionada = valor;
+    this.limpiarErrorDe('materia');
   }
 
   elegirAsesor(indice: number, valor: string): void {
@@ -413,6 +428,7 @@ export class EnvioProyectoComponent implements OnInit {
     event: Event
   ): void {
     this[campo] = (event.target as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement).value;
+    this.limpiarErrorDe(campo === 'tematicaSeleccionada' ? 'tematica' : campo === 'materiaSeleccionada' ? 'materia' : campo);
   }
 
   private cargarCatalogo<T>(
@@ -476,6 +492,7 @@ export class EnvioProyectoComponent implements OnInit {
     }
 
     autor[campo] = input.value;
+    this.limpiarErrorDe(campo + '-autor-' + indice);
   }
 
   actualizarDepartamento(event: Event): void {
@@ -505,12 +522,108 @@ export class EnvioProyectoComponent implements OnInit {
     const input = event.target as HTMLInputElement;
     this.pdfs = Array.from(input.files ?? []);
     this.limpiarMensajes();
+    this.mensajeError = this.revisarArchivos(this.pdfs, '.pdf', 'PDF');
   }
 
   actualizarZips(event: Event): void {
     const input = event.target as HTMLInputElement;
     this.archivosZip = Array.from(input.files ?? []);
     this.limpiarMensajes();
+    this.mensajeError = this.revisarArchivos(this.archivosZip, '.zip', 'ZIP');
+  }
+
+  /** Extensión, archivos vacíos y tamaño (25 MB por archivo). */
+  private revisarArchivos(archivos: File[], extension: string, tipo: string): string {
+    const incorrecto = archivos.find(archivo => !archivo.name.toLowerCase().endsWith(extension));
+    if (incorrecto) return `«${incorrecto.name}» no es un archivo ${tipo}.`;
+    const vacio = archivos.find(archivo => archivo.size === 0);
+    if (vacio) return `«${vacio.name}» está vacío.`;
+    const grande = archivos.find(archivo => archivo.size > REGLAS.maximoArchivoBytes);
+    if (grande) return `«${grande.name}» pesa más de 25 MB.`;
+    return '';
+  }
+
+  /**
+   * Revisa todo el formulario con las mismas reglas que la API. Devuelve el
+   * primer problema y el id del campo al que llevar el foco.
+   */
+  private validarFormulario(): { mensaje: string; campo?: string } | null {
+    const titulo = this.titulo.trim();
+    if (!titulo) return { mensaje: 'Escribe el título del proyecto.', campo: 'titulo' };
+    if (titulo.length < REGLAS.tituloMinimo || titulo.length > REGLAS.tituloMaximo) {
+      return { mensaje: `El título debe tener entre ${REGLAS.tituloMinimo} y ${REGLAS.tituloMaximo} caracteres.`, campo: 'titulo' };
+    }
+    if (tienePalabraDemasiadoLarga(titulo)) {
+      return { mensaje: 'El título tiene texto sin espacios demasiado largo. Revisa que esté bien escrito.', campo: 'titulo' };
+    }
+
+    for (const [i, autor] of this.autores.entries()) {
+      const numero = this.autores.length > 1 ? ' del autor ' + (i + 1) : ' del autor';
+      const errorNombres = validarNombre(autor.nombres, 'los nombres' + numero);
+      if (errorNombres) return { mensaje: errorNombres, campo: 'nombres-autor-' + i };
+      const errorApellidos = validarNombre(autor.apellidos, 'los apellidos' + numero);
+      if (errorApellidos) return { mensaje: errorApellidos, campo: 'apellidos-autor-' + i };
+      if (autor.carnet.trim() && !esCarnet(autor.carnet)) {
+        return { mensaje: 'El carnet lleva dos letras y cinco números, por ejemplo AB12345.', campo: 'carnet-autor-' + i };
+      }
+    }
+    const nombres = this.autores.map(autor => (autor.nombres.trim() + ' ' + autor.apellidos.trim()).toLowerCase());
+    if (new Set(nombres).size !== nombres.length) return { mensaje: 'Hay un autor repetido.' };
+    const carnets = this.autores.map(autor => autor.carnet.trim().toUpperCase()).filter(Boolean);
+    if (new Set(carnets).size !== carnets.length) return { mensaje: 'No repitas el carnet de un autor.' };
+
+    const anio = Number(this.anio);
+    if (!this.anio.trim() || !Number.isInteger(anio)) return { mensaje: 'Escribe el año del trabajo.', campo: 'anio' };
+    if (anio < REGLAS.anioMinimo || anio > this.anioActual) {
+      return { mensaje: `El año debe estar entre ${REGLAS.anioMinimo} y ${this.anioActual}.`, campo: 'anio' };
+    }
+
+    if (!this.tipoProyecto) return { mensaje: 'Selecciona el tipo de trabajo.', campo: 'tipoProyecto' };
+    if (!this.departamentoSeleccionado) return { mensaje: 'Selecciona el departamento.', campo: 'departamento' };
+    if (!this.carreraSeleccionada) return { mensaje: 'Selecciona la carrera.', campo: 'carrera' };
+    if (!this.tematicaSeleccionada) return { mensaje: 'Selecciona el área temática.', campo: 'tematica' };
+    if (this.esProyectoCurso && this.materias.length > 0 && !this.materiaSeleccionada) {
+      return { mensaje: 'Selecciona la asignatura del proyecto de curso.', campo: 'materia' };
+    }
+
+    const resumen = this.resumen.trim();
+    if (!resumen) return { mensaje: 'Escribe el resumen del proyecto.', campo: 'resumen' };
+    if (resumen.length < REGLAS.resumenMinimo || resumen.length > REGLAS.resumenMaximo) {
+      return { mensaje: `El resumen debe tener entre ${REGLAS.resumenMinimo} y ${REGLAS.resumenMaximo} caracteres (ahora tiene ${resumen.length}).`, campo: 'resumen' };
+    }
+    if (tienePalabraDemasiadoLarga(resumen)) {
+      return { mensaje: 'El resumen tiene texto sin espacios demasiado largo. Revisa que esté bien escrito.', campo: 'resumen' };
+    }
+
+    const palabras = [...new Set(this.palabrasClave.map(palabra => palabra.toLowerCase()))];
+    if (palabras.length === 0) return { mensaje: 'Agrega al menos una palabra clave.', campo: 'palabrasClave' };
+    if (palabras.length > REGLAS.maximoPalabrasClave) {
+      return { mensaje: `Agrega hasta ${REGLAS.maximoPalabrasClave} palabras clave.`, campo: 'palabrasClave' };
+    }
+    if (palabras.some(palabra => palabra.length < 2 || palabra.length > 60 || tienePalabraDemasiadoLarga(palabra))) {
+      return { mensaje: 'Cada palabra clave debe tener entre 2 y 60 caracteres.', campo: 'palabrasClave' };
+    }
+
+    if (this.totalRecursos === 0) return { mensaje: 'Agrega al menos un PDF, un enlace o un archivo ZIP.', campo: 'pdfs' };
+    const errorArchivos = this.revisarArchivos(this.pdfs, '.pdf', 'PDF') || this.revisarArchivos(this.archivosZip, '.zip', 'ZIP');
+    if (errorArchivos) return { mensaje: errorArchivos };
+    const archivos = [...this.pdfs, ...this.archivosZip];
+    if (archivos.length > REGLAS.maximoArchivos) return { mensaje: `Adjunta hasta ${REGLAS.maximoArchivos} archivos.` };
+    if (archivos.reduce((suma, archivo) => suma + archivo.size, 0) > REGLAS.maximoSolicitudBytes) {
+      return { mensaje: 'Los archivos suman más de 80 MB.' };
+    }
+    if (this.enlaces.length > REGLAS.maximoEnlaces) return { mensaje: `Agrega hasta ${REGLAS.maximoEnlaces} enlaces.`, campo: 'enlaces' };
+    if (!this.enlacesValidos()) return { mensaje: 'Revisa los enlaces. Deben comenzar con http:// o https://.', campo: 'enlaces' };
+
+    const nombreTipo = this.tipoProyectoSeleccionado?.nombre.toLowerCase() ?? '';
+    const requierePdf = nombreTipo.includes('tesis') || nombreTipo.includes('graduación');
+    const conservaPdf = (this.correccion?.recursos ?? []).some(
+      recurso => recurso.tipo === 'pdf' && this.conservarRecursos.includes(recurso.id)
+    );
+    if (requierePdf && !conservaPdf && this.pdfs.length === 0) {
+      return { mensaje: 'Para tesis y trabajos de graduación debes adjuntar el PDF completo.', campo: 'pdfs' };
+    }
+    return null;
   }
 
   actualizarEnlaces(event: Event): void {
@@ -531,11 +644,20 @@ export class EnvioProyectoComponent implements OnInit {
       .split('\n')
       .map(palabra => palabra.trim())
       .filter(palabra => palabra.length > 0);
+    this.limpiarErrorDe('palabrasClave');
   }
 
   private limpiarMensajes(): void {
     this.mensajeError = '';
     this.mensajeExito = '';
+    this.campoConError = '';
+  }
+
+  /** Al escribir en el campo marcado se quita su aviso. */
+  private limpiarErrorDe(campo: string): void {
+    if (this.campoConError === campo) {
+      this.limpiarMensajes();
+    }
   }
 
   private enlacesValidos(): boolean {
@@ -549,23 +671,6 @@ export class EnvioProyectoComponent implements OnInit {
     });
   }
 
-  private valorFormulario(
-    formulario: HTMLFormElement,
-    nombre: string
-  ): string {
-    const control = formulario.elements.namedItem(nombre);
-
-    if (
-      control instanceof HTMLInputElement ||
-      control instanceof HTMLSelectElement ||
-      control instanceof HTMLTextAreaElement
-    ) {
-      return control.value.trim();
-    }
-
-    return '';
-  }
-
   async enviarSolicitud(event: Event): Promise<void> {
     event.preventDefault();
 
@@ -575,42 +680,16 @@ export class EnvioProyectoComponent implements OnInit {
 
     const formulario = event.target as HTMLFormElement;
 
-    if (!formulario.checkValidity()) {
-      formulario.reportValidity();
-      return;
-    }
-
-    if (!this.tematicaSeleccionada) {
-      this.mensajeError = 'Selecciona el área temática.';
-      formulario.querySelector<HTMLInputElement>('#tematica')?.focus();
-      return;
-    }
-
-    if (this.totalRecursos === 0) {
-      this.mensajeError =
-        'Agrega al menos un PDF, un enlace o un archivo ZIP.';
-      return;
-    }
-
-    if (!this.enlacesValidos()) {
-      this.mensajeError =
-        'Revisa los enlaces. Deben comenzar con http:// o https://.';
-      return;
-    }
-
-    const nombreTipo = this.tipoProyectoSeleccionado?.nombre.toLowerCase() ?? '';
-    const requierePdf =
-      nombreTipo.includes('tesis') || nombreTipo.includes('graduación');
-    const conservaPdf = (this.correccion?.recursos ?? []).some(
-      recurso => recurso.tipo === 'pdf' && this.conservarRecursos.includes(recurso.id)
-    );
-    const tienePdf = conservaPdf || this.pdfs.some(
-      archivo => archivo.name.toLowerCase().endsWith('.pdf')
-    );
-
-    if (requierePdf && !tienePdf) {
-      this.mensajeError =
-        'Para tesis y trabajos de graduación debes adjuntar el PDF completo.';
+    const problema = this.validarFormulario();
+    if (problema) {
+      this.mensajeError = problema.mensaje;
+      this.mensajeExito = '';
+      this.campoConError = problema.campo ?? '';
+      if (problema.campo) {
+        const campo = formulario.querySelector<HTMLElement>('#' + problema.campo);
+        campo?.focus();
+        campo?.scrollIntoView({ block: 'center' });
+      }
       return;
     }
 
@@ -628,13 +707,17 @@ export class EnvioProyectoComponent implements OnInit {
     }
 
     const datos = new FormData();
-    datos.append('Titulo', this.valorFormulario(formulario, 'titulo'));
-    datos.append('Resumen', this.valorFormulario(formulario, 'resumen'));
-    datos.append('Anio', this.valorFormulario(formulario, 'anio'));
+    datos.append('Titulo', this.titulo.trim());
+    datos.append('Resumen', this.resumen.trim());
+    datos.append('Anio', this.anio.trim());
     datos.append('IdTipoProyecto', this.tipoProyecto);
     datos.append('IdCarrera', this.carreraSeleccionada);
     datos.append('IdTematica', this.tematicaSeleccionada);
-    datos.append('AutoresJson', JSON.stringify(this.autores));
+    datos.append('AutoresJson', JSON.stringify(this.autores.map(autor => ({
+      nombres: autor.nombres.trim(),
+      apellidos: autor.apellidos.trim(),
+      carnet: autor.carnet.trim().toUpperCase()
+    }))));
     this.asesores
       .filter(id => id)
       .forEach(id => datos.append('IdDocentesAsesores', id));
@@ -676,13 +759,15 @@ export class EnvioProyectoComponent implements OnInit {
           url,
           datos,
           { headers: { Authorization: 'Bearer ' + token } }
-        )
+        ).pipe(timeout(180000))
       );
 
       this.mensajeExito = respuesta.mensaje;
       this.solicitudEnviada = true;
     } catch (error: unknown) {
-      this.mensajeError = this.mensajeErrorApi(error);
+      this.mensajeError = error instanceof HttpErrorResponse && error.status === 403 && !error.error?.mensaje
+        ? 'Tu cuenta no tiene permiso para enviar proyectos.'
+        : mensajeDeError(error, 'No se pudo guardar el envío. Revisa los datos e inténtalo de nuevo.');
     } finally {
       this.enviando = false;
       this.cdr.markForCheck();

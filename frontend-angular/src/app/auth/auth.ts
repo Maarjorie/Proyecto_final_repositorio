@@ -1,8 +1,9 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { ChangeDetectorRef, Component, inject, input } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, timeout } from 'rxjs';
+import { mensajeDeError, validarContrasenaNueva, validarCorreo, validarNombre } from '../compartido/validacion';
 import { AUTH_API_URL, AUTH_EXPIRY_KEY, AUTH_TOKEN_KEY, AUTH_USER_KEY } from './auth.constants';
 
 type AuthMode = 'login' | 'registro';
@@ -41,6 +42,38 @@ export class AuthComponent {
   confirmarContrasena = '';
   enviando = false;
   mensajeError = '';
+  /** Error de cada campo ('' = sin error). Se muestra debajo del campo. */
+  errores: Partial<Record<'nombres' | 'apellidos' | 'correo' | 'contrasena' | 'confirmarContrasena', string>> = {};
+
+  /** Al corregir un campo se borra su aviso. */
+  limpiarError(campo: keyof AuthComponent['errores']): void {
+    if (this.errores[campo]) {
+      this.errores = { ...this.errores, [campo]: '' };
+    }
+  }
+
+  private validar(mode: AuthMode): boolean {
+    const errores: AuthComponent['errores'] = {};
+    if (mode === 'registro') {
+      errores.nombres = validarNombre(this.nombres, 'tus nombres');
+      errores.apellidos = validarNombre(this.apellidos, 'tus apellidos');
+    }
+    errores.correo = validarCorreo(this.correo);
+    if (mode === 'registro') {
+      errores.contrasena = validarContrasenaNueva(this.contrasena);
+      errores.confirmarContrasena = !this.confirmarContrasena
+        ? 'Confirma tu contraseña.'
+        : this.contrasena !== this.confirmarContrasena ? 'Las contraseñas no coinciden.' : '';
+    } else {
+      errores.contrasena = this.contrasena ? '' : 'Escribe tu contraseña.';
+    }
+    this.errores = errores;
+    const primero = (Object.keys(errores) as (keyof typeof errores)[]).find(campo => errores[campo]);
+    if (primero) {
+      globalThis.document?.querySelector<HTMLInputElement>('input[name=' + primero + ']')?.focus();
+    }
+    return !primero;
+  }
 
   get returnUrl(): string {
     const requested = this.route.snapshot.queryParamMap.get('returnUrl');
@@ -86,8 +119,7 @@ export class AuthComponent {
     const mode = this.mode();
     this.mensajeError = '';
 
-    if (mode === 'registro' && this.contrasena !== this.confirmarContrasena) {
-      this.mensajeError = 'Las contraseñas no coinciden.';
+    if (!this.validar(mode)) {
       return;
     }
 
@@ -108,7 +140,7 @@ export class AuthComponent {
 
     try {
       const response = await firstValueFrom(
-        this.http.post<AuthResponse>(AUTH_API_URL + '/' + endpoint, payload)
+        this.http.post<AuthResponse>(AUTH_API_URL + '/' + endpoint, payload).pipe(timeout(30000))
       );
 
       try {
@@ -122,25 +154,10 @@ export class AuthComponent {
 
       await this.router.navigateByUrl(this.destinoTrasIngresar(response.usuario.roles ?? []));
     } catch (error: unknown) {
-      this.mensajeError = this.getErrorMessage(error);
+      this.mensajeError = mensajeDeError(error, 'No se pudo completar la solicitud. Revisa los datos e inténtalo de nuevo.');
     } finally {
       this.enviando = false;
       this.cdr.markForCheck();
     }
-  }
-
-  private getErrorMessage(error: unknown): string {
-    if (error instanceof HttpErrorResponse) {
-      const apiMessage = error.error && typeof error.error.mensaje === 'string'
-        ? error.error.mensaje
-        : null;
-
-      if (apiMessage) return apiMessage;
-      if (error.status === 0) {
-        return 'No se pudo conectar con el servidor. Verifica que RepositorioApi esté iniciado en https://localhost:7244.';
-      }
-    }
-
-    return 'No se pudo completar la solicitud. Revisa los datos e inténtalo de nuevo.';
   }
 }
