@@ -508,18 +508,51 @@ export class EnvioProyectoComponent implements OnInit {
     this.limpiarMensajes();
   }
 
+  // RF-17: se admiten varios materiales; cada selección se suma.
   actualizarPdfs(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    this.pdfs = Array.from(input.files ?? []);
-    this.limpiarMensajes();
-    this.mensajeError = this.revisarArchivos(this.pdfs, '.pdf', 'PDF');
+    this.pdfs = this.agregarArchivos(event, this.pdfs, '.pdf', 'PDF');
   }
 
   actualizarZips(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    this.archivosZip = Array.from(input.files ?? []);
+    this.archivosZip = this.agregarArchivos(event, this.archivosZip, '.zip', 'ZIP');
+  }
+
+  quitarPdf(indice: number): void {
+    this.pdfs = this.pdfs.filter((_, i) => i !== indice);
     this.limpiarMensajes();
-    this.mensajeError = this.revisarArchivos(this.archivosZip, '.zip', 'ZIP');
+  }
+
+  quitarZip(indice: number): void {
+    this.archivosZip = this.archivosZip.filter((_, i) => i !== indice);
+    this.limpiarMensajes();
+  }
+
+  /** Suma los archivos elegidos sin repetir, hasta el máximo por envío. */
+  private agregarArchivos(event: Event, actuales: File[], extension: string, tipo: string): File[] {
+    const input = event.target as HTMLInputElement;
+    const elegidos = Array.from(input.files ?? []);
+    input.value = ''; // permite volver a elegir el mismo archivo
+    this.limpiarMensajes();
+    if (elegidos.length === 0) return actuales;
+
+    const error = this.revisarArchivos(elegidos, extension, tipo);
+    if (error) {
+      this.mensajeError = error;
+      return actuales;
+    }
+
+    const mismo = (a: File, b: File) => a.name === b.name && a.size === b.size;
+    const nuevos = elegidos.filter(archivo => !actuales.some(actual => mismo(actual, archivo)));
+    const total = this.pdfs.length + this.archivosZip.length + nuevos.length;
+    if (total > REGLAS.maximoArchivos) {
+      this.mensajeError = `Puedes adjuntar hasta ${REGLAS.maximoArchivos} archivos entre PDF y ZIP.`;
+      return actuales;
+    }
+    return [...actuales, ...nuevos];
+  }
+
+  tamanoLegible(bytes: number): string {
+    return bytes >= 1024 * 1024 ? (bytes / (1024 * 1024)).toFixed(1) + ' MB' : Math.max(1, Math.round(bytes / 1024)) + ' KB';
   }
 
   /** Revisa extensión, archivos vacíos y tamaño (25 MB). */

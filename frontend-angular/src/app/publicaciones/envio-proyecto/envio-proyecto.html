@@ -347,19 +347,29 @@
         }
 
         <div class="campo">
-          <label for="pdfs">Documentos PDF </label>
+          <label for="pdfs">Documentos PDF</label>
           <input
             id="pdfs"
             [class.invalido]="campoConError === 'pdfs'"
+            [class.con-archivos]="pdfs.length > 0"
             name="pdfs"
             type="file"
             accept=".pdf,application/pdf"
             multiple
             (change)="actualizarPdfs($event)"
           >
-          <small [hidden]="pdfs.length === 0">
-            {{ pdfs.length }} PDF seleccionados.
-          </small>
+          <small class="ayuda-archivos">Puedes agregar varios, uno por uno o varios a la vez.</small>
+          @if (pdfs.length > 0) {
+            <ul class="lista-archivos" aria-label="PDF agregados">
+              @for (archivo of pdfs; track $index) {
+                <li>
+                  <span>{{ archivo.name }} <small>· {{ tamanoLegible(archivo.size) }}</small></span>
+                  <button type="button" class="boton-secundario" (click)="quitarPdf($index)"
+                    [attr.aria-label]="'Quitar ' + archivo.name">Quitar</button>
+                </li>
+              }
+            </ul>
+          }
           @if (campoConError === 'pdfs') { <small class="error-campo" role="alert">{{ mensajeError }}</small> }
         </div>
 
@@ -367,15 +377,24 @@
           <label for="archivosZip">Archivos ZIP</label>
           <input
             id="archivosZip"
+            [class.con-archivos]="archivosZip.length > 0"
             name="archivosZip"
             type="file"
             accept=".zip,application/zip"
             multiple
             (change)="actualizarZips($event)"
           >
-          <small [hidden]="archivosZip.length === 0">
-            {{ archivosZip.length }} ZIP seleccionados.
-          </small>
+          @if (archivosZip.length > 0) {
+            <ul class="lista-archivos" aria-label="ZIP agregados">
+              @for (archivo of archivosZip; track $index) {
+                <li>
+                  <span>{{ archivo.name }} <small>· {{ tamanoLegible(archivo.size) }}</small></span>
+                  <button type="button" class="boton-secundario" (click)="quitarZip($index)"
+                    [attr.aria-label]="'Quitar ' + archivo.name">Quitar</button>
+                </li>
+              }
+            </ul>
+          }
         </div>
 
         <div class="campo">
