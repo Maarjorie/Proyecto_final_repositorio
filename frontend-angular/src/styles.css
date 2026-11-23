@@ -21,6 +21,22 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Teléfono: todo un poco más pequeño para que quepa más en la pantalla.
+   El efecto de vidrio se quita porque al hacer scroll deja tarjetas en blanco. */
+@media (max-width: 600px) {
+  body {
+    zoom: 0.85;
+    min-width: 0;
+  }
+
+  *,
+  *::before,
+  *::after {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
+
 button,
 input,
 select {

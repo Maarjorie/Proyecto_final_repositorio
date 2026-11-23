@@ -130,7 +130,7 @@
           @for (grupo of facetGroups(); track grupo.key) {
             <details class="filter-group" [id]="'filtro-' + grupo.key"
               [class.filter-group-dependiente]="grupo.key === 'career'"
-              [open]="grupo.key === 'area' || grupo.key === 'year' || grupo.key === 'career' || grupo.selectedCount > 0 || grupo.expanded">
+              [open]="grupo.expanded">
               <summary>
                 {{ grupo.title }}
                 @if (grupo.selectedCount > 0) {

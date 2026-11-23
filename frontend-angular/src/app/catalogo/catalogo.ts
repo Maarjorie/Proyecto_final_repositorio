@@ -5,7 +5,7 @@ import { Component, computed, effect, input, model, OnInit, signal, untracked, W
 import { FormsModule } from '@angular/forms';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import type { Work } from '../app';
-import { afterNextRender, inject, Injector } from '@angular/core';
+import { afterNextRender, DestroyRef, inject, Injector } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 
 const API_URL = 'https://localhost:7244/api';
@@ -186,7 +186,11 @@ export class Catalogo implements OnInit {
 
   /** Abre el grupo de área completo. */
   showAllAreas(): void {
+    // Si el panel ya estaba abierto no hace falta avisar al efecto que lo cierra todo.
+    this.abrirConArea = !this.filtersOpen();
     this.filtersOpen.set(true);
+    const area = document.getElementById('filtro-area') as HTMLDetailsElement | null;
+    if (area) area.open = true;
     if (!this.expandedGroups().includes('area')) this.toggleGroupExpanded('area');
     afterNextRender(() => {
       document.getElementById('filtro-area')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -389,6 +393,19 @@ export class Catalogo implements OnInit {
   }
 
   constructor() {
+    this.contraerFiltrosAlBajar();
+    // Cada vez que se abre el panel, los grupos aparecen cerrados y el usuario abre el que necesite.
+    effect(() => {
+      if (!this.filtersOpen()) return;
+      // "Más áreas" es la única excepción: abre el panel con el grupo de área desplegado.
+      const dejarArea = this.abrirConArea;
+      this.abrirConArea = false;
+      afterNextRender(() => {
+        document.querySelectorAll<HTMLDetailsElement>('.filters details.filter-group').forEach((grupo) => {
+          if (!(dejarArea && grupo.id === 'filtro-area')) grupo.open = false;
+        });
+      }, { injector: this.injector });
+    });
     // Los filtros se guardan en la URL: sobreviven a recargas y se pueden compartir.
     this.leerFiltrosDeUrl();
     effect(() => this.escribirFiltrosEnUrl());
@@ -573,10 +590,61 @@ export class Catalogo implements OnInit {
   }
 
   /**
-   * Panel de filtros abierto o cerrado; solo cambia cuando el usuario lo pide.
-   * En celular empieza cerrado para que se vean primero los resultados.
+   * Panel de filtros abierto o cerrado. Lo cambia el usuario y además se
+   * contrae al bajar y se abre al volver arriba. En celular empieza cerrado.
    */
   readonly filtersOpen = signal(!(globalThis.matchMedia?.('(max-width: 760px)').matches ?? false));
 
   private readonly injector = inject(Injector);
+  private abrirConArea = false;
+
+  /**
+   * El panel de filtros sigue el desplazamiento: se contrae cada vez que el
+   * usuario baja por los resultados (aunque lo haya abierto estando abajo) y
+   * vuelve a abrirse al regresar arriba si fue él quien se contrajo. Los umbrales están separados
+   * para que un cambio de alto de la página no lo haga abrir y cerrar en bucle.
+   */
+  private contraerFiltrosAlBajar(): void {
+    if (typeof window === 'undefined') return;
+    // Se contrae después de recorrer más o menos una fila de trabajos.
+    const bajar = 900;
+    const subir = 150;
+    const escritorio = window.matchMedia('(min-width: 761px)');
+    let marca = window.scrollY;
+    let estabaAbierto = this.filtersOpen();
+    let contraidoSolo = false;
+    let quietoHasta = 0;
+    // Solo se respeta cuando el usuario está escribiendo en un buscador del panel.
+    const usandoPanel = () => !!document.activeElement?.matches('.filters input[type="search"]');
+    const alDesplazar = () => {
+      // Tras un cambio automático se ignora el ajuste de scroll que provoca.
+      if (performance.now() < quietoHasta) return;
+      const y = window.scrollY;
+      const abierto = this.filtersOpen();
+      // Si el usuario abre el panel estando abajo, se cuenta desde ahí.
+      if (abierto && !estabaAbierto) {
+        marca = y;
+        contraidoSolo = false;
+      }
+      estabaAbierto = abierto;
+      if (y < marca) marca = y;
+      if (abierto && y > bajar && y - marca > 600 && !usandoPanel()) {
+        this.filtersOpen.set(false);
+        estabaAbierto = false;
+        contraidoSolo = true;
+        quietoHasta = performance.now() + 400;
+      } else if (!abierto && y < subir && contraidoSolo) {
+        contraidoSolo = false;
+        // En celular el panel va encima de la lista; abrirlo solo movería la página.
+        if (escritorio.matches) {
+          this.filtersOpen.set(true);
+          estabaAbierto = true;
+          marca = y;
+          quietoHasta = performance.now() + 400;
+        }
+      }
+    };
+    window.addEventListener('scroll', alDesplazar, { passive: true });
+    inject(DestroyRef).onDestroy(() => window.removeEventListener('scroll', alDesplazar));
+  }
 }

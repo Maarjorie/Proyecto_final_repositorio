@@ -167,14 +167,17 @@ export class SelectorBuscable {
     const lista = this.lista()?.nativeElement;
     if (!lista) return;
     const caja = this.campo().nativeElement.getBoundingClientRect();
+    // En teléfono la página tiene zoom; las medidas de pantalla se pasan a las de la lista.
+    const zoom = (lista as HTMLElement & { currentCSSZoom?: number }).currentCSSZoom || 1;
+    const px = (valor: number) => valor / zoom + 'px';
     const abajo = globalThis.innerHeight - caja.bottom - 12;
     const arriba = caja.top - 12;
     const haciaArriba = abajo < 200 && arriba > abajo;
-    lista.style.left = caja.left + 'px';
-    lista.style.width = caja.width + 'px';
-    lista.style.maxHeight = Math.max(120, Math.min(280, haciaArriba ? arriba : abajo)) + 'px';
-    lista.style.top = haciaArriba ? '' : caja.bottom + 6 + 'px';
-    lista.style.bottom = haciaArriba ? globalThis.innerHeight - caja.top + 6 + 'px' : '';
+    lista.style.left = px(caja.left);
+    lista.style.width = px(caja.width);
+    lista.style.maxHeight = px(Math.max(120, Math.min(280, haciaArriba ? arriba : abajo)));
+    lista.style.top = haciaArriba ? '' : px(caja.bottom + 6);
+    lista.style.bottom = haciaArriba ? px(globalThis.innerHeight - caja.top + 6) : '';
   }
 
   private mostrarActiva(): void {
