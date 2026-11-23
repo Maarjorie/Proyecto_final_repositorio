@@ -1,6 +1,5 @@
-# Instalación con un solo comando:  docker compose up --build
-# Luego abrir http://localhost:4200
-# Solo para pruebas locales: las contraseñas y la clave de abajo no son secretos reales.
+# docker compose up --build  ->  http://localhost:4200
+# Las contraseñas y la clave de aquí son solo para uso local.
 
 services:
   db:
@@ -11,7 +10,7 @@ services:
       POSTGRES_PASSWORD: repositorio_demo
     volumes:
       - datos_db:/var/lib/postgresql/data
-      # La primera vez que se crea la base, carga las tablas y los datos de prueba.
+      # Carga la base de prueba la primera vez.
       - ./docker/db:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d repositorio_db"]

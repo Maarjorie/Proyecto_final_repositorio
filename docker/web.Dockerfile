@@ -1,11 +1,11 @@
-# Interfaz en Angular. Se compila dentro del contenedor y la sirve nginx.
+# Interfaz Angular servida con nginx
 FROM node:24-alpine AS compilar
 WORKDIR /src
 COPY frontend-angular/package.json frontend-angular/package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY frontend-angular/ ./
 RUN npx ng build
-# En Docker la app llama a /api y nginx la reenvía al contenedor de la API.
+# En Docker la API se llama por /api
 RUN echo "window.API_URL = '/api';" > dist/frontend-angular/browser/config.js
 
 FROM nginx:1.27-alpine

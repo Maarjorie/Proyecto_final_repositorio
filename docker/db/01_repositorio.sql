@@ -1,6 +1,5 @@
--- Base de demostración del Repositorio Digital UES FMO.
--- La carga Docker la primera vez que se crea el contenedor de la base.
--- Solo contiene datos de prueba: cuentas @example.com con la contraseña Repositorio2026.
+-- Base de prueba para Docker. Se carga sola al crear el contenedor db.
+-- Cuentas @example.com, contraseña Repositorio2026.
 
 --
 -- PostgreSQL database dump
@@ -113,14 +112,14 @@ CREATE TABLE public.tbl_carrera_materia (
 -- Name: TABLE tbl_carrera_materia; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.tbl_carrera_materia IS 'Plan de estudios: materias de cada carrera. Una materia puede estar en varias carreras.';
+COMMENT ON TABLE public.tbl_carrera_materia IS 'Materias del plan de estudios de cada carrera.';
 
 
 --
 -- Name: COLUMN tbl_carrera_materia.ciclo; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.tbl_carrera_materia.ciclo IS 'Ciclo del plan en que se cursa la materia dentro de esa carrera (1 a 12).';
+COMMENT ON COLUMN public.tbl_carrera_materia.ciclo IS 'Ciclo en que se cursa la materia (1 a 14).';
 
 
 --
@@ -172,7 +171,7 @@ CREATE TABLE public.tbl_docente (
 -- Name: COLUMN tbl_docente.id_departamento; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.tbl_docente.id_departamento IS 'Departamento académico al que está adscrito el docente.';
+COMMENT ON COLUMN public.tbl_docente.id_departamento IS 'Departamento del docente.';
 
 
 --
@@ -218,7 +217,7 @@ CREATE TABLE public.tbl_entrega (
 -- Name: COLUMN tbl_entrega.datos_propuestos; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.tbl_entrega.datos_propuestos IS 'Datos propuestos por una actualización de un trabajo publicado (RF-08). NULL en los demás envíos.';
+COMMENT ON COLUMN public.tbl_entrega.datos_propuestos IS 'Cambios pedidos para un trabajo publicado; se aplican al aprobar.';
 
 
 --
@@ -346,7 +345,7 @@ CREATE TABLE public.tbl_materia_docente (
 -- Name: TABLE tbl_materia_docente; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON TABLE public.tbl_materia_docente IS 'Docentes que imparten cada materia. Una materia puede tener varios docentes.';
+COMMENT ON TABLE public.tbl_materia_docente IS 'Docentes que imparten cada materia.';
 
 
 --
@@ -460,7 +459,7 @@ CREATE TABLE public.tbl_proyecto_docente (
 -- Name: COLUMN tbl_proyecto_docente.nombre_autorizado; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.tbl_proyecto_docente.nombre_autorizado IS 'Se autorizó mostrar el nombre de este docente asesor en la ficha pública (RF-16).';
+COMMENT ON COLUMN public.tbl_proyecto_docente.nombre_autorizado IS 'Si se puede mostrar el nombre del asesor en la ficha.';
 
 
 --
@@ -513,7 +512,7 @@ CREATE TABLE public.tbl_recurso (
 -- Name: COLUMN tbl_recurso.difusion_autorizada; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON COLUMN public.tbl_recurso.difusion_autorizada IS 'Material autorizado por los autores para mostrarse en el catálogo público (RF-10, RF-11).';
+COMMENT ON COLUMN public.tbl_recurso.difusion_autorizada IS 'Si el material se puede descargar desde el catálogo.';
 
 
 --
