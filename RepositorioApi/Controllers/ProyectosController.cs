@@ -208,9 +208,10 @@ public sealed class ProyectosController : ControllerBase
             .Distinct(StringComparer.Ordinal)
             .ToList();
 
-        if (palabrasClave.Count == 0 || palabrasClave.Count > Validacion.MaximoPalabrasClave)
+        // RF-17: las palabras clave son opcionales, hasta 10.
+        if (palabrasClave.Count > Validacion.MaximoPalabrasClave)
         {
-            return BadRequest(new { mensaje = $"Agrega entre 1 y {Validacion.MaximoPalabrasClave} palabras clave." });
+            return BadRequest(new { mensaje = $"Agrega hasta {Validacion.MaximoPalabrasClave} palabras clave." });
         }
 
         if (palabrasClave.Any(palabra => palabra.Length is < 2 or > 60 || Validacion.TienePalabraDemasiadoLarga(palabra)))

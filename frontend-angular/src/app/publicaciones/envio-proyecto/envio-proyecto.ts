@@ -583,7 +583,6 @@ export class EnvioProyectoComponent implements OnInit {
     }
 
     const palabras = [...new Set(this.palabrasClave.map(palabra => palabra.toLowerCase()))];
-    if (palabras.length === 0) return { mensaje: 'Agrega al menos una palabra clave.', campo: 'palabrasClave' };
     if (palabras.length > REGLAS.maximoPalabrasClave) {
       return { mensaje: `Agrega hasta ${REGLAS.maximoPalabrasClave} palabras clave.`, campo: 'palabrasClave' };
     }
