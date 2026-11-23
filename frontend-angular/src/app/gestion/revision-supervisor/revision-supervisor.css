@@ -479,6 +479,11 @@ fieldset.bloque-revision > legend {
   gap: 6px;
 }
 
+/* "Todas" ocupa la fila completa y los demás quedan en pares. */
+.modo-fecha:first-child {
+  grid-column: 1 / -1;
+}
+
 .modo-fecha {
   min-height: 36px;
   border: 1px solid rgba(24, 58, 93, 0.12);
@@ -517,39 +522,13 @@ fieldset.bloque-revision > legend {
   font-weight: 500;
 }
 
-.acciones-fecha {
-  display: grid;
-  gap: 8px;
+.resumen-fecha {
+  margin: 0;
   padding-top: 12px;
   border-top: 1px solid rgba(24, 58, 93, 0.12);
-}
-
-.boton-hoy {
-  min-height: 44px;
-  border: 0;
-  border-radius: 12px;
-  color: #fff;
-  background: linear-gradient(145deg, #2f6f93, #1c4a6b);
-  font: inherit;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.boton-hoy.activa {
-  background: linear-gradient(145deg, #263a46, #0d1c26);
-  box-shadow: 0 0 0 3px rgba(104, 198, 221, 0.55);
-}
-
-.boton-quitar-fecha {
-  min-height: 38px;
-  border: 1px solid rgba(24, 58, 93, 0.15);
-  border-radius: 12px;
-  color: #183653;
-  background: rgba(255, 255, 255, 0.75);
-  font: inherit;
+  color: #3c5a73;
   font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
+  font-weight: 600;
 }
 
 @media (max-width: 900px) {
@@ -563,6 +542,10 @@ fieldset.bloque-revision > legend {
 
   /* Los cuatro modos de fecha en una fila */
   .modos-fecha {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
+  }
+
+  .modo-fecha:first-child {
+    grid-column: auto;
   }
 }

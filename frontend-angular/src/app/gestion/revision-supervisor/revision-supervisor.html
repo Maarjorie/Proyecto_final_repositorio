@@ -61,14 +61,14 @@
         <div class="estado-vacio" role="status">Cargando entregas...</div>
       } @else {
         <div class="lista-revision">
-          @for (entrega of entregas; track entrega.id; let posicion = $index) {
+          @for (entrega of entregasPagina; track entrega.id; let posicion = $index) {
             <article class="tarjeta-proyecto tarjeta-revision">
               <div class="proyecto-cabecera">
                 <div>
                   <span class="tipo-trabajo">{{ formatearNombre(entrega.tipoTrabajo) }} · {{ entrega.anio }}</span>
                   <h3>{{ entrega.titulo }}</h3>
                 </div>
-                <span class="estado pendiente">#{{ posicion + 1 }} en la fila</span>
+                <span class="estado pendiente">#{{ inicioPendientes + posicion + 1 }} en la fila</span>
               </div>
 
               <div class="datos-proyecto">
@@ -182,6 +182,16 @@
             </div>
           }
         </div>
+
+        @if (totalPaginasPendientes > 1) {
+          <nav class="paginacion-publicaciones" aria-label="Páginas de entregas pendientes">
+            <button type="button" class="boton-secundario" [disabled]="paginaPendientes <= 1"
+              (click)="irAPaginaPendientes(paginaPendientes - 1)">← Anterior</button>
+            <span>Página {{ paginaPendientes }} de {{ totalPaginasPendientes }}</span>
+            <button type="button" class="boton-secundario" [disabled]="paginaPendientes >= totalPaginasPendientes"
+              (click)="irAPaginaPendientes(paginaPendientes + 1)">Siguiente →</button>
+          </nav>
+        }
       }
     </section>
   } @else {
@@ -231,13 +241,7 @@
               </label>
             }
 
-            <div class="acciones-fecha">
-              <button type="button" class="boton-hoy" [class.activa]="modoFecha === 'dia' && fechaDia === hoy"
-                (click)="filtrarHoy()">Hoy</button>
-              @if (modoFecha !== 'todas') {
-                <button type="button" class="boton-quitar-fecha" (click)="quitarFiltroFecha()">Quitar fecha</button>
-              }
-            </div>
+            <p class="resumen-fecha">{{ cuentaFiltro('') }} {{ cuentaFiltro('') === 1 ? 'aprobada' : 'aprobadas' }} en este periodo</p>
           </aside>
         }
         <div class="columna-publicaciones">

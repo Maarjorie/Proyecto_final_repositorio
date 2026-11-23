@@ -69,12 +69,20 @@ interface Publicacion {
 
 type DecisionRevision = 'Aprobada' | 'Con correcciones' | 'Rechazada';
 type FiltroPublicacion = '' | 'publicado' | 'no_publicado' | 'retirado' | 'destacado';
-type ModoFecha = 'todas' | 'dia' | 'semana' | 'rango';
+type ModoFecha = 'todas' | 'hoy' | 'dia' | 'semana' | 'rango';
 
 /** Fecha local como 'AAAA-MM-DD'. */
 function claveDia(fecha: Date): string {
   const dos = (n: number) => String(n).padStart(2, '0');
   return fecha.getFullYear() + '-' + dos(fecha.getMonth() + 1) + '-' + dos(fecha.getDate());
+}
+
+/** Semana ISO de una fecha como 'AAAA-Www', el formato del input type="week". */
+function semanaDe(fecha: Date): string {
+  const jueves = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate() + 3 - ((fecha.getDay() + 6) % 7));
+  const primeraSemana = new Date(jueves.getFullYear(), 0, 4);
+  const numero = 1 + Math.round(((jueves.getTime() - primeraSemana.getTime()) / 86400000 - 3 + ((primeraSemana.getDay() + 6) % 7)) / 7);
+  return jueves.getFullYear() + '-W' + String(numero).padStart(2, '0');
 }
 
 /** Lunes y domingo de una semana ISO escrita como 'AAAA-Www' (input type="week"). */
@@ -127,6 +135,28 @@ export class RevisionSupervisorComponent implements OnInit {
 
   pestana: Pestana = 'pendientes';
 
+  // Pendientes: se muestran por páginas para no cargar toda la fila de una vez.
+  paginaPendientes = 1;
+  readonly porPaginaPendientes = 6;
+
+  get totalPaginasPendientes(): number {
+    return Math.max(1, Math.ceil(this.entregas.length / this.porPaginaPendientes));
+  }
+
+  /** Primera posición de la página actual, para numerar la fila. */
+  get inicioPendientes(): number {
+    return (Math.min(this.paginaPendientes, this.totalPaginasPendientes) - 1) * this.porPaginaPendientes;
+  }
+
+  get entregasPagina(): EntregaRevision[] {
+    return this.entregas.slice(this.inicioPendientes, this.inicioPendientes + this.porPaginaPendientes);
+  }
+
+  irAPaginaPendientes(pagina: number): void {
+    this.paginaPendientes = Math.min(Math.max(1, pagina), this.totalPaginasPendientes);
+    document.querySelector('.lista-revision')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   // Aprobadas y publicaciones: búsqueda, filtros y páginas.
   busquedaPublicacion = '';
   filtroPublicacion: FiltroPublicacion = '';
@@ -149,6 +179,7 @@ export class RevisionSupervisorComponent implements OnInit {
   fechaHasta = '';
   readonly modosFecha: { valor: ModoFecha; texto: string }[] = [
     { valor: 'todas', texto: 'Todas' },
+    { valor: 'hoy', texto: 'Hoy' },
     { valor: 'dia', texto: 'Día' },
     { valor: 'semana', texto: 'Semana' },
     { valor: 'rango', texto: 'Rango' }
@@ -160,6 +191,10 @@ export class RevisionSupervisorComponent implements OnInit {
 
   elegirModoFecha(modo: ModoFecha): void {
     this.modoFecha = modo;
+    // Al elegir día o semana se parte de hoy, así el filtro aplica de inmediato.
+    if (modo === 'dia' && !this.fechaDia) this.fechaDia = this.hoy;
+    if (modo === 'semana' && !this.fechaSemana) this.fechaSemana = semanaDe(new Date());
+    if (modo === 'todas') this.fechaDia = this.fechaSemana = this.fechaDesde = this.fechaHasta = '';
     this.paginaPublicaciones = 1;
   }
 
@@ -168,22 +203,11 @@ export class RevisionSupervisorComponent implements OnInit {
     this.paginaPublicaciones = 1;
   }
 
-  filtrarHoy(): void {
-    this.modoFecha = 'dia';
-    this.fechaDia = this.hoy;
-    this.paginaPublicaciones = 1;
-  }
-
-  quitarFiltroFecha(): void {
-    this.modoFecha = 'todas';
-    this.fechaDia = this.fechaSemana = this.fechaDesde = this.fechaHasta = '';
-    this.paginaPublicaciones = 1;
-  }
-
   private cumpleFecha(publicacion: Publicacion): boolean {
     const fecha = this.fechaLocal(publicacion.fechaAprobacion);
     if (this.modoFecha === 'todas' || !fecha) return true;
     const dia = claveDia(fecha);
+    if (this.modoFecha === 'hoy') return dia === this.hoy;
     if (this.modoFecha === 'dia') return !this.fechaDia || dia === this.fechaDia;
     if (this.modoFecha === 'semana') {
       const rango = rangoSemana(this.fechaSemana);
@@ -387,6 +411,7 @@ export class RevisionSupervisorComponent implements OnInit {
       respuesta => {
         this.mensaje = respuesta.mensaje;
         this.entregas = this.entregas.filter(item => item.id !== entrega.id);
+        this.paginaPendientes = Math.min(this.paginaPendientes, this.totalPaginasPendientes);
         delete this.observaciones[entrega.id];
         delete this.permisosDecision[entrega.id];
         // La lista de publicaciones cambia al aprobar.

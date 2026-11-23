@@ -248,6 +248,29 @@ export class AdminPanel {
     );
   });
 
+  // Las tablas se muestran por páginas; la búsqueda filtra sobre todos los registros.
+  readonly pageSize = 10;
+  readonly page = signal(1);
+
+  private readonly activeRows = computed<unknown[]>(() =>
+    this.activeTab() === 'cuentas' ? this.filteredUsers() : this.filteredCatalogRows()
+  );
+  readonly totalPages = computed(() => Math.max(1, Math.ceil(this.activeRows().length / this.pageSize)));
+  private readonly pageStart = computed(() => (Math.min(this.page(), this.totalPages()) - 1) * this.pageSize);
+  readonly pagedUsers = computed(() => this.filteredUsers().slice(this.pageStart(), this.pageStart() + this.pageSize));
+  readonly pagedCatalogRows = computed(() =>
+    this.filteredCatalogRows().slice(this.pageStart(), this.pageStart() + this.pageSize)
+  );
+
+  setSearch(value: string): void {
+    this.search.set(value);
+    this.page.set(1);
+  }
+
+  goToPage(page: number): void {
+    this.page.set(Math.min(Math.max(1, page), this.totalPages()));
+  }
+
   /** Cuentas que todavía no son docentes, para el formulario de registro. */
   readonly nonTeacherUsers = computed(() => this.users().filter(user => !user.codigoDocente));
 
@@ -297,6 +320,7 @@ export class AdminPanel {
       const tab = this.activeTab();
       untracked(() => {
         this.search.set('');
+        this.page.set(1);
         this.draft.set({});
         this.actionNotice.set('');
         void this.loadTab(tab);

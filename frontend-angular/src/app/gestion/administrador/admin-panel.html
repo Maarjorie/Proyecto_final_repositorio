@@ -97,7 +97,7 @@
           <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
         </svg>
         <input type="search" name="catalogSearch" placeholder="Buscar" aria-label="Buscar en {{ catalog.label }}"
-          autocomplete="off" [ngModel]="search()" (ngModelChange)="search.set($event)" />
+          autocomplete="off" [ngModel]="search()" (ngModelChange)="setSearch($event)" />
       </div>
 
       <div class="table-scroll">
@@ -109,7 +109,7 @@
             </tr>
           </thead>
           <tbody>
-            @for (row of filteredCatalogRows(); track row.id) {
+            @for (row of pagedCatalogRows(); track row.id) {
               <tr>
                 @for (field of tableFields(); track field.key) { <td [attr.data-label]="field.label">{{ row[field.key] || '—' }}</td> }
                 <td data-label="Acción">
@@ -127,6 +127,13 @@
           </tbody>
         </table>
       </div>
+      @if (totalPages() > 1) {
+        <nav class="pager" aria-label="Páginas">
+          <button type="button" class="pager-button" [disabled]="page() <= 1" (click)="goToPage(page() - 1)">← Anterior</button>
+          <span>Página {{ page() }} de {{ totalPages() }}</span>
+          <button type="button" class="pager-button" [disabled]="page() >= totalPages()" (click)="goToPage(page() + 1)">Siguiente →</button>
+        </nav>
+      }
     </section>
   } @else {
   <section class="management-card glass-panel" id="create-account">
@@ -175,7 +182,7 @@
         <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />
       </svg>
       <input type="search" name="search" placeholder="Buscar por usuario" aria-label="Buscar por usuario"
-        autocomplete="off" [ngModel]="search()" (ngModelChange)="search.set($event)" />
+        autocomplete="off" [ngModel]="search()" (ngModelChange)="setSearch($event)" />
     </div>
 
     <div class="table-scroll">
@@ -184,7 +191,7 @@
           <tr><th>Usuario</th><th>Roles</th><th>Estado</th><th>Acceso</th></tr>
         </thead>
         <tbody>
-          @for (user of filteredUsers(); track user.id) {
+          @for (user of pagedUsers(); track user.id) {
             <tr>
               <td data-label="Usuario">
                 <div class="user-cell">
@@ -238,6 +245,13 @@
         </tbody>
       </table>
     </div>
+    @if (totalPages() > 1) {
+      <nav class="pager" aria-label="Páginas">
+        <button type="button" class="pager-button" [disabled]="page() <= 1" (click)="goToPage(page() - 1)">← Anterior</button>
+        <span>Página {{ page() }} de {{ totalPages() }}</span>
+        <button type="button" class="pager-button" [disabled]="page() >= totalPages()" (click)="goToPage(page() + 1)">Siguiente →</button>
+      </nav>
+    }
   </section>
   }
   </div>
