@@ -72,6 +72,7 @@ El catálogo público se puede ver sin iniciar sesión. La base de prueba trae 3
 |---|---|
 | `docker` no se reconoce como comando | Docker Desktop no está instalado o no está abierto. |
 | *port is already allocated* (puerto 4200 ocupado) | Usar otro puerto: `$env:PUERTO=4300; docker compose up --build` y abrir http://localhost:4300 |
+| *TLS handshake timeout* o *failed to fetch* al descargar | Falla de conexión con Docker Hub. Volver a ejecutar `docker compose up --build`; continúa donde se quedó. |
 | La página abre pero no carga trabajos | La API todavía está arrancando; esperar unos segundos y recargar. |
 | Se quiere empezar de cero | `docker compose down -v` y volver a `docker compose up --build`. |
 
