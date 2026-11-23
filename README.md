@@ -15,7 +15,7 @@ archivos (RNF-06).
 | `RepositorioApi/Controllers/` | Endpoints: autenticación, proyectos, revisión, catálogo, favoritos, administración |
 | `RepositorioApi/App_Data/entregas/` | Archivos subidos (PDF y ZIP), una carpeta por entrega. No se sube al repositorio |
 | `frontend-angular/` | Interfaz en Angular |
-| `docker/` | Instalación con Docker: base de demostración, archivos de ejemplo y configuración |
+| `docker/` | Instalación con Docker. `db/01_tablas.sql` crea las tablas en orden y `db/02_datos.sql` carga los datos de prueba |
 | `frontend-angular/src/app/catalogo/` | Catálogo público: búsqueda, filtros, ficha y favoritos |
 | `frontend-angular/src/app/publicaciones/` | Envío de proyectos, Mis proyectos y notificaciones |
 | `frontend-angular/src/app/gestion/` | Panel del supervisor y del administrador |
@@ -94,7 +94,8 @@ mismo script de la instalación rápida:
 ```powershell
 docker run -d --name postgres17 -e POSTGRES_PASSWORD=TU_CONTRASEÑA -p 5434:5432 -v pgdata17:/var/lib/postgresql/data postgres:17
 docker exec postgres17 psql -U postgres -c "CREATE DATABASE repositorio_db"
-Get-Content docker/db/01_repositorio.sql | docker exec -i postgres17 psql -U postgres -d repositorio_db
+Get-Content docker/db/01_tablas.sql | docker exec -i postgres17 psql -U postgres -d repositorio_db
+Get-Content docker/db/02_datos.sql | docker exec -i postgres17 psql -U postgres -d repositorio_db
 Copy-Item -Recurse docker/entregas RepositorioApi/App_Data/entregas
 ```
 
