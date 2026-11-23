@@ -7,6 +7,7 @@ import { REGLAS, esCarnet, mensajeDeError, tienePalabraDemasiadoLarga, validarNo
 import { firstValueFrom, retry, timeout } from 'rxjs';
 import { AUTH_TOKEN_KEY } from '../../auth/auth.constants';
 import { OpcionBuscable, SelectorBuscable } from '../../compartido/selector-buscable';
+import { API_URL } from '../../api-url';
 
 interface AutorFormulario {
   nombres: string;
@@ -75,7 +76,6 @@ interface CarreraCatalogo extends OpcionCatalogo {
   departamentoId: number;
 }
 
-const API_URL = 'https://localhost:7244/api';
 
 @Component({
   selector: 'app-envio-proyecto',

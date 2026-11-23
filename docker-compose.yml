@@ -1,0 +1,48 @@
+# Instalación con un solo comando:  docker compose up --build
+# Luego abrir http://localhost:4200
+# Solo para pruebas locales: las contraseñas y la clave de abajo no son secretos reales.
+
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: repositorio_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: repositorio_demo
+    volumes:
+      - datos_db:/var/lib/postgresql/data
+      # La primera vez que se crea la base, carga las tablas y los datos de prueba.
+      - ./docker/db:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d repositorio_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    environment:
+      ConnectionStrings__RepositorioDb: "Host=db;Port=5432;Database=repositorio_db;Username=postgres;Password=repositorio_demo"
+      Jwt__Key: "clave-local-de-demostracion-repositorio-ues-fmo-2026"
+      Jwt__Issuer: "RepositorioApi"
+      Jwt__Audience: "RepositorioFrontend"
+    volumes:
+      - archivos:/app/App_Data/entregas
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+    ports:
+      - "${PUERTO:-4200}:80"
+    depends_on:
+      - api
+
+volumes:
+  datos_db:
+  archivos:

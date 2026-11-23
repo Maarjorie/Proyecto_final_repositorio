@@ -13,47 +13,93 @@ archivos (RNF-06).
 |---|---|
 | `RepositorioApi/` | API en ASP.NET Core (.NET 10) con Entity Framework Core y PostgreSQL |
 | `RepositorioApi/Controllers/` | Endpoints: autenticación, proyectos, revisión, catálogo, favoritos, administración |
-| `RepositorioApi/Database/` | Scripts SQL de la base |
 | `RepositorioApi/App_Data/entregas/` | Archivos subidos (PDF y ZIP), una carpeta por entrega. No se sube al repositorio |
 | `frontend-angular/` | Interfaz en Angular |
+| `docker/` | Instalación con Docker: base de demostración, archivos de ejemplo y configuración |
 | `frontend-angular/src/app/catalogo/` | Catálogo público: búsqueda, filtros, ficha y favoritos |
 | `frontend-angular/src/app/publicaciones/` | Envío de proyectos, Mis proyectos y notificaciones |
 | `frontend-angular/src/app/gestion/` | Panel del supervisor y del administrador |
 
-## Requisitos
+## Instalación rápida (recomendada)
+
+Solo hace falta **Docker Desktop**. No es necesario instalar .NET, Node ni PostgreSQL: todo se
+compila y se ejecuta dentro de contenedores.
+
+1. Instalar [Docker Desktop](https://www.docker.com/products/docker-desktop/) y abrirlo
+   (esperar a que diga *Engine running*).
+2. Descargar el proyecto:
+
+   ```powershell
+   git clone https://github.com/Maarjorie/Proyecto_final_repositorio.git
+   cd Proyecto_final_repositorio
+   ```
+
+   Sin Git: en GitHub, **Code → Download ZIP**, descomprimir y abrir una terminal en esa carpeta.
+3. Levantar el sistema:
+
+   ```powershell
+   docker compose up --build
+   ```
+
+   La primera vez tarda varios minutos (descarga las imágenes y compila). Está listo cuando la
+   terminal deja de mostrar mensajes nuevos.
+4. Abrir **http://localhost:4200** en el navegador.
+
+### Cuentas de prueba
+
+Todas usan la contraseña **Repositorio2026**.
+
+| Rol | Correo | Qué puede probar |
+|---|---|---|
+| Administrador | `admin@example.com` | Cuentas y roles, docentes, carreras, materias y demás catálogos |
+| Supervisor | `carlos.ventura@example.com` | Revisar entregas pendientes, permisos, destacar, retirar y estadísticas |
+| Solicitante | `da18379@example.com` | Subir un proyecto, Mis proyectos (con entregas aprobadas, pendientes y con correcciones), notificaciones y favoritos |
+
+El catálogo público se puede ver sin iniciar sesión. La base de prueba trae 301 proyectos
+(219 publicados), 15 entregas pendientes de revisión, 33 carreras y 8 departamentos.
+
+### Detener, volver a iniciar y reiniciar
+
+| Acción | Comando |
+|---|---|
+| Detener | `Ctrl + C` en la terminal, o `docker compose down` |
+| Volver a iniciar (conserva los cambios) | `docker compose up` |
+| Volver a los datos de prueba originales | `docker compose down -v` y luego `docker compose up --build` |
+
+### Si algo falla
+
+| Problema | Solución |
+|---|---|
+| `docker` no se reconoce como comando | Docker Desktop no está instalado o no está abierto. |
+| *port is already allocated* (puerto 4200 ocupado) | Usar otro puerto: `$env:PUERTO=4300; docker compose up --build` y abrir http://localhost:4300 |
+| La página abre pero no carga trabajos | La API todavía está arrancando; esperar unos segundos y recargar. |
+| Se quiere empezar de cero | `docker compose down -v` y volver a `docker compose up --build`. |
+
+## Instalación para desarrollo
+
+Para modificar el código con recarga automática se usan las herramientas por separado.
+
+### Requisitos
 
 - Docker Desktop
 - .NET SDK 10
-- Node.js 20 o superior
-- pgAdmin (opcional, para ejecutar los scripts con interfaz gráfica)
+- Node.js 22 o superior
 
-## 1. Base de datos
+### 1. Base de datos
 
-La base corre en un contenedor de PostgreSQL 17 publicado en el puerto **5434**:
+La base corre en un contenedor de PostgreSQL 17 publicado en el puerto **5434**. Se carga con el
+mismo script de la instalación rápida:
 
 ```powershell
 docker run -d --name postgres17 -e POSTGRES_PASSWORD=TU_CONTRASEÑA -p 5434:5432 -v pgdata17:/var/lib/postgresql/data postgres:17
 docker exec postgres17 psql -U postgres -c "CREATE DATABASE repositorio_db"
+Get-Content docker/db/01_repositorio.sql | docker exec -i postgres17 psql -U postgres -d repositorio_db
+Copy-Item -Recurse docker/entregas RepositorioApi/App_Data/entregas
 ```
 
-Los scripts los comparte el equipo y se guardan en `RepositorioApi/Database/`:
+### 2. Configurar la API
 
-- **Base nueva:** ejecutar `000_crear_base_de_datos.sql`. Crea todas las tablas y los catálogos
-  (departamentos, carreras, temáticas, tipos y las asignaturas de cada carrera). Borra lo que haya en
-  el esquema `public`.
-- **Base existente:** ejecutar en orden los que falten, del `002` al `007`. Cada uno se puede ejecutar
-  más de una vez sin dañar nada.
-
-Desde pgAdmin: abrir el Query Tool sobre `repositorio_db`, pegar el script y ejecutarlo con F5.
-Desde PowerShell:
-
-```powershell
-Get-Content RepositorioApi\Database\000_crear_base_de_datos.sql | docker exec -i postgres17 psql -U postgres -d repositorio_db
-```
-
-## 2. Configurar la API
-
-La cadena de conexión y la clave de los tokens van en *user-secrets*, nunca en el repositorio:
+La cadena de conexión y la clave de los tokens van en *user-secrets*:
 
 ```powershell
 cd RepositorioApi
@@ -63,7 +109,7 @@ dotnet user-secrets set "Jwt:Issuer" "RepositorioApi"
 dotnet user-secrets set "Jwt:Audience" "RepositorioFrontend"
 ```
 
-## 3. Ejecutar
+### 3. Ejecutar
 
 API (queda en `https://localhost:7244`):
 
@@ -81,7 +127,7 @@ npm install
 npm start
 ```
 
-## 4. Primer administrador
+### 4. Primer administrador
 
 Las cuentas se crean desde **Registrarse** con el rol de solicitante. Para que una cuenta sea
 administradora, después de registrarla:

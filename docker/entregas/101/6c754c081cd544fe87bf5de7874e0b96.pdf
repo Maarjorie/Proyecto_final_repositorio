@@ -1,0 +1,45 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 842] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>
+endobj
+4 0 obj
+<< /Length 1116 >>
+stream
+BT /F1 11 Tf 50 790 Td (Universidad de El Salvador - Facultad Multidisciplinaria Oriental) Tj ET
+BT /F1 11 Tf 50 771 Td (Licenciatura en Física) Tj ET
+BT /F1 6 Tf 50 752 Td () Tj ET
+BT /F1 16 Tf 50 738 Td (Simulación del comportamiento caótico del péndulo doble) Tj ET
+BT /F1 6 Tf 50 714 Td () Tj ET
+BT /F1 11 Tf 50 700 Td (Trabajo de graduación - 2022) Tj ET
+BT /F1 11 Tf 50 681 Td (Autores: José Julio Orellana Zelaya, Gerson Walter Rodríguez Chávez) Tj ET
+BT /F1 6 Tf 50 662 Td () Tj ET
+BT /F1 13 Tf 50 648 Td (Resumen) Tj ET
+BT /F1 10 Tf 50 627 Td (Este trabajo de graduación desarrolla el tema «Simulación del comportamiento caótico del) Tj ET
+BT /F1 10 Tf 50 609 Td (péndulo doble». El estudio se llevó a cabo con datos recolectados en la zona oriental) Tj ET
+BT /F1 10 Tf 50 591 Td (del país. La metodología incluyó un diagnóstico inicial, el diseño de la propuesta y su) Tj ET
+BT /F1 10 Tf 50 573 Td (validación con expertos. Se abordan aspectos de caos, péndulo doble y simulación. El) Tj ET
+BT /F1 10 Tf 50 555 Td (documento incluye los resultados obtenidos, su discusión y líneas de trabajo futuro.) Tj ET
+endstream
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000001409 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+1506
+%%EOF

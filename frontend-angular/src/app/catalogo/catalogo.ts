@@ -7,8 +7,8 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
 import type { Work } from '../app';
 import { afterNextRender, DestroyRef, inject, Injector } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { API_URL } from '../api-url';
 
-const API_URL = 'https://localhost:7244/api';
 
 /** Grupos de filtros del catálogo. */
 type FilterGroup = 'area' | 'year' | 'type' | 'department' | 'career' | 'subject' | 'author';

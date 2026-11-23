@@ -4,8 +4,8 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
 import { AUTH_TOKEN_KEY } from '../../auth/auth.constants';
 import { SesionUsuarioComponent } from '../../auth/sesion-usuario';
 import { OpcionBuscable, SelectorBuscable } from '../../compartido/selector-buscable';
+import { API_URL } from '../../api-url';
 
-const API_URL = 'https://localhost:7244/api';
 
 /** Un proyecto, con lo necesario para filtrar y agrupar. */
 interface ProyectoDato {

@@ -1,0 +1,10 @@
+**/bin
+**/obj
+**/node_modules
+**/dist
+**/.angular
+RepositorioApi/App_Data
+RepositorioApi/Database
+datos_de_prueba
+.git
+.claude

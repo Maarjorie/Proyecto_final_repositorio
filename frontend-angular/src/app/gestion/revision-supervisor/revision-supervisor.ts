@@ -6,8 +6,8 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
 import { Observable } from 'rxjs';
 import { AUTH_TOKEN_KEY } from '../../auth/auth.constants';
 import { tienePalabraDemasiadoLarga } from '../../compartido/validacion';
+import { API_URL } from '../../api-url';
 
-const API_URL = 'https://localhost:7244/api';
 
 interface RecursoRevision {
   id: number;

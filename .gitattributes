@@ -1,0 +1,4 @@
+# Los archivos que usa Docker deben quedar con saltos de línea LF también en Windows.
+docker/** text eol=lf
+docker/entregas/** binary
+docker-compose.yml text eol=lf

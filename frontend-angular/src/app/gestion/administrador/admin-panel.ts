@@ -7,8 +7,8 @@ import { AUTH_TOKEN_KEY, AUTH_USER_KEY } from '../../auth/auth.constants';
 import { cerrarSesion, usuarioTieneRol } from '../../auth/auth.guard';
 import { SesionUsuarioComponent } from '../../auth/sesion-usuario';
 import { OpcionBuscable, SelectorBuscable } from '../../compartido/selector-buscable';
+import { API_URL } from '../../api-url';
 
-const API_URL = 'https://localhost:7244/api';
 
 type Role = 'Solicitante' | 'Supervisor' | 'Administrador';
 

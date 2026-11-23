@@ -5,8 +5,8 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectorRef, Component, inject, OnInit } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { AUTH_TOKEN_KEY } from '../../auth/auth.constants';
+import { API_URL } from '../../api-url';
 
-const API_URL = 'https://localhost:7244/api';
 
 export type EstadoSolicitud =
   | 'Pendiente'
