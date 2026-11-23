@@ -186,7 +186,6 @@ export class Catalogo implements OnInit {
 
   /** Abre el grupo de área completo. */
   showAllAreas(): void {
-    // Si el panel ya estaba abierto no hace falta avisar al efecto que lo cierra todo.
     this.abrirConArea = !this.filtersOpen();
     this.filtersOpen.set(true);
     const area = document.getElementById('filtro-area') as HTMLDetailsElement | null;
@@ -394,10 +393,10 @@ export class Catalogo implements OnInit {
 
   constructor() {
     this.contraerFiltrosAlBajar();
-    // Cada vez que se abre el panel, los grupos aparecen cerrados y el usuario abre el que necesite.
+    // Al abrir el panel, los grupos empiezan cerrados.
     effect(() => {
       if (!this.filtersOpen()) return;
-      // "Más áreas" es la única excepción: abre el panel con el grupo de área desplegado.
+      // Excepto con "Más áreas", que abre el grupo de área.
       const dejarArea = this.abrirConArea;
       this.abrirConArea = false;
       afterNextRender(() => {
@@ -589,24 +588,19 @@ export class Catalogo implements OnInit {
     return work.permission === 'Ficha y materiales autorizados' && work.approvedResourceIds.includes(resourceId);
   }
 
-  /**
-   * Panel de filtros abierto o cerrado. Lo cambia el usuario y además se
-   * contrae al bajar y se abre al volver arriba. En celular empieza cerrado.
-   */
+  /** Panel de filtros. En celular empieza cerrado. */
   readonly filtersOpen = signal(!(globalThis.matchMedia?.('(max-width: 760px)').matches ?? false));
 
   private readonly injector = inject(Injector);
   private abrirConArea = false;
 
   /**
-   * El panel de filtros sigue el desplazamiento: se contrae cada vez que el
-   * usuario baja por los resultados (aunque lo haya abierto estando abajo) y
-   * vuelve a abrirse al regresar arriba si fue él quien se contrajo. Los umbrales están separados
-   * para que un cambio de alto de la página no lo haga abrir y cerrar en bucle.
+   * Contrae el panel al bajar y lo vuelve a abrir al regresar arriba.
+   * Los umbrales son distintos para que no se abra y cierre en bucle.
    */
   private contraerFiltrosAlBajar(): void {
     if (typeof window === 'undefined') return;
-    // Se contrae después de recorrer más o menos una fila de trabajos.
+    // Más o menos una fila de trabajos.
     const bajar = 900;
     const subir = 150;
     const escritorio = window.matchMedia('(min-width: 761px)');
@@ -614,14 +608,14 @@ export class Catalogo implements OnInit {
     let estabaAbierto = this.filtersOpen();
     let contraidoSolo = false;
     let quietoHasta = 0;
-    // Solo se respeta cuando el usuario está escribiendo en un buscador del panel.
+    // No se cierra mientras se escribe en un buscador del panel.
     const usandoPanel = () => !!document.activeElement?.matches('.filters input[type="search"]');
     const alDesplazar = () => {
-      // Tras un cambio automático se ignora el ajuste de scroll que provoca.
+      // Ignora el scroll que provoca el propio cambio.
       if (performance.now() < quietoHasta) return;
       const y = window.scrollY;
       const abierto = this.filtersOpen();
-      // Si el usuario abre el panel estando abajo, se cuenta desde ahí.
+      // Si se abre estando abajo, cuenta desde ahí.
       if (abierto && !estabaAbierto) {
         marca = y;
         contraidoSolo = false;
@@ -635,7 +629,7 @@ export class Catalogo implements OnInit {
         quietoHasta = performance.now() + 400;
       } else if (!abierto && y < subir && contraidoSolo) {
         contraidoSolo = false;
-        // En celular el panel va encima de la lista; abrirlo solo movería la página.
+        // En celular no se abre solo: movería la lista.
         if (escritorio.matches) {
           this.filtersOpen.set(true);
           estabaAbierto = true;

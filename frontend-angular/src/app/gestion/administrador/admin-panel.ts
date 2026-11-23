@@ -171,7 +171,7 @@ export class AdminPanel {
     materias: [], tematicas: [], carreras: [], departamentos: []
   });
   readonly docentes = signal<Option[]>([]);
-  /** Vínculos de cada materia (id → carreras y docentes). */
+  /** Carreras y docentes de cada materia, por id. */
   readonly materiaLinks = signal<Record<string, MateriaLinks>>({});
   readonly draft = signal<Record<string, string>>({});
   readonly loading = signal(false);
@@ -248,7 +248,7 @@ export class AdminPanel {
     );
   });
 
-  // Las tablas se muestran por páginas; la búsqueda filtra sobre todos los registros.
+  // Tablas por páginas; la búsqueda revisa todos los registros.
   readonly pageSize = 10;
   readonly page = signal(1);
 

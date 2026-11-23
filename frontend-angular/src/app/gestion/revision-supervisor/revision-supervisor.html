@@ -60,15 +60,42 @@
       @if (cargando) {
         <div class="estado-vacio" role="status">Cargando entregas...</div>
       } @else {
+        @if (entregas.length > 0) {
+          <div class="barra-publicaciones barra-pendientes">
+            <div class="fila-busqueda">
+              <input type="search" class="buscar-publicacion" placeholder="Buscar por título, autor, solicitante, carrera o área"
+                aria-label="Buscar entregas pendientes" [value]="busquedaPendiente" (input)="buscarPendiente($event)">
+              <select class="filtro-departamento" aria-label="Filtrar por departamento"
+                [value]="departamentoPendiente" (change)="elegirDepartamentoPendiente($event)">
+                <option value="">Todos los departamentos</option>
+                @for (departamento of departamentosPendientes; track departamento) {
+                  <option [value]="departamento">{{ departamento }}</option>
+                }
+              </select>
+            </div>
+            <div class="filtros-publicacion" role="group" aria-label="Filtrar por tipo de entrega">
+              @for (filtro of filtrosPendiente; track filtro.valor) {
+                <button type="button" class="filtro-publicacion" [class.activa]="filtroPendiente === filtro.valor"
+                  [attr.aria-pressed]="filtroPendiente === filtro.valor" (click)="elegirFiltroPendiente(filtro.valor)">
+                  {{ filtro.texto }} <span class="insignia">{{ cuentaPendientes(filtro.valor) }}</span>
+                </button>
+              }
+              @if (hayFiltroPendiente) {
+                <span class="resultado-filtro">{{ pendientesFiltradas.length }} de {{ entregas.length }}</span>
+                <button type="button" class="boton-quitar-filtros" (click)="quitarFiltrosPendientes()">Quitar filtros</button>
+              }
+            </div>
+          </div>
+        }
         <div class="lista-revision">
-          @for (entrega of entregasPagina; track entrega.id; let posicion = $index) {
+          @for (entrega of entregasPagina; track entrega.id) {
             <article class="tarjeta-proyecto tarjeta-revision">
               <div class="proyecto-cabecera">
                 <div>
                   <span class="tipo-trabajo">{{ formatearNombre(entrega.tipoTrabajo) }} · {{ entrega.anio }}</span>
                   <h3>{{ entrega.titulo }}</h3>
                 </div>
-                <span class="estado pendiente">#{{ inicioPendientes + posicion + 1 }} en la fila</span>
+                <span class="estado pendiente">#{{ posicionEnFila(entrega) }} en la fila</span>
               </div>
 
               <div class="datos-proyecto">
@@ -178,7 +205,7 @@
             </article>
           } @empty {
             <div class="estado-vacio">
-              <h3>No hay entregas pendientes</h3>
+              <h3>{{ entregas.length ? 'Ninguna entrega coincide con la búsqueda' : 'No hay entregas pendientes' }}</h3>
             </div>
           }
         </div>

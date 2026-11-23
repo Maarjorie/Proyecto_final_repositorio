@@ -102,6 +102,7 @@ function normalizar(texto: string): string {
   return texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es');
 }
 type Pestana = 'pendientes' | 'publicaciones';
+type FiltroPendiente = '' | 'nuevas' | 'reenvios' | 'actualizaciones';
 
 /** Borrador del permiso que se edita en una tarjeta antes de guardarlo. */
 interface BorradorPermiso {
@@ -135,21 +136,90 @@ export class RevisionSupervisorComponent implements OnInit {
 
   pestana: Pestana = 'pendientes';
 
-  // Pendientes: se muestran por páginas para no cargar toda la fila de una vez.
+  // Pendientes por páginas
   paginaPendientes = 1;
   readonly porPaginaPendientes = 6;
 
-  get totalPaginasPendientes(): number {
-    return Math.max(1, Math.ceil(this.entregas.length / this.porPaginaPendientes));
+  // Búsqueda y filtros de pendientes
+  busquedaPendiente = '';
+  filtroPendiente: FiltroPendiente = '';
+  departamentoPendiente = '';
+  readonly filtrosPendiente: { valor: FiltroPendiente; texto: string }[] = [
+    { valor: '', texto: 'Todas' },
+    { valor: 'nuevas', texto: 'Envíos nuevos' },
+    { valor: 'reenvios', texto: 'Versiones corregidas' },
+    { valor: 'actualizaciones', texto: 'Actualizaciones' }
+  ];
+
+  get departamentosPendientes(): string[] {
+    return [...new Set(this.entregas.map(entrega => entrega.departamento))].sort((a, b) => a.localeCompare(b, 'es'));
   }
 
-  /** Primera posición de la página actual, para numerar la fila. */
+  private cumpleFiltroPendiente(entrega: EntregaRevision, filtro: FiltroPendiente): boolean {
+    if (filtro === 'actualizaciones') return !!entrega.esActualizacion;
+    if (filtro === 'reenvios') return !entrega.esActualizacion && entrega.version > 1;
+    if (filtro === 'nuevas') return !entrega.esActualizacion && entrega.version === 1;
+    return true;
+  }
+
+  cuentaPendientes(filtro: FiltroPendiente): number {
+    return this.entregas.filter(entrega => this.cumpleFiltroPendiente(entrega, filtro)).length;
+  }
+
+  get pendientesFiltradas(): EntregaRevision[] {
+    const terminos = normalizar(this.busquedaPendiente.trim()).split(/\s+/).filter(Boolean);
+    return this.entregas.filter(entrega => {
+      if (!this.cumpleFiltroPendiente(entrega, this.filtroPendiente)) return false;
+      if (this.departamentoPendiente && entrega.departamento !== this.departamentoPendiente) return false;
+      if (!terminos.length) return true;
+      const texto = normalizar([entrega.titulo, entrega.solicitante, entrega.carrera, entrega.departamento, entrega.tematica,
+        entrega.tipoTrabajo, String(entrega.anio), ...entrega.autores, ...entrega.palabrasClave].join(' '));
+      return terminos.every(termino => texto.includes(termino));
+    });
+  }
+
+  get hayFiltroPendiente(): boolean {
+    return !!(this.busquedaPendiente.trim() || this.filtroPendiente || this.departamentoPendiente);
+  }
+
+  buscarPendiente(event: Event): void {
+    this.busquedaPendiente = (event.target as HTMLInputElement).value;
+    this.paginaPendientes = 1;
+  }
+
+  elegirFiltroPendiente(filtro: FiltroPendiente): void {
+    this.filtroPendiente = filtro;
+    this.paginaPendientes = 1;
+  }
+
+  elegirDepartamentoPendiente(event: Event): void {
+    this.departamentoPendiente = (event.target as HTMLSelectElement).value;
+    this.paginaPendientes = 1;
+  }
+
+  quitarFiltrosPendientes(): void {
+    this.busquedaPendiente = '';
+    this.filtroPendiente = '';
+    this.departamentoPendiente = '';
+    this.paginaPendientes = 1;
+  }
+
+  /** Posición en la fila por orden de llegada, aunque haya filtros. */
+  posicionEnFila(entrega: EntregaRevision): number {
+    return this.entregas.indexOf(entrega) + 1;
+  }
+
+  get totalPaginasPendientes(): number {
+    return Math.max(1, Math.ceil(this.pendientesFiltradas.length / this.porPaginaPendientes));
+  }
+
+  /** Índice donde empieza la página actual. */
   get inicioPendientes(): number {
     return (Math.min(this.paginaPendientes, this.totalPaginasPendientes) - 1) * this.porPaginaPendientes;
   }
 
   get entregasPagina(): EntregaRevision[] {
-    return this.entregas.slice(this.inicioPendientes, this.inicioPendientes + this.porPaginaPendientes);
+    return this.pendientesFiltradas.slice(this.inicioPendientes, this.inicioPendientes + this.porPaginaPendientes);
   }
 
   irAPaginaPendientes(pagina: number): void {
@@ -191,7 +261,7 @@ export class RevisionSupervisorComponent implements OnInit {
 
   elegirModoFecha(modo: ModoFecha): void {
     this.modoFecha = modo;
-    // Al elegir día o semana se parte de hoy, así el filtro aplica de inmediato.
+    // Día y semana empiezan en la fecha actual.
     if (modo === 'dia' && !this.fechaDia) this.fechaDia = this.hoy;
     if (modo === 'semana' && !this.fechaSemana) this.fechaSemana = semanaDe(new Date());
     if (modo === 'todas') this.fechaDia = this.fechaSemana = this.fechaDesde = this.fechaHasta = '';

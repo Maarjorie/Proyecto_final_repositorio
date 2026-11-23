@@ -167,7 +167,7 @@ export class SelectorBuscable {
     const lista = this.lista()?.nativeElement;
     if (!lista) return;
     const caja = this.campo().nativeElement.getBoundingClientRect();
-    // En teléfono la página tiene zoom; las medidas de pantalla se pasan a las de la lista.
+    // Corrige la posición cuando la página tiene zoom (teléfono).
     const zoom = (lista as HTMLElement & { currentCSSZoom?: number }).currentCSSZoom || 1;
     const px = (valor: number) => valor / zoom + 'px';
     const abajo = globalThis.innerHeight - caja.bottom - 12;

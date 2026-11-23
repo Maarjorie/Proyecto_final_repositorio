@@ -479,7 +479,7 @@ fieldset.bloque-revision > legend {
   gap: 6px;
 }
 
-/* "Todas" ocupa la fila completa y los demás quedan en pares. */
+/* "Todas" ocupa toda la fila */
 .modo-fecha:first-child {
   grid-column: 1 / -1;
 }
@@ -540,12 +540,62 @@ fieldset.bloque-revision > legend {
     position: static;
   }
 
-  /* Los cuatro modos de fecha en una fila */
+  /* Modos de fecha en una fila */
   .modos-fecha {
     grid-template-columns: repeat(5, 1fr);
   }
 
   .modo-fecha:first-child {
     grid-column: auto;
+  }
+}
+
+/* Búsqueda y filtros de pendientes */
+.fila-busqueda {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 280px);
+  gap: 10px;
+}
+
+.filtro-departamento {
+  min-height: 48px;
+  padding: 0 12px;
+  border: 1px solid #fff;
+  border-radius: 14px;
+  color: #183a5d;
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.9), rgba(222, 246, 250, 0.9));
+  font: inherit;
+  cursor: pointer;
+}
+
+.resultado-filtro {
+  align-self: center;
+  margin-left: auto;
+  color: #3c5a73;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.boton-quitar-filtros {
+  min-height: 38px;
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 999px;
+  color: #183653;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .fila-busqueda {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .resultado-filtro {
+    margin-left: 0;
   }
 }
