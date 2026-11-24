@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -52,6 +53,74 @@ public sealed class AdminController : ControllerBase
         return Ok(usuarios);
     }
 
+    /// <summary>
+    /// RF-22: crea cuentas de supervisor o de administrador. Los solicitantes se
+    /// registran solos. Pide la contraseña del administrador.
+    /// </summary>
+    [HttpPost("usuarios")]
+    public async Task<IActionResult> CrearCuenta(
+        [FromBody] NuevaCuentaRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (!Validacion.EsNombrePersona(request.Nombres) || !Validacion.EsNombrePersona(request.Apellidos))
+        {
+            return BadRequest(new { mensaje = "Los nombres y apellidos solo llevan letras y al menos 2 caracteres." });
+        }
+
+        if (!Validacion.EsContrasenaSegura(request.Contrasena))
+        {
+            return BadRequest(new { mensaje = "La contraseña debe tener entre 8 y 128 caracteres, con al menos una letra y un número." });
+        }
+
+        var roles = (request.Roles ?? [])
+            .Select(rol => rol.Trim().ToLowerInvariant())
+            .Distinct()
+            .ToList();
+        if (roles.Any(rol => rol is not ("supervisor" or "administrador")) ||
+            !roles.Any())
+        {
+            return BadRequest(new { mensaje = "Elige si la cuenta es de supervisor, de administrador o ambas. Los solicitantes se registran desde Registrarse." });
+        }
+
+        // Como las cuentas existentes, también lleva el rol base de usuario.
+        roles.Insert(0, "usuario");
+
+        var (_, error) = await VerificarAdministradorAsync(request.ContrasenaAdministrador, cancellationToken);
+        if (error is not null)
+        {
+            return error;
+        }
+
+        var correo = request.Correo.Trim().ToLowerInvariant();
+        if (await _db.TblUsuarios.AnyAsync(usuario => usuario.Correo == correo, cancellationToken))
+        {
+            return Conflict(new { mensaje = "Ya existe una cuenta con ese correo." });
+        }
+
+        var cuenta = new TblUsuario
+        {
+            Nombres = request.Nombres.Trim(),
+            Apellidos = request.Apellidos.Trim(),
+            Correo = correo,
+            ContrasenaHash = string.Empty,
+            Activo = true
+        };
+        cuenta.ContrasenaHash = _passwordHasher.HashPassword(cuenta, request.Contrasena);
+        foreach (var rol in await _db.TblRols.Where(rol => roles.Contains(rol.NombreRol)).ToListAsync(cancellationToken))
+        {
+            cuenta.IdRols.Add(rol);
+        }
+
+        _db.TblUsuarios.Add(cuenta);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        return Ok(new
+        {
+            id = cuenta.IdUsuario,
+            mensaje = "Se creó la cuenta " + correo + " con el rol " + string.Join(", ", roles) + "."
+        });
+    }
+
     /// <summary>Asigna o quita un rol. Pide la contraseña del administrador.</summary>
     [HttpPut("usuarios/{idUsuario:int}/roles")]
     public async Task<IActionResult> CambiarRol(
@@ -96,7 +165,7 @@ public sealed class AdminController : ControllerBase
             if (rolNombre == "supervisor")
             {
                 var pendientes = await _db.TblEntregas
-                    .Where(entrega => entrega.EstadoEntrega == "pendiente" &&
+                    .Where(entrega => (entrega.EstadoEntrega == "pendiente" || entrega.EstadoEntrega == "en_revision") &&
                                       entrega.IdUsuarioEnvia != usuario.IdUsuario &&
                                       !entrega.TblNotificacions.Any(aviso => aviso.IdUsuarioDestino == usuario.IdUsuario))
                     .Select(entrega => new { entrega.IdEntrega, entrega.IdProyectoNavigation.Titulo })
@@ -616,6 +685,27 @@ public sealed class AdminController : ControllerBase
 
         return (admin, null);
     }
+}
+
+public sealed class NuevaCuentaRequest
+{
+    [Required(ErrorMessage = "Escribe los nombres.")]
+    public string Nombres { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Escribe los apellidos.")]
+    public string Apellidos { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Escribe el correo.")]
+    [EmailAddress(ErrorMessage = "Escribe un correo electrónico válido.")]
+    [MaxLength(254, ErrorMessage = "El correo admite hasta 254 caracteres.")]
+    public string Correo { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Escribe una contraseña para la cuenta.")]
+    public string Contrasena { get; set; } = string.Empty;
+
+    public List<string>? Roles { get; set; }
+
+    public string? ContrasenaAdministrador { get; set; }
 }
 
 public sealed class CambioRolRequest

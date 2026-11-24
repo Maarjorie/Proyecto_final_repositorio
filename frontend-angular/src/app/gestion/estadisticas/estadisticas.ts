@@ -24,7 +24,7 @@ interface Estadisticas {
   total: number;
   areas: { id: number; nombre: string }[];
   proyectos: ProyectoDato[];
-  entregas: { idProyecto: number; estado: 'pendiente' | 'aprobada' | 'con_correcciones' | 'rechazada' }[];
+  entregas: { idProyecto: number; estado: 'pendiente' | 'en_revision' | 'aprobada' | 'con_correcciones' | 'rechazada' }[];
 }
 
 interface Indicadores {
@@ -197,12 +197,12 @@ export class EstadisticasComponent implements OnInit {
     const ids = new Set(proyectos.map(p => p.id));
     const entregas = datos.entregas.filter(e => ids.has(e.idProyecto));
     const aprobadas = entregas.filter(e => e.estado === 'aprobada').length;
-    const decididas = entregas.filter(e => e.estado !== 'pendiente').length;
+    const decididas = entregas.filter(e => e.estado !== 'pendiente' && e.estado !== 'en_revision').length;
 
     const indicadores: Indicadores = {
       proyectos: proyectos.length,
       publicados: proyectos.filter(p => p.publicacion === 'publicado').length,
-      enRevision: entregas.filter(e => e.estado === 'pendiente').length,
+      enRevision: entregas.filter(e => e.estado === 'pendiente' || e.estado === 'en_revision').length,
       tasaAprobacion: decididas ? Math.round((aprobadas / decididas) * 100) : null
     };
 

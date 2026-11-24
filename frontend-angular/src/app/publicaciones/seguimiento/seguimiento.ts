@@ -10,6 +10,7 @@ import { API_URL } from '../../api-url';
 
 export type EstadoSolicitud =
   | 'Pendiente'
+  | 'En revisión'
   | 'Con correcciones'
   | 'Aprobada'
   | 'Rechazada';
@@ -24,6 +25,10 @@ export interface ProyectoEnSeguimiento {
   ultimaActualizacion: string;
   version: number;
   estado: EstadoSolicitud;
+  /** Fecha estimada de la primera respuesta (RF-19). */
+  respuestaEstimada: string | null;
+  /** Qué pasó con la publicación si la entrega fue aprobada (RF-07). */
+  publicacion: string | null;
   puedeEliminar: boolean;
   puedeReenviar: boolean;
   /** Se puede actualizar (RF-08). */
@@ -66,6 +71,8 @@ export interface DetalleSolicitud {
   revisor: string | null;
   version: number;
   estado: EstadoSolicitud;
+  respuestaEstimada: string | null;
+  publicacion: string | null;
   puedeEliminar: boolean;
   puedeReenviar: boolean;
   puedeActualizar: boolean;
@@ -144,7 +151,9 @@ export class SeguimientoComponent implements OnInit {
   }
 
   textoEstado(estado: EstadoSolicitud): string {
-    return estado === 'Pendiente' ? 'En revisión del supervisor' : estado;
+    if (estado === 'Pendiente') return 'Pendiente de revisión';
+    if (estado === 'En revisión') return 'En revisión por el supervisor';
+    return estado;
   }
 
   verDetalle(proyecto: ProyectoEnSeguimiento): void {

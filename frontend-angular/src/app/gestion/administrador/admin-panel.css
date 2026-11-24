@@ -954,3 +954,48 @@ td {
   opacity: 0.45;
   cursor: default;
 }
+
+/* Crear cuenta (RF-22) */
+.create-account-form {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.roles-nueva-cuenta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+  min-height: 54px;
+  margin: 0;
+  padding: 0 4px;
+  border: 0;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.roles-nueva-cuenta legend {
+  padding: 0;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.roles-nueva-cuenta small {
+  font-weight: 600;
+  color: #42677a;
+}
+
+.roles-nueva-cuenta label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+}
+
+.roles-nueva-cuenta input {
+  width: 18px;
+  min-height: 0;
+  height: 18px;
+  padding: 0;
+  box-shadow: none;
+}

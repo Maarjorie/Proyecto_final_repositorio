@@ -63,6 +63,7 @@
               <span
                 class="estado"
                 [class.pendiente]="proyecto.estado === 'Pendiente'"
+                [class.revision]="proyecto.estado === 'En revisión'"
                 [class.correcciones]="proyecto.estado === 'Con correcciones'"
                 [class.aprobada]="proyecto.estado === 'Aprobada'"
                 [class.rechazada]="proyecto.estado === 'Rechazada'">
@@ -74,6 +75,12 @@
               <span>Recibido: <strong>{{ fechaLocal(proyecto.fechaEnvio) | date:'dd/MM/yyyy, h:mm a' }}</strong></span>
               <span>Última actualización: <strong>{{ fechaLocal(proyecto.ultimaActualizacion) | date:'dd/MM/yyyy, h:mm a' }}</strong></span>
               <span>Versión: <strong>{{ proyecto.version }}</strong>{{ proyecto.esActualizacion ? ' · actualización' : '' }}</span>
+              @if (proyecto.respuestaEstimada) {
+                <span>Primera respuesta estimada: <strong>antes del {{ fechaLocal(proyecto.respuestaEstimada) | date:'dd/MM/yyyy, h:mm a' }}</strong></span>
+              }
+              @if (proyecto.publicacion) {
+                <span>Publicación: <strong>{{ proyecto.publicacion }}</strong></span>
+              }
             </div>
 
             @if (proyecto.observacion) {
@@ -99,6 +106,7 @@
                             <strong>Versión {{ anterior.version }}</strong>
                             <span class="estado estado-mini"
                               [class.pendiente]="anterior.estado === 'Pendiente'"
+                              [class.revision]="anterior.estado === 'En revisión'"
                               [class.correcciones]="anterior.estado === 'Con correcciones'"
                               [class.aprobada]="anterior.estado === 'Aprobada'"
                               [class.rechazada]="anterior.estado === 'Rechazada'">{{ textoEstado(anterior.estado) }}</span>
@@ -180,6 +188,7 @@
       <span
         class="estado"
         [class.pendiente]="solicitud.estado === 'Pendiente'"
+        [class.revision]="solicitud.estado === 'En revisión'"
         [class.correcciones]="solicitud.estado === 'Con correcciones'"
         [class.aprobada]="solicitud.estado === 'Aprobada'"
         [class.rechazada]="solicitud.estado === 'Rechazada'">
@@ -191,6 +200,12 @@
         <span>Revisado por: <strong>{{ solicitud.revisor }}</strong></span>
       }
       <span>Versión: <strong>{{ solicitud.version }}</strong>{{ solicitud.esActualizacion ? ' · actualización' : '' }}</span>
+        @if (solicitud.respuestaEstimada) {
+          <span>Primera respuesta estimada: <strong>antes del {{ fechaLocal(solicitud.respuestaEstimada) | date:'dd/MM/yyyy, h:mm a' }}</strong></span>
+        }
+        @if (solicitud.publicacion) {
+          <span>Publicación: <strong>{{ solicitud.publicacion }}</strong></span>
+        }
     </div>
 
     @if (errorDetalle) {

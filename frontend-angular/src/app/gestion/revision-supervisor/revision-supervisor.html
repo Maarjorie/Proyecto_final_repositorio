@@ -95,7 +95,12 @@
                   <span class="tipo-trabajo">{{ formatearNombre(entrega.tipoTrabajo) }} · {{ entrega.anio }}</span>
                   <h3>{{ entrega.titulo }}</h3>
                 </div>
-                <span class="estado pendiente">#{{ posicionEnFila(entrega) }} en la fila</span>
+                <div class="estado-fila">
+                  @if (entrega.enRevision) {
+                    <span class="estado en-revision">En revisión{{ entrega.revisadaPor ? ' · ' + entrega.revisadaPor : '' }}</span>
+                  }
+                  <span class="estado pendiente">#{{ posicionEnFila(entrega) }} en la fila</span>
+                </div>
               </div>
 
               <div class="datos-proyecto">
@@ -104,93 +109,106 @@
                 <span>Versión: <strong>{{ entrega.version }}</strong>{{ entrega.esActualizacion ? ' · actualización de un trabajo publicado' : '' }}</span>
               </div>
 
-              <dl class="ficha-revision">
-                <div><dt>Autores</dt><dd>{{ entrega.autores.join(', ') }}</dd></div>
-                <div><dt>Carrera</dt><dd>{{ entrega.carrera }}</dd></div>
-                <div><dt>Departamento</dt><dd>{{ entrega.departamento }}</dd></div>
-                <div><dt>Área</dt><dd>{{ formatearNombre(entrega.tematica) }}</dd></div>
-                @if (entrega.asesores.length > 0) {
-                  <div><dt>Asesores</dt><dd>{{ nombresAsesores(entrega.asesores) }}</dd></div>
+              <!-- La ficha completa se despliega al empezar la revisión. -->
+              @if (entrega.enRevision) {
+                <dl class="ficha-revision">
+                  <div><dt>Autores</dt><dd>{{ entrega.autores.join(', ') }}</dd></div>
+                  <div><dt>Carrera</dt><dd>{{ entrega.carrera }}</dd></div>
+                  <div><dt>Departamento</dt><dd>{{ entrega.departamento }}</dd></div>
+                  <div><dt>Área</dt><dd>{{ formatearNombre(entrega.tematica) }}</dd></div>
+                  @if (entrega.asesores.length > 0) {
+                    <div><dt>Asesores</dt><dd>{{ nombresAsesores(entrega.asesores) }}</dd></div>
+                  }
+                </dl>
+                <p class="resumen-revision">{{ entrega.resumen }}</p>
+                @if (entrega.palabrasClave.length > 0) {
+                  <div class="chips">
+                    @for (palabra of entrega.palabrasClave; track palabra) {
+                      <span class="chip">{{ palabra }}</span>
+                    }
+                  </div>
                 }
-              </dl>
-              <p class="resumen-revision">{{ entrega.resumen }}</p>
-              @if (entrega.palabrasClave.length > 0) {
-                <div class="chips">
-                  @for (palabra of entrega.palabrasClave; track palabra) {
-                    <span class="chip">{{ palabra }}</span>
+
+                <div class="bloque-revision">
+                  <strong class="titulo-bloque">Materiales</strong>
+                  @for (recurso of entrega.recursos; track recurso.id) {
+                    <div class="recurso-revision">
+                      <span>{{ recurso.nombre }} <span class="dato-secundario">· {{ recurso.tipo.toUpperCase() }}</span></span>
+                      <button type="button" class="boton-secundario" (click)="abrirRecurso(recurso)">
+                        {{ recurso.url ? 'Abrir enlace' : 'Descargar' }}
+                      </button>
+                    </div>
+                  } @empty {
+                    <small class="dato-secundario">No hay materiales adjuntos.</small>
                   }
                 </div>
+
+                @let borrador = borradorDecision(entrega);
+                <fieldset class="bloque-revision permiso-autores">
+                  <legend class="titulo-bloque">Permiso de los autores <span class="dato-secundario">(se aplica al aprobar)</span></legend>
+                  @for (opcion of opcionesPermiso; track opcion.valor) {
+                    <label class="opcion-permiso">
+                      <input type="radio" [name]="'permiso-' + entrega.id"
+                        [checked]="borrador.permiso === opcion.valor"
+                        (change)="elegirPermiso(borrador, opcion.valor)">
+                      <span>
+                        <strong>{{ opcion.texto }}</strong>
+                      </span>
+                    </label>
+                  }
+                  @if (borrador.permiso === 'ficha_y_materiales') {
+                    <div class="materiales-autorizados">
+                      <span class="dato-secundario">Marca los materiales que los autores autorizaron:</span>
+                      @for (recurso of entrega.recursos; track recurso.id) {
+                        <label class="opcion-material">
+                          <input type="checkbox"
+                            [checked]="borrador.recursos.includes(recurso.id)"
+                            (change)="alternarRecurso(borrador, recurso.id, $event)">
+                          {{ recurso.nombre }} <span class="dato-secundario">· {{ recurso.tipo.toUpperCase() }}</span>
+                        </label>
+                      }
+                    </div>
+                  }
+                  @if (entrega.asesores.length > 0) {
+                    <div class="materiales-autorizados asesores-autorizados">
+                      <span class="dato-secundario">Mostrar en la ficha:</span>
+                      @for (asesor of entrega.asesores; track asesor.idDocente) {
+                        <label class="opcion-material">
+                          <input type="checkbox"
+                            [checked]="borrador.asesores.includes(asesor.idDocente)"
+                            (change)="alternarAsesor(borrador, asesor.idDocente, $event)">
+                          {{ asesor.nombre }}
+                        </label>
+                      }
+                    </div>
+                  }
+                </fieldset>
+
+                <label class="campo-observacion">
+                  Observaciones <span class="dato-secundario">(obligatorias para pedir correcciones o rechazar)</span>
+                  <textarea
+                    rows="3"
+                    [value]="observaciones[entrega.id] ?? ''"
+                    (input)="actualizarObservacion(entrega.id, $event)"
+                    placeholder="Describe qué debe corregir el solicitante, o el motivo del rechazo."
+                  ></textarea>
+                </label>
+              } @else {
+                <p class="resumen-revision resumen-corto">{{ entrega.resumen }}</p>
               }
-
-              <div class="bloque-revision">
-                <strong class="titulo-bloque">Materiales</strong>
-                @for (recurso of entrega.recursos; track recurso.id) {
-                  <div class="recurso-revision">
-                    <span>{{ recurso.nombre }} <span class="dato-secundario">· {{ recurso.tipo.toUpperCase() }}</span></span>
-                    <button type="button" class="boton-secundario" (click)="abrirRecurso(recurso)">
-                      {{ recurso.url ? 'Abrir enlace' : 'Descargar' }}
-                    </button>
-                  </div>
-                } @empty {
-                  <small class="dato-secundario">No hay materiales adjuntos.</small>
-                }
-              </div>
-
-              @let borrador = borradorDecision(entrega);
-              <fieldset class="bloque-revision permiso-autores">
-                <legend class="titulo-bloque">Permiso de los autores <span class="dato-secundario">(se aplica al aprobar)</span></legend>
-                @for (opcion of opcionesPermiso; track opcion.valor) {
-                  <label class="opcion-permiso">
-                    <input type="radio" [name]="'permiso-' + entrega.id"
-                      [checked]="borrador.permiso === opcion.valor"
-                      (change)="elegirPermiso(borrador, opcion.valor)">
-                    <span>
-                      <strong>{{ opcion.texto }}</strong>
-                    </span>
-                  </label>
-                }
-                @if (borrador.permiso === 'ficha_y_materiales') {
-                  <div class="materiales-autorizados">
-                    <span class="dato-secundario">Marca los materiales que los autores autorizaron:</span>
-                    @for (recurso of entrega.recursos; track recurso.id) {
-                      <label class="opcion-material">
-                        <input type="checkbox"
-                          [checked]="borrador.recursos.includes(recurso.id)"
-                          (change)="alternarRecurso(borrador, recurso.id, $event)">
-                        {{ recurso.nombre }} <span class="dato-secundario">· {{ recurso.tipo.toUpperCase() }}</span>
-                      </label>
-                    }
-                  </div>
-                }
-                @if (entrega.asesores.length > 0) {
-                  <div class="materiales-autorizados asesores-autorizados">
-                    <span class="dato-secundario">Mostrar en la ficha:</span>
-                    @for (asesor of entrega.asesores; track asesor.idDocente) {
-                      <label class="opcion-material">
-                        <input type="checkbox"
-                          [checked]="borrador.asesores.includes(asesor.idDocente)"
-                          (change)="alternarAsesor(borrador, asesor.idDocente, $event)">
-                        {{ asesor.nombre }}
-                      </label>
-                    }
-                  </div>
-                }
-              </fieldset>
-
-              <label class="campo-observacion">
-                Observaciones <span class="dato-secundario">(obligatorias para pedir correcciones o rechazar)</span>
-                <textarea
-                  rows="3"
-                  [value]="observaciones[entrega.id] ?? ''"
-                  (input)="actualizarObservacion(entrega.id, $event)"
-                  placeholder="Describe qué debe corregir el solicitante, o el motivo del rechazo."
-                ></textarea>
-              </label>
 
               @if (mensajeError && errorEntregaId === entrega.id) {
                 <p class="mensaje-error error-tarjeta" role="alert">{{ mensajeError }}</p>
               }
 
+              @if (!entrega.enRevision) {
+                <div class="acciones-revision">
+                  <button type="button" class="decision iniciar" [disabled]="ocupadoId === entrega.id" (click)="iniciarRevision(entrega)">
+                    {{ ocupadoId === entrega.id ? 'Guardando...' : 'Empezar revisión' }}
+                  </button>
+                  <span class="dato-secundario">El solicitante verá que su entrega está en revisión.</span>
+                </div>
+              } @else {
               <div class="acciones-revision">
                 <button type="button" class="decision aprobar" [disabled]="ocupadoId === entrega.id" (click)="decidir(entrega, 'Aprobada')">
                   {{ ocupadoId === entrega.id ? 'Guardando...' : 'Aprobar' }}
@@ -202,6 +220,7 @@
                   Rechazar
                 </button>
               </div>
+              }
             </article>
           } @empty {
             <div class="estado-vacio">

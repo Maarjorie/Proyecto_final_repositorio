@@ -136,6 +136,33 @@
       }
     </section>
   } @else {
+  <section class="management-card glass-panel" id="new-account">
+    <div class="panel-title">
+      <div>
+        <h2>Crear cuenta de supervisor o administrador</h2>
+      </div>
+    </div>
+    <form class="add-user-form create-account-form" novalidate (submit)="$event.preventDefault(); requestCreateAccount()">
+      <label>Nombres
+        <input name="nuevaNombres" autocomplete="off" maxlength="100" [ngModel]="nuevaNombres()" (ngModelChange)="nuevaNombres.set($event)" />
+      </label>
+      <label>Apellidos
+        <input name="nuevaApellidos" autocomplete="off" maxlength="100" [ngModel]="nuevaApellidos()" (ngModelChange)="nuevaApellidos.set($event)" />
+      </label>
+      <label>Correo
+        <input name="nuevaCorreo" type="email" autocomplete="off" maxlength="254" [ngModel]="nuevaCorreo()" (ngModelChange)="nuevaCorreo.set($event)" />
+      </label>
+      <label>Contraseña inicial
+        <input name="nuevaContrasena" type="password" autocomplete="new-password" maxlength="128" [ngModel]="nuevaContrasena()" (ngModelChange)="nuevaContrasena.set($event)" />
+      </label>
+      <fieldset class="roles-nueva-cuenta" aria-label="Roles de la cuenta">
+        <label><input type="checkbox" name="nuevaSupervisor" [ngModel]="nuevaSupervisor()" (ngModelChange)="nuevaSupervisor.set($event)" /> Supervisor</label>
+        <label><input type="checkbox" name="nuevaAdministrador" [ngModel]="nuevaAdministrador()" (ngModelChange)="nuevaAdministrador.set($event)" /> Administrador</label>
+      </fieldset>
+      <button class="primary-button" type="submit" [disabled]="saving() || verifying()">Crear cuenta</button>
+    </form>
+  </section>
+
   <section class="management-card glass-panel" id="create-account">
     <div class="panel-title">
       <div>

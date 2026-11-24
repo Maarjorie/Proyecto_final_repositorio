@@ -8,6 +8,7 @@ import { cerrarSesion, usuarioTieneRol } from '../../auth/auth.guard';
 import { SesionUsuarioComponent } from '../../auth/sesion-usuario';
 import { OpcionBuscable, SelectorBuscable } from '../../compartido/selector-buscable';
 import { API_URL } from '../../api-url';
+import { validarContrasenaNueva, validarCorreo, validarNombre } from '../../compartido/validacion';
 
 
 type Role = 'Solicitante' | 'Supervisor' | 'Administrador';
@@ -84,6 +85,7 @@ interface Option {
 }
 
 type PendingChange =
+  | { kind: 'create' }
   | { kind: 'role'; id: number; role: Role; enabled: boolean }
   | { kind: 'active'; id: number }
   | { kind: 'delete'; catalog: CatalogKey; id: string };
@@ -201,6 +203,14 @@ export class AdminPanel {
   });
 
   // Registro de docentes.
+  // RF-22: cuenta de supervisor o administrador creada por el administrador
+  readonly nuevaNombres = signal('');
+  readonly nuevaApellidos = signal('');
+  readonly nuevaCorreo = signal('');
+  readonly nuevaContrasena = signal('');
+  readonly nuevaSupervisor = signal(false);
+  readonly nuevaAdministrador = signal(false);
+
   readonly docenteUserId = signal('');
   readonly docenteCode = signal('');
   readonly docenteDepto = signal('');
@@ -283,6 +293,10 @@ export class AdminPanel {
   readonly pendingDescription = computed(() => {
     const change = this.pending();
     if (!change) return '';
+    if (change.kind === 'create') {
+      return 'Crear la cuenta ' + this.nuevaCorreo().trim().toLowerCase() + ' con el rol ' +
+        this.rolesNuevaCuenta().join(', ') + '.';
+    }
     if (change.kind === 'delete') {
       const row = this.catalogData()[change.catalog].find(item => item.id === change.id);
       return row
@@ -497,6 +511,25 @@ export class AdminPanel {
     }
   }
 
+  private rolesNuevaCuenta(): string[] {
+    return [...(this.nuevaSupervisor() ? ['supervisor'] : []), ...(this.nuevaAdministrador() ? ['administrador'] : [])];
+  }
+
+  /** Revisa el formulario y pide la contraseña del administrador para crear la cuenta. */
+  requestCreateAccount(): void {
+    const error = validarNombre(this.nuevaNombres(), 'los nombres') ||
+      validarNombre(this.nuevaApellidos(), 'los apellidos') ||
+      validarCorreo(this.nuevaCorreo()).replace('tu correo', 'el correo') ||
+      validarContrasenaNueva(this.nuevaContrasena()) ||
+      (this.rolesNuevaCuenta().length ? '' : 'Elige si la cuenta es de supervisor, de administrador o ambas.');
+    if (error) {
+      this.actionNotice.set(error);
+      return;
+    }
+    this.actionNotice.set('');
+    this.openPasswordDialog({ kind: 'create' });
+  }
+
   /** Pide confirmar con la contraseña antes de cambiar un rol. */
   requestRoleChange(user: AdminUser, role: Role, enabled: boolean): void {
     if (this.isSelf(user) && role === 'Administrador' && !enabled) return;
@@ -547,6 +580,25 @@ export class AdminPanel {
   }
 
   private async applyChange(change: PendingChange, contrasena: string): Promise<string> {
+    if (change.kind === 'create') {
+      const respuesta = await firstValueFrom(this.http.post<{ mensaje: string }>(
+        API_URL + '/admin/usuarios',
+        {
+          nombres: this.nuevaNombres().trim(),
+          apellidos: this.nuevaApellidos().trim(),
+          correo: this.nuevaCorreo().trim(),
+          contrasena: this.nuevaContrasena(),
+          roles: this.rolesNuevaCuenta(),
+          contrasenaAdministrador: contrasena
+        },
+        this.options()
+      ));
+      for (const campo of [this.nuevaNombres, this.nuevaApellidos, this.nuevaCorreo, this.nuevaContrasena]) campo.set('');
+      this.nuevaSupervisor.set(false);
+      this.nuevaAdministrador.set(false);
+      await this.loadUsers();
+      return respuesta.mensaje;
+    }
     if (change.kind === 'delete') {
       const respuesta = await firstValueFrom(this.http.post<{ mensaje: string }>(
         API_URL + '/admin/catalogos/' + change.catalog + '/' + change.id + '/eliminar',

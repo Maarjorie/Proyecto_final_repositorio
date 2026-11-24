@@ -599,3 +599,32 @@ fieldset.bloque-revision > legend {
     margin-left: 0;
   }
 }
+
+/* Entrega en revisión (RF-19) */
+.estado-fila {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.estado.en-revision {
+  border-color: transparent;
+  color: #fff;
+  background: linear-gradient(145deg, #2f6f93, #1c4a6b);
+}
+
+.decision.iniciar {
+  color: #fff;
+  background: linear-gradient(145deg, #2f6f93, #1c4a6b);
+}
+
+/* Antes de empezar la revisión solo se ven dos líneas del resumen */
+.resumen-corto {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  white-space: normal;
+}

@@ -231,6 +231,11 @@
   background: rgba(104, 198, 221, 0.35);
 }
 
+.estado.revision {
+  background: rgba(47, 111, 147, 0.85);
+  color: #fff;
+}
+
 .estado.correcciones {
   background: rgba(255, 224, 161, 0.72);
   color: #604414;

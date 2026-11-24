@@ -7,7 +7,7 @@ SET client_min_messages = warning;
 
 BEGIN;
 
--- 1. tbl_rol: Roles del sistema: usuario, supervisor y administrador.
+-- 1. tbl_rol: roles del sistema (usuario, supervisor y administrador).
 CREATE TABLE tbl_rol (
     id_rol serial,
     nombre_rol character varying(50) NOT NULL,
@@ -17,7 +17,7 @@ CREATE TABLE tbl_rol (
     CONSTRAINT ck_rol_nombre CHECK ((((nombre_rol)::text <> ''::text) AND ((nombre_rol)::text = lower(TRIM(BOTH FROM nombre_rol)))))
 );
 
--- 2. tbl_usuario: Cuentas de las personas que usan el sistema.
+-- 2. tbl_usuario: cuentas de las personas que usan el sistema.
 CREATE TABLE tbl_usuario (
     id_usuario serial,
     nombres character varying(100) NOT NULL,
@@ -34,7 +34,7 @@ CREATE TABLE tbl_usuario (
     CONSTRAINT ck_usuario_nombres CHECK ((TRIM(BOTH FROM nombres) <> ''::text))
 );
 
--- 3. tbl_usuario_rol: Roles de cada cuenta.
+-- 3. tbl_usuario_rol: roles de cada cuenta.
 CREATE TABLE tbl_usuario_rol (
     id_usuario integer NOT NULL,
     id_rol integer NOT NULL,
@@ -43,7 +43,7 @@ CREATE TABLE tbl_usuario_rol (
     CONSTRAINT fk_usuario_rol_usuario FOREIGN KEY (id_usuario) REFERENCES tbl_usuario(id_usuario) ON DELETE RESTRICT
 );
 
--- 4. tbl_departamento: Departamentos de la facultad.
+-- 4. tbl_departamento: departamentos de la facultad.
 CREATE TABLE tbl_departamento (
     id_departamento serial,
     nombre character varying(150) NOT NULL,
@@ -52,7 +52,7 @@ CREATE TABLE tbl_departamento (
     CONSTRAINT ck_departamento_nombre CHECK ((TRIM(BOTH FROM nombre) <> ''::text))
 );
 
--- 5. tbl_carrera: Carreras de cada departamento.
+-- 5. tbl_carrera: carreras de cada departamento.
 CREATE TABLE tbl_carrera (
     id_carrera serial,
     codigo character varying(20) NOT NULL,
@@ -65,7 +65,7 @@ CREATE TABLE tbl_carrera (
     CONSTRAINT ck_carrera_nombre CHECK ((TRIM(BOTH FROM nombre) <> ''::text))
 );
 
--- 6. tbl_materia: Materias de los planes de estudio.
+-- 6. tbl_materia: materias de los planes de estudio.
 CREATE TABLE tbl_materia (
     id_materia serial,
     codigo character varying(20) NOT NULL,
@@ -77,7 +77,7 @@ CREATE TABLE tbl_materia (
     CONSTRAINT ck_materia_nombre CHECK ((TRIM(BOTH FROM nombre) <> ''::text))
 );
 
--- 7. tbl_carrera_materia: Plan de estudios: materias de cada carrera y su ciclo.
+-- 7. tbl_carrera_materia: plan de estudios, con el ciclo de cada materia en la carrera.
 CREATE TABLE tbl_carrera_materia (
     id_carrera integer NOT NULL,
     id_materia integer NOT NULL,
@@ -91,7 +91,7 @@ CREATE INDEX ix_carrera_materia_materia ON tbl_carrera_materia USING btree (id_m
 COMMENT ON TABLE tbl_carrera_materia IS 'Materias del plan de estudios de cada carrera.';
 COMMENT ON COLUMN tbl_carrera_materia.ciclo IS 'Ciclo en que se cursa la materia (1 a 14).';
 
--- 8. tbl_docente: Docentes que pueden ser asesores.
+-- 8. tbl_docente: docentes que pueden ser asesores.
 CREATE TABLE tbl_docente (
     id_docente serial,
     id_usuario integer NOT NULL,
@@ -107,7 +107,7 @@ CREATE TABLE tbl_docente (
 CREATE INDEX ix_docente_departamento ON tbl_docente USING btree (id_departamento);
 COMMENT ON COLUMN tbl_docente.id_departamento IS 'Departamento del docente.';
 
--- 9. tbl_materia_docente: Docentes que imparten cada materia.
+-- 9. tbl_materia_docente: docentes que imparten cada materia.
 CREATE TABLE tbl_materia_docente (
     id_materia integer NOT NULL,
     id_docente integer NOT NULL,
@@ -118,7 +118,7 @@ CREATE TABLE tbl_materia_docente (
 CREATE INDEX ix_materia_docente_docente ON tbl_materia_docente USING btree (id_docente);
 COMMENT ON TABLE tbl_materia_docente IS 'Docentes que imparten cada materia.';
 
--- 10. tbl_tematica: Áreas temáticas para clasificar los trabajos.
+-- 10. tbl_tematica: áreas temáticas para clasificar los trabajos.
 CREATE TABLE tbl_tematica (
     id_tematica serial,
     nombre character varying(100) NOT NULL,
@@ -128,7 +128,7 @@ CREATE TABLE tbl_tematica (
     CONSTRAINT ck_tematica_nombre CHECK ((((nombre)::text <> ''::text) AND ((nombre)::text = lower(TRIM(BOTH FROM nombre)))))
 );
 
--- 11. tbl_tipo_proyecto: Tipos de trabajo.
+-- 11. tbl_tipo_proyecto: tipos de trabajo.
 CREATE TABLE tbl_tipo_proyecto (
     id_tipo_proyecto serial,
     nombre character varying(50) NOT NULL,
@@ -138,7 +138,7 @@ CREATE TABLE tbl_tipo_proyecto (
     CONSTRAINT ck_tipo_proyecto_nombre CHECK ((((nombre)::text <> ''::text) AND ((nombre)::text = lower(TRIM(BOTH FROM nombre)))))
 );
 
--- 12. tbl_etiquetas: Palabras clave.
+-- 12. tbl_etiquetas: palabras clave.
 CREATE TABLE tbl_etiquetas (
     id_etiqueta serial,
     nombre character varying(60) NOT NULL,
@@ -147,7 +147,7 @@ CREATE TABLE tbl_etiquetas (
     CONSTRAINT ck_etiqueta_nombre CHECK ((((nombre)::text <> ''::text) AND ((nombre)::text = lower(TRIM(BOTH FROM nombre)))))
 );
 
--- 13. tbl_proyecto: Trabajos académicos.
+-- 13. tbl_proyecto: trabajos académicos.
 CREATE TABLE tbl_proyecto (
     id_proyecto serial,
     titulo character varying(300) NOT NULL,
@@ -177,7 +177,7 @@ CREATE TABLE tbl_proyecto (
     CONSTRAINT ck_proyecto_titulo CHECK ((TRIM(BOTH FROM titulo) <> ''::text))
 );
 
--- 14. tbl_autor: Estudiantes autores de los trabajos.
+-- 14. tbl_autor: estudiantes autores de los trabajos.
 CREATE TABLE tbl_autor (
     id_autor serial,
     nombres character varying(100) NOT NULL,
@@ -193,7 +193,7 @@ CREATE TABLE tbl_autor (
     CONSTRAINT ck_autor_nombres CHECK ((TRIM(BOTH FROM nombres) <> ''::text))
 );
 
--- 15. tbl_proyecto_autor: Autores de cada proyecto y su orden.
+-- 15. tbl_proyecto_autor: autores de cada proyecto y su orden.
 CREATE TABLE tbl_proyecto_autor (
     id_proyecto integer NOT NULL,
     id_autor integer NOT NULL,
@@ -205,7 +205,7 @@ CREATE TABLE tbl_proyecto_autor (
     CONSTRAINT ck_proyecto_orden_autoria CHECK ((orden_autoria > 0))
 );
 
--- 16. tbl_proyecto_docente: Asesores de cada proyecto.
+-- 16. tbl_proyecto_docente: asesores de cada proyecto.
 CREATE TABLE tbl_proyecto_docente (
     id_proyecto integer NOT NULL,
     id_docente integer NOT NULL,
@@ -216,7 +216,7 @@ CREATE TABLE tbl_proyecto_docente (
 );
 COMMENT ON COLUMN tbl_proyecto_docente.nombre_autorizado IS 'Si se puede mostrar el nombre del asesor en la ficha.';
 
--- 17. tbl_proyecto_etiqueta: Palabras clave de cada proyecto.
+-- 17. tbl_proyecto_etiqueta: palabras clave de cada proyecto.
 CREATE TABLE tbl_proyecto_etiqueta (
     id_proyecto integer NOT NULL,
     id_etiqueta integer NOT NULL,
@@ -225,7 +225,7 @@ CREATE TABLE tbl_proyecto_etiqueta (
     CONSTRAINT fk_proyecto_etiqueta_proyecto FOREIGN KEY (id_proyecto) REFERENCES tbl_proyecto(id_proyecto) ON DELETE RESTRICT
 );
 
--- 18. tbl_entrega: Envíos de cada proyecto: original, reenvíos y actualizaciones.
+-- 18. tbl_entrega: envíos de cada proyecto (original, reenvíos y actualizaciones).
 CREATE TABLE tbl_entrega (
     id_entrega serial,
     id_proyecto integer NOT NULL,
@@ -239,13 +239,18 @@ CREATE TABLE tbl_entrega (
     CONSTRAINT fk_entrega_proyecto FOREIGN KEY (id_proyecto) REFERENCES tbl_proyecto(id_proyecto) ON DELETE RESTRICT,
     CONSTRAINT fk_entrega_usuario_envia FOREIGN KEY (id_usuario_envia) REFERENCES tbl_usuario(id_usuario) ON DELETE RESTRICT,
     CONSTRAINT fk_entrega_usuario_revisa FOREIGN KEY (id_usuario_revisa) REFERENCES tbl_usuario(id_usuario) ON DELETE RESTRICT,
-    CONSTRAINT ck_entrega_estado CHECK (((estado_entrega)::text = ANY (ARRAY[('pendiente'::character varying)::text, ('aprobada'::character varying)::text, ('con_correcciones'::character varying)::text, ('rechazada'::character varying)::text]))),
+    CONSTRAINT ck_entrega_estado CHECK (estado_entrega IN ('pendiente', 'en_revision', 'aprobada', 'con_correcciones', 'rechazada')),
     CONSTRAINT ck_entrega_fechas CHECK (((fecha_revision IS NULL) OR (fecha_revision >= fecha_envio))),
-    CONSTRAINT ck_entrega_revision CHECK (((((estado_entrega)::text = 'pendiente'::text) AND (fecha_revision IS NULL)) OR (((estado_entrega)::text = ANY (ARRAY[('aprobada'::character varying)::text, ('con_correcciones'::character varying)::text, ('rechazada'::character varying)::text])) AND (id_usuario_revisa IS NOT NULL) AND (fecha_revision IS NOT NULL))))
+    -- Pendiente: nadie la ha tomado. En revisión: ya tiene supervisor, falta la decisión.
+    CONSTRAINT ck_entrega_revision CHECK (
+        (estado_entrega = 'pendiente' AND fecha_revision IS NULL)
+        OR (estado_entrega = 'en_revision' AND id_usuario_revisa IS NOT NULL AND fecha_revision IS NULL)
+        OR (estado_entrega IN ('aprobada', 'con_correcciones', 'rechazada')
+            AND id_usuario_revisa IS NOT NULL AND fecha_revision IS NOT NULL))
 );
 COMMENT ON COLUMN tbl_entrega.datos_propuestos IS 'Cambios pedidos para un trabajo publicado; se aplican al aprobar.';
 
--- 19. tbl_tipo_recurso: Tipos de material: pdf, zip o enlace.
+-- 19. tbl_tipo_recurso: tipos de material (pdf, zip o enlace).
 CREATE TABLE tbl_tipo_recurso (
     id_tipo_recurso serial,
     nombre character varying(50) NOT NULL,
@@ -255,7 +260,7 @@ CREATE TABLE tbl_tipo_recurso (
     CONSTRAINT ck_tipo_recurso_nombre CHECK ((((nombre)::text <> ''::text) AND ((nombre)::text = lower(TRIM(BOTH FROM nombre)))))
 );
 
--- 20. tbl_recurso: Materiales de cada entrega.
+-- 20. tbl_recurso: materiales de cada entrega.
 CREATE TABLE tbl_recurso (
     id_recurso serial,
     id_entrega integer NOT NULL,
@@ -271,7 +276,7 @@ CREATE TABLE tbl_recurso (
 );
 COMMENT ON COLUMN tbl_recurso.difusion_autorizada IS 'Si el material se puede descargar desde el catálogo.';
 
--- 21. tbl_notificacion: Avisos que recibe el solicitante.
+-- 21. tbl_notificacion: avisos que recibe el solicitante.
 CREATE TABLE tbl_notificacion (
     id_notificacion serial,
     id_entrega integer NOT NULL,
@@ -286,7 +291,7 @@ CREATE TABLE tbl_notificacion (
     CONSTRAINT ck_notificacion_mensaje CHECK ((TRIM(BOTH FROM mensaje) <> ''::text))
 );
 
--- 22. tbl_historial: Registro de acciones sobre los proyectos.
+-- 22. tbl_historial: registro de acciones sobre los proyectos.
 CREATE TABLE tbl_historial (
     id_historial serial,
     id_usuario integer NOT NULL,
@@ -300,7 +305,7 @@ CREATE TABLE tbl_historial (
     CONSTRAINT ck_historial_accion CHECK ((((accion)::text <> ''::text) AND ((accion)::text = lower(TRIM(BOTH FROM accion)))))
 );
 
--- 23. tbl_favorito: Proyectos guardados por cada usuario.
+-- 23. tbl_favorito: proyectos guardados por cada usuario.
 CREATE TABLE tbl_favorito (
     id_usuario integer NOT NULL,
     id_proyecto integer NOT NULL,

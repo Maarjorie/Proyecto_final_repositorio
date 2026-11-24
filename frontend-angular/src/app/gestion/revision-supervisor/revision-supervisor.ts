@@ -27,6 +27,9 @@ interface AsesorRevision {
 interface EntregaRevision {
   id: number;
   idProyecto: number;
+  /** RF-19: un supervisor ya empezó a revisarla. */
+  enRevision: boolean;
+  revisadaPor: string | null;
   titulo: string;
   tipoTrabajo: string;
   anio: number;
@@ -434,6 +437,29 @@ export class RevisionSupervisorComponent implements OnInit {
     borrador.recursos = marcado
       ? [...borrador.recursos, idRecurso]
       : borrador.recursos.filter(id => id !== idRecurso);
+  }
+
+  /** Marca la entrega como "en revisión"; el solicitante lo ve en Mis proyectos. */
+  iniciarRevision(entrega: EntregaRevision): void {
+    this.ejecutar(
+      entrega.id,
+      this.http.post<{ mensaje: string }>(
+        API_URL + '/revision/' + entrega.id + '/iniciar',
+        {},
+        { headers: this.cabeceras() ?? {} }
+      ),
+      () => {
+        entrega.enRevision = true;
+        entrega.revisadaPor = 'tú';
+      },
+      error => {
+        this.errorEntregaId = entrega.id;
+        // Otro supervisor ya la tomó o la decidió: se recarga la fila.
+        if (error instanceof HttpErrorResponse && error.status === 409) {
+          this.cargarPendientes();
+        }
+      }
+    );
   }
 
   decidir(entrega: EntregaRevision, decision: DecisionRevision): void {

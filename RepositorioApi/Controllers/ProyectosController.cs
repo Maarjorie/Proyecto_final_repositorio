@@ -620,6 +620,8 @@ public sealed class ProyectosController : ControllerBase
             ultimaActualizacion = entrega.FechaRevision ?? entrega.FechaEnvio,
             version = versiones[entrega.IdEntrega],
             estado = TraducirEstado(entrega.EstadoEntrega),
+            respuestaEstimada = RespuestaEstimada(entrega),
+            publicacion = EstadoDeLaPublicacion(entrega),
             puedeEliminar = entrega.EstadoEntrega == "pendiente",
             puedeReenviar = PuedeReenviar(entrega, ultimasPorProyecto.Contains(entrega.IdEntrega)),
             puedeActualizar = PuedeActualizar(entrega, ultimasPorProyecto.Contains(entrega.IdEntrega)),
@@ -726,6 +728,8 @@ public sealed class ProyectosController : ControllerBase
                   entrega.IdUsuarioRevisaNavigation.Apellidos,
             version,
             estado = TraducirEstado(entrega.EstadoEntrega),
+            respuestaEstimada = RespuestaEstimada(entrega),
+            publicacion = EstadoDeLaPublicacion(entrega),
             puedeEliminar = entrega.EstadoEntrega == "pendiente",
             autores = propuesta is not null
                 ? propuesta.Autores.Select(autor => new
@@ -1007,10 +1011,30 @@ public sealed class ProyectosController : ControllerBase
         entrega.EstadoEntrega == "aprobada" &&
         entrega.IdProyectoNavigation.EstadoPublicacion == "publicado";
 
+    /// <summary>RF-19: el supervisor da una primera respuesta en unas 24 horas.</summary>
+    private static DateTime? RespuestaEstimada(TblEntrega entrega) =>
+        entrega.EstadoEntrega is "pendiente" or "en_revision" ? entrega.FechaEnvio.AddHours(24) : null;
+
+    /// <summary>RF-07: una entrega aprobada solo se publica cuando hay permiso de los autores.</summary>
+    private static string? EstadoDeLaPublicacion(TblEntrega entrega)
+    {
+        if (entrega.EstadoEntrega != "aprobada") return null;
+        var proyecto = entrega.IdProyectoNavigation;
+        return proyecto.EstadoPublicacion switch
+        {
+            "publicado" => "Publicado en el catálogo",
+            "retirado" => "Retirado del catálogo",
+            _ => proyecto.EstadoAutorizacion == "no_autorizado"
+                ? "No se publica: los autores no autorizaron la difusión"
+                : "En espera del permiso de los autores"
+        };
+    }
+
     private static string TraducirEstado(string estado) =>
         estado.ToLowerInvariant() switch
         {
             "pendiente" => "Pendiente",
+            "en_revision" => "En revisión",
             "correcciones" or "con_correcciones" => "Con correcciones",
             "aprobada" or "aprobado" => "Aprobada",
             "rechazada" or "rechazado" => "Rechazada",

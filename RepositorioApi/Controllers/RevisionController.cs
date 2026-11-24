@@ -36,7 +36,8 @@ public sealed class RevisionController : ControllerBase
         var entregas = await _db.TblEntregas
             .AsNoTracking()
             .AsSplitQuery()
-            .Where(entrega => entrega.EstadoEntrega == "pendiente")
+            .Where(entrega => entrega.EstadoEntrega == "pendiente" || entrega.EstadoEntrega == "en_revision")
+            .Include(entrega => entrega.IdUsuarioRevisaNavigation)
             .Include(entrega => entrega.IdProyectoNavigation)
                 .ThenInclude(proyecto => proyecto.IdTipoProyectoNavigation)
             .Include(entrega => entrega.IdProyectoNavigation)
@@ -56,7 +57,9 @@ public sealed class RevisionController : ControllerBase
             .Include(entrega => entrega.IdUsuarioEnviaNavigation)
             .Include(entrega => entrega.TblRecursos)
                 .ThenInclude(recurso => recurso.IdTipoRecursoNavigation)
+            // RF-21: por orden de llegada; si coinciden, primero el id menor.
             .OrderBy(entrega => entrega.FechaEnvio)
+            .ThenBy(entrega => entrega.IdEntrega)
             .ToListAsync(cancellationToken);
 
         var idsProyecto = entregas.Select(entrega => entrega.IdProyecto).Distinct().ToList();
@@ -78,6 +81,10 @@ public sealed class RevisionController : ControllerBase
             {
                 id = entrega.IdEntrega,
                 idProyecto = entrega.IdProyecto,
+                enRevision = entrega.EstadoEntrega == "en_revision",
+                revisadaPor = entrega.EstadoEntrega == "en_revision" && entrega.IdUsuarioRevisaNavigation != null
+                    ? entrega.IdUsuarioRevisaNavigation.Nombres + " " + entrega.IdUsuarioRevisaNavigation.Apellidos
+                    : null,
                 esActualizacion = propuesta is not null,
                 titulo = propuesta?.Titulo ?? proyecto.Titulo,
                 tipoTrabajo = vista?.TipoTrabajo ?? proyecto.IdTipoProyectoNavigation.Nombre,
@@ -115,6 +122,55 @@ public sealed class RevisionController : ControllerBase
         }
 
         return Ok(resultado);
+    }
+
+    /// <summary>RF-19: el supervisor empieza a revisar una entrega y el solicitante lo ve.</summary>
+    [HttpPost("{idEntrega:int}/iniciar")]
+    public async Task<IActionResult> IniciarRevision(int idEntrega, CancellationToken cancellationToken)
+    {
+        if (!TryObtenerUsuario(out var idSupervisor))
+        {
+            return Unauthorized();
+        }
+
+        var entrega = await _db.TblEntregas
+            .Include(item => item.IdProyectoNavigation)
+            .FirstOrDefaultAsync(item => item.IdEntrega == idEntrega, cancellationToken);
+        if (entrega is null)
+        {
+            return NotFound(new { mensaje = "No se encontró la entrega." });
+        }
+
+        if (entrega.EstadoEntrega != "pendiente")
+        {
+            return Conflict(new { mensaje = "Esta entrega ya está en revisión o tiene una decisión registrada." });
+        }
+
+        if (entrega.IdUsuarioEnvia == idSupervisor)
+        {
+            return Conflict(new { mensaje = "No puedes revisar una entrega que enviaste tú; debe revisarla otro supervisor." });
+        }
+
+        entrega.EstadoEntrega = "en_revision";
+        entrega.IdUsuarioRevisa = idSupervisor;
+
+        _db.TblHistorials.Add(new TblHistorial
+        {
+            IdUsuario = idSupervisor,
+            IdProyecto = entrega.IdProyecto,
+            Accion = "revisión",
+            Detalle = "El supervisor empezó a revisar la entrega."
+        });
+
+        _db.TblNotificacions.Add(new TblNotificacion
+        {
+            IdEntrega = entrega.IdEntrega,
+            IdUsuarioDestino = entrega.IdUsuarioEnvia,
+            Mensaje = "Tu entrega «" + entrega.IdProyectoNavigation.Titulo + "» está en revisión."
+        });
+
+        await _db.SaveChangesAsync(cancellationToken);
+        return Ok(new { mensaje = "La entrega quedó en revisión." });
     }
 
     /// <summary>RF-18: aprueba, pide correcciones o rechaza una entrega.</summary>
@@ -184,7 +240,8 @@ public sealed class RevisionController : ControllerBase
             return NotFound(new { mensaje = "No se encontró la entrega." });
         }
 
-        if (entrega.EstadoEntrega != "pendiente")
+        // Se decide sobre una entrega pendiente o en revisión, aunque la haya empezado otro supervisor.
+        if (entrega.EstadoEntrega is not ("pendiente" or "en_revision"))
         {
             return Conflict(new { mensaje = "Esta entrega ya tiene una decisión registrada." });
         }

@@ -75,7 +75,7 @@ export class Catalogo implements OnInit {
   readonly selectedSubjects = signal<string[]>([]);
   /** Filtro por autor. */
   readonly selectedAuthors = signal<string[]>([]);
-  readonly sortOrder = signal('recent');
+  readonly sortOrder = signal('relevance');
   readonly page = signal(1);
   readonly pageSize = 10;
   /** Los favoritos requieren sesión. */
@@ -207,6 +207,9 @@ export class Catalogo implements OnInit {
         title,
         author,
         topic,
+        keywords: normalizar(work.keywords.join(' ')),
+        summary: normalizar(work.summary),
+        area: normalizar(`${work.area} ${work.subject}`),
         all: `${title} ${author} ${topic} ${normalizar(`${work.career} ${work.type} ${work.subject} ${work.advisor} ${work.year}`)}`
       });
     }
@@ -216,11 +219,44 @@ export class Catalogo implements OnInit {
   /** Cada palabra buscada debe aparecer, en cualquier orden. */
   private readonly searchTerms = computed(() => normalizar(this.query()).split(/\s+/).filter(Boolean));
 
+  /**
+   * Qué tan bien coincide una ficha con lo buscado: pesa más el título, luego
+   * las palabras clave y los autores, y al final el resumen.
+   */
+  private coincidencia(work: Work, terms: string[]): number {
+    const campos = this.searchIndex().get(work.id);
+    if (!campos) return 0;
+    // Una palabra completa vale el doble que un pedazo ("agua" frente a "Guatajiagua").
+    const valor = (texto: string, termino: string, peso: number) => {
+      if (!texto.includes(termino)) return 0;
+      const completa = texto.split(/[^a-z0-9ñ]+/).includes(termino);
+      return completa ? peso * 2 : peso;
+    };
+    let puntos = 0;
+    for (const termino of terms) {
+      puntos += valor(campos['title'], termino, 6);
+      puntos += valor(campos['keywords'], termino, 4);
+      puntos += valor(campos['author'], termino, 4);
+      puntos += valor(campos['area'], termino, 2);
+      puntos += valor(campos['summary'], termino, 1);
+    }
+    return puntos;
+  }
+
   /** Resultado con filtros y orden aplicados. */
   readonly filteredWorks = computed(() => {
     const results = this.publicWorks().filter((work) => this.matches(work, null));
     const order = this.sortOrder();
+    const terms = this.searchTerms();
+    // Sin búsqueda, "más relevantes" muestra primero los más recientes.
+    const puntos = order === 'relevance' && terms.length
+      ? new Map(results.map((work) => [work.id, this.coincidencia(work, terms)]))
+      : null;
     return [...results].sort((a, b) => {
+      if (puntos) {
+        const diferencia = (puntos.get(b.id) ?? 0) - (puntos.get(a.id) ?? 0);
+        if (diferencia !== 0) return diferencia;
+      }
       if (order === 'featured' && a.featured !== b.featured) return a.featured ? -1 : 1;
       if (order === 'title') return a.title.localeCompare(b.title, 'es');
       const byYear = order === 'old' ? a.year - b.year : b.year - a.year;
@@ -426,7 +462,7 @@ export class Catalogo implements OnInit {
       return;
     }
     const campos = ['all', 'title', 'author', 'topic'];
-    const ordenes = ['recent', 'old', 'title', 'featured'];
+    const ordenes = ['relevance', 'recent', 'old', 'title', 'featured'];
     this.query.set(params.get('q') ?? '');
     if (campos.includes(params.get('campo') ?? '')) this.searchScope.set(params.get('campo')!);
     if (ordenes.includes(params.get('orden') ?? '')) this.sortOrder.set(params.get('orden')!);
@@ -455,7 +491,7 @@ export class Catalogo implements OnInit {
     this.selectedSubjects().forEach((value) => params.append('materia', value));
     this.selectedAuthors().forEach((value) => params.append('autor', value));
     if (this.favoritesOnly()) params.set('favoritos', '1');
-    if (this.sortOrder() !== 'recent') params.set('orden', this.sortOrder());
+    if (this.sortOrder() !== 'relevance') params.set('orden', this.sortOrder());
     if (this.page() > 1) params.set('pagina', String(this.page()));
 
     const location = globalThis.location;
