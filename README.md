@@ -1,4 +1,4 @@
-# Repositorio Digital de Proyectos y Trabajos de Grado — UES FMO
+# Repositorio Digital de Proyectos y Trabajos de Grado (UES FMO)
 
 Catálogo web de trabajos de graduación y proyectos de curso de la Universidad de El Salvador,
 Facultad Multidisciplinaria Oriental. El solicitante envía su trabajo, el supervisor lo revisa y
@@ -15,10 +15,10 @@ archivos (RNF-06).
 | `RepositorioApi/Controllers/` | Endpoints: autenticación, proyectos, revisión, catálogo, favoritos, administración |
 | `RepositorioApi/App_Data/entregas/` | Archivos subidos (PDF y ZIP), una carpeta por entrega. No se sube al repositorio |
 | `frontend-angular/` | Interfaz en Angular |
-| `docker/` | Instalación con Docker. `db/01_tablas.sql` crea las tablas en orden y `db/02_datos.sql` carga los datos de prueba |
 | `frontend-angular/src/app/catalogo/` | Catálogo público: búsqueda, filtros, ficha y favoritos |
 | `frontend-angular/src/app/publicaciones/` | Envío de proyectos, Mis proyectos y notificaciones |
-| `frontend-angular/src/app/gestion/` | Panel del supervisor y del administrador |
+| `frontend-angular/src/app/gestion/` | Panel del supervisor, estadísticas y panel del administrador |
+| `docker/` | Instalación con Docker. `db/01_tablas.sql` crea las tablas en orden, `db/02_datos.sql` carga los datos de prueba y `entregas/` trae los PDF y ZIP de ejemplo |
 
 ## Instalación rápida (recomendada)
 
@@ -41,8 +41,8 @@ compila y se ejecuta dentro de contenedores.
    docker compose up --build
    ```
 
-   La primera vez tarda varios minutos (descarga las imágenes y compila). Está listo cuando la
-   terminal deja de mostrar mensajes nuevos.
+   La primera vez tarda varios minutos (descarga las imágenes y compila). Está listo cuando
+   aparece una línea parecida a `Application started` y la terminal deja de mostrar mensajes nuevos.
 4. Abrir **http://localhost:4200** en el navegador.
 
 ### Cuentas de prueba
@@ -51,9 +51,9 @@ Todas usan la contraseña **Repositorio2026**.
 
 | Rol | Correo | Qué puede probar |
 |---|---|---|
-| Administrador | `admin@example.com` | Cuentas y roles, docentes, carreras, materias y demás catálogos |
-| Supervisor | `carlos.ventura@example.com` | Revisar entregas pendientes, permisos, destacar, retirar y estadísticas |
-| Solicitante | `da18379@example.com` | Subir un proyecto, Mis proyectos (con entregas aprobadas, pendientes y con correcciones), notificaciones y favoritos |
+| Administrador | `admin@example.com` | Crear cuentas de supervisor y administrador, asignar roles, habilitar cuentas, docentes, carreras, materias y demás catálogos |
+| Supervisor | `carlos.ventura@example.com` | Empezar la revisión de las entregas pendientes, decidir, registrar permisos, destacar, retirar y ver estadísticas |
+| Solicitante | `da18379@example.com` | Subir un proyecto y seguir sus entregas (tiene un trabajo publicado y otro en revisión que antes recibió correcciones), notificaciones y favoritos |
 
 El catálogo público se puede ver sin iniciar sesión. La base de prueba trae 301 proyectos
 (219 publicados), 15 entregas pendientes de revisión, 33 carreras y 8 departamentos.
@@ -96,6 +96,7 @@ docker run -d --name postgres17 -e POSTGRES_PASSWORD=TU_CONTRASEÑA -p 5434:5432
 docker exec postgres17 psql -U postgres -c "CREATE DATABASE repositorio_db"
 Get-Content docker/db/01_tablas.sql | docker exec -i postgres17 psql -U postgres -d repositorio_db
 Get-Content docker/db/02_datos.sql | docker exec -i postgres17 psql -U postgres -d repositorio_db
+New-Item -ItemType Directory -Force RepositorioApi/App_Data | Out-Null
 Copy-Item -Recurse docker/entregas RepositorioApi/App_Data/entregas
 ```
 
@@ -131,8 +132,8 @@ npm start
 
 ### 4. Primer administrador
 
-Las cuentas se crean desde **Registrarse** con el rol de solicitante. Para que una cuenta sea
-administradora, después de registrarla:
+Con los datos de prueba ya existe `admin@example.com`. En una base sin cuentas, la persona se
+registra desde **Registrarse** y después se le da el rol de administrador:
 
 ```sql
 INSERT INTO tbl_usuario_rol (id_usuario, id_rol)
@@ -140,17 +141,18 @@ SELECT u.id_usuario, r.id_rol FROM tbl_usuario u, tbl_rol r
 WHERE u.correo = 'TU_CORREO' AND r.nombre_rol = 'administrador';
 ```
 
-Desde el panel de administración se asignan los demás roles (supervisor, administrador), se registran
-docentes y se gestionan materias, temáticas, carreras y departamentos. Los cambios de rol aplican al
-volver a iniciar sesión.
+Desde el panel de administración se crean las cuentas de supervisor y administrador, se asignan
+roles a cuentas existentes, se registran docentes y se gestionan materias, temáticas, carreras y
+departamentos. Los estudiantes crean su propia cuenta. Los cambios de rol aplican al volver a
+iniciar sesión.
 
 ## Pantallas por rol
 
 | Rol | Pantallas |
 |---|---|
-| Lector (sin cuenta) | Catálogo `/catalogo` |
-| Solicitante | Subir proyecto `/publicar`, Mis proyectos `/mis-proyectos`, Notificaciones, favoritos |
-| Supervisor | Revisión `/revision-supervisor` (pendientes, publicaciones y conteo por año y área) |
+| Visitante (sin cuenta) | Catálogo `/catalogo` |
+| Solicitante | Subir proyecto `/publicar`, Mis proyectos `/mis-proyectos`, Notificaciones `/notificaciones` y favoritos |
+| Supervisor | Revisión `/revision-supervisor` (pendientes y publicaciones) y Estadísticas `/estadisticas` |
 | Administrador | Administración `/admin` |
 
 ## Cambiar algo del catálogo (ejemplo)
@@ -165,9 +167,13 @@ Los estilos del catálogo están en `catalogo.css` y su lógica (búsqueda, filt
 
 ## Respaldo
 
-Hay que guardar **dos cosas**: la base y la carpeta de archivos subidos.
+Hay que guardar **dos cosas**: la base y la carpeta de archivos subidos. Estos comandos son para la
+instalación de desarrollo (contenedor `postgres17`). En la instalación con Docker los datos se
+conservan mientras no se ejecute `docker compose down -v`.
 
 ```powershell
+New-Item -ItemType Directory -Force respaldo | Out-Null
+
 # Base de datos
 docker exec postgres17 pg_dump -U postgres -d repositorio_db -F c -f /tmp/repositorio_db.backup
 docker cp postgres17:/tmp/repositorio_db.backup .\respaldo\repositorio_db.backup
@@ -181,5 +187,6 @@ Para restaurar:
 ```powershell
 docker cp .\respaldo\repositorio_db.backup postgres17:/tmp/repositorio_db.backup
 docker exec postgres17 pg_restore -U postgres -d repositorio_db --clean --if-exists /tmp/repositorio_db.backup
-Copy-Item -Recurse .\respaldo\entregas RepositorioApi\App_Data\entregas
+New-Item -ItemType Directory -Force RepositorioApi\App_Data\entregas | Out-Null
+Copy-Item -Recurse -Force .\respaldo\entregas\* RepositorioApi\App_Data\entregas
 ```
